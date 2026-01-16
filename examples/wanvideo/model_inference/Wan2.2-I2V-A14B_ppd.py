@@ -112,7 +112,7 @@ if __name__ == "__main__":
     download_models(["Wan2.2-I2V-A14B"])
     pipe = WanVideoPipeline.from_pretrained(
         torch_dtype=torch.bfloat16,
-        device="cuda",
+        device="cuda:0",
         model_configs=[
             ModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="high_noise_model/diffusion_pytorch_model*.safetensors", offload_device="cpu"),
             ModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="low_noise_model/diffusion_pytorch_model*.safetensors", offload_device="cpu"),
