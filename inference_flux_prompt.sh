@@ -12,4 +12,4 @@ docker run -it --gpus all \
         --lora_checkpoint_path /workspace/models/ppd/flux1-dev_phipd_lora_302000.safetensors \
         --input_image /workspace/models/ppd/test1.jpg \
         --prompt \"\$(cat /workspace/models/ppd/test1_jungle.txt)\" \
-        --output output.png --radius 30"
+        --output outputs/test1/prompt/jungle.png --radius 30"
