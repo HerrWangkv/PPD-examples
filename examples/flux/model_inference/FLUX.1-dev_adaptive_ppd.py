@@ -43,37 +43,27 @@ def save_debug_mask(mask_tensor, width, height, filename="debug_mask.png"):
     except Exception as e:
         print(f"   -> 保存调试 Mask 失败: {e}")
 
-def get_gradient_mask(pipe, latents, prompt_embeds, pooled_prompt_embeds, text_ids, radius, sensitivity, device, dtype, guidance_scale=2.0, save_debug_mask_filename="debug_mask.png"):
-    """
-    使用输入显著性 (Input Saliency/Gradient) 来生成 Adaptive Mask。
-    原理：
-    1. 计算 Output 相对于 Input 的梯度。
-    2. 高梯度 = 结构重要区域 (保留 PPD)。
-    3. 低梯度 = 平坦/背景区域 (使用随机噪声)。
-    """
-    print("🔍 正在运行基于梯度的结构检测 (Gradient Saliency)...")
+def get_gradient_mask(pipe, latents, prompt_embeds, pooled_prompt_embeds, text_ids, radius, sensitivity, device, dtype, guidance_scale=2.0, save_debug_mask_filename=None):
+    print("🔍 正在运行相位一致性冲突检测 (Phase-Only Conflict Detection)...")
     
-    # 1. 生成基础噪声源
-    # noise_base: 纯随机噪声 (用于背景重绘)
-    # noise_ppd: PPD 结构化噪声 (用于主体保留)
+    # 1. 准备 PPD 噪声
     noise_base = torch.randn_like(latents)
     noise_ppd = generate_structured_noise_batch_vectorized(
         latents, cutoff_radius=radius, input_noise=noise_base
     ).contiguous()
     
-    # 2. 准备探测变量
-    # 我们克隆 noise_ppd 并开启梯度追踪
+    # 开启梯度追踪
     noise_probe = noise_ppd.detach().clone().to(dtype).requires_grad_(True)
     
-    # 3. 运行单步推理 (Probe Step)
-    # 设置时间步为 t=1.0 (初始去噪步)
+    # 2. Probe Step (单步推理)
+    pipe.dit.train() # 开启 Gradient Checkpointing 节省显存
+    
     pipe.scheduler.set_timesteps(1)
     t_probe = pipe.scheduler.timesteps[0].unsqueeze(0).to(device)
     img_ids = pipe.dit.prepare_image_ids(latents)
     guidance = torch.full((latents.shape[0],), guidance_scale, device=device, dtype=dtype)
     
-    pipe.dit.train()
-    pred = pipe.dit(
+    pred_velocity = pipe.dit(
         hidden_states=noise_probe,
         timestep=t_probe,
         prompt_emb=prompt_embeds,
@@ -83,44 +73,68 @@ def get_gradient_mask(pipe, latents, prompt_embeds, pooled_prompt_embeds, text_i
         guidance=guidance,
         use_gradient_checkpointing=True
     )
-    pipe.dit.eval()
-    # 4. 计算梯度 (核心逻辑)
-    # 我们计算预测输出的 "能量" (Norm)，并反向传播看输入的哪些像素对这个能量贡献最大
-    target_loss = pred.norm() 
+    
+    pipe.dit.eval() 
+    
+    # 3. 计算相位一致性损失 (FFT)
+    fft_input = torch.fft.fft2(noise_probe.float())
+    fft_pred = torch.fft.fft2(pred_velocity.float())
+    
+    # 归一化幅度，只保留相位方向
+    phase_input = fft_input / (fft_input.abs() + 1e-6)
+    phase_pred = fft_pred / (fft_pred.abs() + 1e-6)
+    
+    # 计算相位对齐度 (Cosine Similarity)
+    phase_alignment = (phase_pred * phase_input.conj()).real.mean()
+    target_loss = -phase_alignment # 目标是最大化对齐，所以 Loss 是负的对齐度
+    
+    # 4. 计算梯度 (Saliency)
     grads = torch.autograd.grad(target_loss, noise_probe)[0]
+    conflict_map = grads.abs().mean(dim=1, keepdim=True) # [B, 1, H, W]
     
-    # 5. 处理梯度生成 Mask
-    # 取梯度的幅度 (Magnitude)
-    saliency_map = -grads.abs().mean(dim=1, keepdim=True) # [B, 1, H, W]
+    # 平滑处理 (Blur)
+    conflict_map = TF.gaussian_blur(conflict_map, kernel_size=5, sigma=1.5)
     
-    # 6. 后处理 Mask
-    # 高斯模糊：连接断裂的边缘，让 Mask 成块
-    saliency_map = TF.gaussian_blur(saliency_map, kernel_size=5, sigma=1.5)
+    # === 关键修改：自适应阈值 (Adaptive Thresholding) ===
+    # 我们不再使用 Quantile 强制切分，而是使用统计学分布 (Mean + Std)
     
-    # 鲁棒归一化 (Robust Normalization)
-    saliency_float = saliency_map.float().view(-1)
-    # 假设梯度最小的 30% 是完全的背景 (可根据需要调整)
-    low = saliency_float.quantile(0.3)
-    # 假设梯度最大的 5% 是绝对的结构
-    high = saliency_float.quantile(0.95)
+    map_float = conflict_map.float().view(-1)
+    mean_val = map_float.mean()
+    std_val = map_float.std()
     
-    mask_norm = (saliency_map.float() - low) / (high - low + 1e-6)
+    # 逻辑：
+    # 平均值 (mean) 代表了“背景噪音”或“平均冲突水平”。
+    # 真正的结构性冲突通常是异常值 (Outliers)。
+    # 我们定义：超过 (均值 + 3倍标准差) 的区域才是必须重绘的剧烈冲突。
+    
+    low = mean_val
+    # 3-Sigma 原则：覆盖 99.7% 的正常分布。只有极端的梯度会被视为冲突。
+    # 这里的系数 3.0 可以根据需要微调，但在 PPD 中通常 2.5 - 3.0 是比较稳健的。
+    high = mean_val + 1.0 * std_val 
+    
+    # 防止标准差为0导致的除零错误 (比如纯色图)
+    range_val = torch.max(high - low, torch.tensor(1e-6, device=device))
+    
+    # 归一化
+    mask_norm = (conflict_map.float() - low) / range_val
     mask_norm = torch.clamp(mask_norm, 0, 1)
     
-    # 应用 Sensitivity (灵敏度) 和 Sigmoid 增加对比度
-    # Sensitivity > 1 会让 Mask 更黑 (更多背景重绘)
-    # Sensitivity < 1 会让 Mask 更白 (更多结构保留)
-    # 注意：这里我们反转一下逻辑，让 Mask=1 代表保留 PPD
-    mask = torch.sigmoid((mask_norm - 0.5) * 10 * sensitivity)
+    # === 修改结束 ===
+    
+    # 反转逻辑：冲突(Mask=1) -> 重绘(0)；一致(Mask=0) -> 保留(1)
+    # 这里的 sensitivity 依然有效，用于调整 Sigmoid 的对比度坡度
+    mask = 1.0 - torch.sigmoid((mask_norm - 0.5) * 10 * sensitivity)
     mask = mask.to(dtype=dtype)
     
     # 保存调试图
-    save_debug_mask(mask, latents.shape[3]*8, latents.shape[2]*8, filename=save_debug_mask_filename)
+    if save_debug_mask_filename:
+        save_debug_mask(mask, latents.shape[3]*8, latents.shape[2]*8, filename=save_debug_mask_filename)
     
-    # 7. 噪声融合
-    # Mask (白色/高梯度) -> 使用 noise_ppd (原始结构)
-    # 1-Mask (黑色/低梯度) -> 使用 noise_base (随机生成)
+    # 8. 融合
     final_noise = mask * noise_ppd + (1 - mask) * noise_base
+    
+    print(f"    📈 Phase Alignment Score: {phase_alignment.item():.4f}")
+    print(f"    📊 Stats: Mean={mean_val:.5f}, Std={std_val:.5f} (Adaptive Threshold used)")
     
     return final_noise
 
