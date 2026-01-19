@@ -19,6 +19,6 @@ RUN pip install -r requirements.txt
 RUN pip install git+https://github.com/zengxianyu/structured-noise
 
 # Install opencv specifically (headless is better for servers/docker)
-RUN pip install opencv-python-headless
+RUN pip install opencv-python-headless scikit-learn
 
 CMD ["/bin/bash"]
