@@ -559,8 +559,6 @@ def launch_training_task(
                     loss = model(data)
                 accelerator.backward(loss)
                 optimizer.step()
-                avg_loss = accelerator.gather(loss).mean().item()
-                accelerator.log({"loss": avg_loss}, step=model_logger.num_steps)
                 model_logger.on_step_end(accelerator, model, save_steps)
                 scheduler.step()
         if save_steps is None:

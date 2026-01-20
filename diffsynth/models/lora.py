@@ -358,12 +358,12 @@ class FluxLoRAConverter:
             return None, None
         state_dict_ = {}
         for name, param in state_dict.items():
-            if name.endswith("alpha"):
-                name = name.replace("alpha", "lora_up.weight")
             block_id, source_name = guess_block_id(name)
             if source_name in rename_dict:
                 target_name = rename_dict[source_name]
                 target_name = target_name.replace(".blockid.", f".{block_id}.")
+                if target_name in state_dict_:
+                    raise ValueError(f"Duplicate key found: {target_name}")
                 state_dict_[target_name] = param
             else:
                 state_dict_[name] = param

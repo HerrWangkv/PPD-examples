@@ -3,10 +3,14 @@ import numpy as np
 from diffsynth import load_state_dict
 from wavelet_noise import generate_wavelet_structured_noise_batch_vectorized
 from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ModelConfig, ControlNetInput
-from diffsynth.trainers.utils import DiffusionTrainingModule, ModelLogger, launch_training_task, flux_parser
+from diffsynth.trainers.utils import DiffusionTrainingModule, ModelLogger, flux_parser
 from diffsynth.models.lora import FluxLoRAConverter
 from diffsynth.trainers.unified_dataset import UnifiedDataset
 from diffsynth.trainers.hf_url_dataset import HuggingFaceURLImageDataset
+from accelerate import Accelerator
+from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration
+from tqdm import tqdm
+from datetime import datetime
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
@@ -88,6 +92,58 @@ class FluxTrainingModule(DiffusionTrainingModule):
         loss = self.pipe.training_loss(**models, **inputs)
         return loss
 
+def launch_training_task(
+    dataset: torch.utils.data.Dataset,
+    model: DiffusionTrainingModule,
+    model_logger: ModelLogger,
+    learning_rate: float = 1e-5,
+    weight_decay: float = 1e-2,
+    num_workers: int = 8,
+    save_steps: int = None,
+    num_epochs: int = 1,
+    gradient_accumulation_steps: int = 1,
+    find_unused_parameters: bool = False,
+    args = None,
+):
+    if args is not None:
+        learning_rate = args.learning_rate
+        weight_decay = args.weight_decay
+        num_workers = args.dataset_num_workers
+        save_steps = args.save_steps
+        num_epochs = args.num_epochs
+        gradient_accumulation_steps = args.gradient_accumulation_steps
+        find_unused_parameters = args.find_unused_parameters
+    
+    optimizer = torch.optim.AdamW(model.trainable_modules(), lr=learning_rate, weight_decay=weight_decay)
+    scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer)
+    dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, collate_fn=lambda x: x[0], num_workers=num_workers)
+    config = ProjectConfiguration(project_dir=args.output_path, logging_dir=os.path.join(args.output_path, "logs"))
+    accelerator = Accelerator(
+        log_with="tensorboard",
+        project_config=config,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=find_unused_parameters)],
+    )
+    accelerator.init_trackers(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    model, optimizer, dataloader, scheduler = accelerator.prepare(model, optimizer, dataloader, scheduler)
+    
+    for epoch_id in range(num_epochs):
+        for data in tqdm(dataloader):
+            with accelerator.accumulate(model):
+                optimizer.zero_grad()
+                if dataset.load_from_cache:
+                    loss = model({}, inputs=data)
+                else:
+                    loss = model(data)
+                accelerator.backward(loss)
+                optimizer.step()
+                avg_loss = accelerator.gather(loss).mean().item()
+                accelerator.log({"loss": avg_loss}, step=model_logger.num_steps)
+                model_logger.on_step_end(accelerator, model, save_steps)
+                scheduler.step()
+        if save_steps is None:
+            model_logger.on_epoch_end(accelerator, model, epoch_id)
+    model_logger.on_training_end(accelerator, model, save_steps)
 
 if __name__ == "__main__":
     parser = flux_parser()
