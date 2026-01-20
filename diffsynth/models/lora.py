@@ -358,6 +358,8 @@ class FluxLoRAConverter:
             return None, None
         state_dict_ = {}
         for name, param in state_dict.items():
+            if name.endswith("alpha"):
+                name = name.replace("alpha", "lora_up.weight")
             block_id, source_name = guess_block_id(name)
             if source_name in rename_dict:
                 target_name = rename_dict[source_name]

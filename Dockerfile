@@ -20,6 +20,6 @@ RUN cd pytorch_wavelets && pip install -r requirements.txt && pip install .
 RUN cd PPD-examples && pip install -r requirements.txt
 
 # Install opencv specifically (headless is better for servers/docker)
-RUN pip install opencv-python-headless scikit-image
+RUN pip install opencv-python-headless scikit-image datasets
 
 CMD ["/bin/bash"]

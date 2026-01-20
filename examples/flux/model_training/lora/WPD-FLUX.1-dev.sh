@@ -1,0 +1,15 @@
+accelerate launch --multi_gpu --num_processes 4 examples/flux/model_training/train.py \
+  --max_pixels 2073600 \
+  --dataset_repeat 1 \
+  --model_id_with_origin_paths "black-forest-labs/FLUX.1-dev:flux1-dev.safetensors,black-forest-labs/FLUX.1-dev:text_encoder/model.safetensors,black-forest-labs/FLUX.1-dev:text_encoder_2/,black-forest-labs/FLUX.1-dev:ae.safetensors" \
+  --learning_rate 1e-4 \
+  --num_epochs 5 \
+  --remove_prefix_in_ckpt "pipe.dit." \
+  --output_path "./models/train/FLUX.1-dev_lora_wpd" \
+  --lora_base_model "dit" \
+  --lora_target_modules "a_to_qkv,b_to_qkv,ff_a.0,ff_a.2,ff_b.0,ff_b.2,a_to_out,b_to_out,proj_out,norm.linear,norm1_a.linear,norm1_b.linear,to_qkv_mlp" \
+  --lora_rank 32 \
+  --lora_checkpoint "./models/ppd/flux1-dev_phipd_lora_302000.safetensors" \
+  --align_to_opensource_format \
+  --save_steps 1000 \
+  --use_gradient_checkpointing

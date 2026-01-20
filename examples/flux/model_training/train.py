@@ -1,7 +1,7 @@
 import torch, os, json
 import numpy as np
 from diffsynth import load_state_dict
-from structured_noise import generate_structured_noise_batch_vectorized
+from wavelet_noise import generate_wavelet_structured_noise_batch_vectorized
 from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ModelConfig, ControlNetInput
 from diffsynth.trainers.utils import DiffusionTrainingModule, ModelLogger, launch_training_task, flux_parser
 from diffsynth.models.lora import FluxLoRAConverter
@@ -25,7 +25,7 @@ class FluxTrainingModule(DiffusionTrainingModule):
         # Load models
         model_configs = self.parse_model_configs(model_paths, model_id_with_origin_paths, enable_fp8_training=False)
         self.pipe = FluxImagePipeline.from_pretrained(torch_dtype=torch.bfloat16, device="cpu", model_configs=model_configs)
-        
+        self.mapping_lora_state_dict = FluxLoRAConverter.align_to_diffsynth_format
         # Training mode
         self.switch_pipe_to_training_mode(
             self.pipe, trainable_models,
@@ -82,13 +82,11 @@ class FluxTrainingModule(DiffusionTrainingModule):
         if inputs is None: inputs = self.forward_preprocess(data)
         models = {name: getattr(self.pipe, name) for name in self.pipe.in_iteration_models}
         input_latents = inputs["input_latents"]
-        cutoff_radius = np.random.exponential(scale=1/0.1)
         input_noise = torch.randn_like(input_latents.float())
-        structured_noise = generate_structured_noise_batch_vectorized(input_latents.float(), cutoff_radius=cutoff_radius, input_noise=input_noise)
+        structured_noise = generate_wavelet_structured_noise_batch_vectorized(input_latents.float(), input_noise=input_noise)
         inputs["noise"] = structured_noise.to(dtype=self.pipe.torch_dtype, device=self.pipe.device)
         loss = self.pipe.training_loss(**models, **inputs)
         return loss
-
 
 
 if __name__ == "__main__":
@@ -99,11 +97,11 @@ if __name__ == "__main__":
         dataset_name="bghira/photo-concept-bucket",
         url_field="url",
         text_field="cogvlm_caption",  # or "description", "alt", "title"
-        cache_dir="./url_cache",
+        cache_dir="./data/images",
         max_pixels=args.max_pixels,
         height=None,  # Use dynamic resolution
         width=None,
-        data_file_keys=("image", "text"),  # Return both image and text
+        data_file_keys=("image", "prompt"),  # Return both image and prompt
         repeat=args.dataset_repeat,
         max_samples=args.max_samples,  # Limit to 100 samples for debugging (set to None for full dataset)
     )

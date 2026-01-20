@@ -126,6 +126,7 @@ class HuggingFaceURLImageDataset(torch.utils.data.Dataset):
         # Setup cache directory
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.load_from_cache = False #TODO
         
         # Determine resolution mode
         if height is not None and width is not None:
