@@ -2,4 +2,4 @@ __pycache__
 models/black-forest-labs
 models/FLUX
 models/train
-data/
+data/images

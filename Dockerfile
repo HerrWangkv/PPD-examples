@@ -18,6 +18,7 @@ RUN git clone https://github.com/zengxianyu/PPD-examples.git PPD-examples
 # Install dependencies
 RUN cd pytorch_wavelets && pip install -r requirements.txt && pip install .
 RUN cd PPD-examples && pip install -r requirements.txt
+RUN pip install git+https://github.com/zengxianyu/structured-noise
 
 # Install opencv specifically (headless is better for servers/docker)
 RUN pip install opencv-python-headless scikit-image datasets tensorboard

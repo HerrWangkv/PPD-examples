@@ -1,8 +1,8 @@
-accelerate launch --multi_gpu --num_processes 4 examples/flux/model_training/train.py \
+accelerate launch examples/flux/model_training/train.py \
   --max_pixels 2073600 \
   --dataset_repeat 1 \
   --model_id_with_origin_paths "black-forest-labs/FLUX.1-dev:flux1-dev.safetensors,black-forest-labs/FLUX.1-dev:text_encoder/model.safetensors,black-forest-labs/FLUX.1-dev:text_encoder_2/,black-forest-labs/FLUX.1-dev:ae.safetensors" \
-  --learning_rate 1e-4 \
+  --learning_rate 1e-6 \
   --num_epochs 5 \
   --remove_prefix_in_ckpt "pipe.dit." \
   --output_path "./models/train/FLUX.1-dev_lora_wpd" \

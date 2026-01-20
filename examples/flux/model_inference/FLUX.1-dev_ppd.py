@@ -1,6 +1,7 @@
 from structured_noise import generate_structured_noise_batch_vectorized
 import argparse
 import torch
+import os
 from PIL import Image
 from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ModelConfig
 from diffsynth import download_models
@@ -104,5 +105,6 @@ if __name__ == "__main__":
 
         if use_original_size:
             image = image.resize((w,h))
+        os.makedirs(os.path.dirname(args.output_name), exist_ok=True)
         image.save(args.output_name)
 

@@ -1,6 +1,7 @@
 # from structured_noise import generate_structured_noise_batch_vectorized
 import argparse
 import torch
+import os
 from PIL import Image
 from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ModelConfig
 from diffsynth import download_models
@@ -31,14 +32,20 @@ def parse_args():
     parser.add_argument(
         "--J",
         type=int,
-        default=1,
+        default=4,
         help="Number of wavelet decomposition levels"
     )
     parser.add_argument(
-        "--threshold",
+        "--max_threshold",
         type=float,
-        default=0.6,
-        help="magnitude threshold for high-frequency phase mixing"
+        default=0.99,
+        help="maximum magnitude threshold for high-frequency phase mixing"
+    )
+    parser.add_argument(
+        "--decay",
+        type=float,
+        default=0.9,
+        help="Decay rate for threshold adjustment"
     )
     parser.add_argument(
         "--prompt",
@@ -97,7 +104,8 @@ if __name__ == "__main__":
         input_latents = pipe.vae_encoder(image, tiled=False)
 
         input_noise = torch.randn_like(input_latents)
-        noise = generate_wavelet_structured_noise_batch_vectorized(image_batch=input_latents, thresholds=args.threshold)
+        thresholds = [args.max_threshold * (args.decay ** i) for i in range(args.J)]
+        noise = generate_wavelet_structured_noise_batch_vectorized(image_batch=input_latents, thresholds=thresholds, J=args.J)
         noise = noise.contiguous()
 
         negative_prompt = args.negative_prompt
@@ -110,5 +118,6 @@ if __name__ == "__main__":
 
         if use_original_size:
             image = image.resize((w,h))
+        os.makedirs(os.path.dirname(args.output_name), exist_ok=True)
         image.save(args.output_name)
 

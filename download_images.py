@@ -5,8 +5,8 @@ import pandas as pd
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-PARQUET_PATH = "data/photo-concept-bucket/photo-concept-bucket.parquet"
-OUT_DIR = "/mrtstorage/users/kwang/photo-concept-bucket/"
+PARQUET_PATH = "data/photo-concept-bucket.parquet"
+OUT_DIR = "data/images"
 NUM_WORKERS = 32
 TIMEOUT = 10
 

@@ -131,10 +131,9 @@ def launch_training_task(
         for data in tqdm(dataloader):
             with accelerator.accumulate(model):
                 optimizer.zero_grad()
-                if dataset.load_from_cache:
-                    loss = model({}, inputs=data)
-                else:
-                    loss = model(data)
+                assert "image" in data, "Input data must contain 'image' field."
+                assert "prompt" in data, "Input data must contain 'prompt' field."
+                loss = model(data)
                 accelerator.backward(loss)
                 optimizer.step()
                 avg_loss = accelerator.gather(loss).mean().item()
