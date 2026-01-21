@@ -9,6 +9,7 @@ from PIL import Image
 from io import BytesIO
 from tqdm import tqdm
 from datasets import load_dataset
+import random
 
 
 class HuggingFaceURLImageDataset(torch.utils.data.Dataset):
@@ -245,43 +246,49 @@ class HuggingFaceURLImageDataset(torch.utils.data.Dataset):
         return image
     
     def __getitem__(self, data_id):
-        """Get a single data sample"""
-        # Handle dataset repetition
-        idx = data_id % len(self.dataset)
-        item = self.dataset[idx]
+        """Get a single data sample, with automatic retry logic for failed images"""
+        # 1. Start with the requested ID
+        current_idx = data_id % len(self.dataset)
         
-        # Extract URL and text
-        url = item.get(self.url_field)
-        if url is None:
-            warnings.warn(f"Missing URL field '{self.url_field}' at index {idx}")
-            return None
+        # 2. Loop until a valid image is loaded
+        # Using a loop prevents returning None to the DataLoader
+        attempts = 0
+        max_attempts = len(self.dataset) # Safety break to avoid infinite loops
         
-        # Load image
-        image = self.load_image(url)
-        if image is None:
-            return None
-        
-        # Build data dictionary
-        data = {}
-        
-        # Add image if requested
-        if "image" in self.data_file_keys:
-            data["image"] = image
-        
-        # Add text if requested and available
-        if "text" in self.data_file_keys or "prompt" in self.data_file_keys:
-            text = item.get(self.text_field, "")
-            if "text" in self.data_file_keys:
-                data["text"] = text
-            if "prompt" in self.data_file_keys:
-                data["prompt"] = text
-        
-        # Add other fields if they're in data_file_keys
-        for key in self.data_file_keys:
-            if key not in data and key in item:
-                data[key] = item[key]
-        
-        return data
+        while attempts < max_attempts:
+            item = self.dataset[current_idx]
+            url = item.get(self.url_field)
+            
+            # Load image
+            image = self.load_image(url) if url else None
+            
+            # If image is valid, process and return the data
+            if image is not None:
+                # Handle text extraction (None/NaN safe)
+                raw_text = item.get(self.text_field) or ""
+                
+                data = {}
+                # Use pre-calculated flags if possible for speed
+                if "image" in self.data_file_keys:
+                    data["image"] = image
+                if "text" in self.data_file_keys:
+                    data["text"] = raw_text
+                if "prompt" in self.data_file_keys:
+                    data["prompt"] = raw_text
+                    
+                # Add remaining keys
+                for key in self.data_file_keys:
+                    if key not in data and key in item:
+                        data[key] = item[key]
+                
+                return data
+            
+            # 3. If image load failed, try a different random index
+            warnings.warn(f"Failed to load image at index {current_idx}. Retrying with another sample.")
+            current_idx = random.randint(0, len(self.dataset) - 1)
+            attempts += 1
+            
+        raise RuntimeError(f"Could not find any valid image after {max_attempts} attempts.")
     
     def __len__(self):
         """Return dataset length accounting for repetition"""

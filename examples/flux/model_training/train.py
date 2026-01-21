@@ -131,8 +131,6 @@ def launch_training_task(
         for data in tqdm(dataloader):
             with accelerator.accumulate(model):
                 optimizer.zero_grad()
-                assert "image" in data, "Input data must contain 'image' field."
-                assert "prompt" in data, "Input data must contain 'prompt' field."
                 loss = model(data)
                 accelerator.backward(loss)
                 optimizer.step()
