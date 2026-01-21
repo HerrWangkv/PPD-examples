@@ -3,3 +3,4 @@ models/black-forest-labs
 models/FLUX
 models/train
 data/images
+data/synthia

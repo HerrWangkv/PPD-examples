@@ -10,8 +10,7 @@ docker run -it --rm --gpus all \
         CUDA_VISIBLE_DEVICES=6 \
         PYTHONPATH=. python examples/flux/model_inference/FLUX.1-dev_wavelet.py \
         --lora_checkpoint_path /workspace/models/ppd/flux1-dev_phipd_lora_302000.safetensors \
-        --max_threshold 0.99 \
-        --decay 0.9 \
-        --input_image /workspace/models/ppd/test1.jpg \
-        --prompt \"\$(cat /workspace/models/ppd/test1.txt)\" \
-        --output outputs/test1/wavelet/0.99_0.9.png"
+        --J 7 \
+        --input_image /workspace/data/synthia/RGB/0000000.png \
+        --prompt \"\$(cat /workspace/data/synthia/RGB/0000000.txt)\" \
+        --output outputs/synthia/0000000/wavelet/7.png"
