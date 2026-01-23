@@ -5,6 +5,7 @@ from operator import inv
 from typing import Optional, Tuple, Union, List
 
 import math
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -251,12 +252,26 @@ class ComplexBandPacketSplitter(nn.Module):
         self.inv = DTCWTInverse(biort=biort, qshift=qshift, mode=mode, o_dim=o_dim, ri_dim=ri_dim)
 
     def split_once(self, band_nc_hw_2):
-        x = _cplx_to_chan(band_nc_hw_2)      # (N,2C,H,W)
-        yl, yh = self.fwd(x)                # yh list len=1
+        # 1. Store original size
+        orig_h, orig_w = band_nc_hw_2.shape[-3], band_nc_hw_2.shape[-2]
+        
+        x = _cplx_to_chan(band_nc_hw_2)
+        yl, yh = self.fwd(x)
         yh0 = yh[0]
+        
         low  = self.inv((yl, [torch.zeros_like(yh0)]))
         high = self.inv((torch.zeros_like(yl), [yh0]))
-        return _chan_to_cplx(low), _chan_to_cplx(high)
+        
+        # 2. Convert back to complex
+        low_cplx = _chan_to_cplx(low)
+        high_cplx = _chan_to_cplx(high)
+        
+        # 3. Crop if necessary (DTCWT padding fix)
+        if low_cplx.shape[-3] != orig_h or low_cplx.shape[-2] != orig_w:
+            low_cplx = low_cplx[..., :orig_h, :orig_w, :]
+            high_cplx = high_cplx[..., :orig_h, :orig_w, :]
+            
+        return low_cplx, high_cplx
 
 def dyadic_to_grid(dc, n_target: int):
     """Return (k_grid, n_target, t_float) where k_grid is numerator on 2^n_target grid."""
@@ -354,90 +369,124 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         # Recursive Split
         lo_img, hi_img = self.splitter.split_once(c_img)
         lo_nz, hi_nz   = self.splitter.split_once(c_nz)
-
+        
+        H_sub, W_sub = lo_img.shape[-3], lo_img.shape[-2]
+        sub_mask = F.interpolate(mask.float(), size=(H_sub, W_sub), mode='nearest')
+        
         mid_freq = (f_start + f_end) / 2.0
         
         # Recurse
-        out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, mask, t_all, t_mask, depth + 1, max_depth, eps)
-        out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, mask, t_all, t_mask, depth + 1, max_depth, eps)
-
+        out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_mask, t_all, t_mask, depth + 1, max_depth, eps)
+        out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_mask, t_all, t_mask, depth + 1, max_depth, eps)
         return out_lo + out_hi
 
-    def generate_wavelet_structured_noise_batch_vectorized(
-        image_batch: torch.Tensor,
-        mask_keep: float,
-        all_keep: float,
-        binary_mask: Optional[torch.Tensor] = None,
-        noise_std: float = 1.0,
-        pad_factor: float = 1.5,
-        input_noise: torch.Tensor = None,
-        biort: str = 'near_sym_b',
-        qshift: str = 'qshift_b',
-    ):
-        if image_batch.ndim != 4:
-            raise ValueError(f"Expected image_batch in NCHW")
+def _generate_random_ellipse_masks(N, H, W, device):
+    """Generates random rotated elliptical masks for training robustness."""
+    masks = torch.zeros((N, 1, H, W), device=device)
+    
+    # Create coordinate grid once
+    # Shape: (H, W)
+    y_grid = torch.arange(H, device=device).float().view(H, 1).expand(H, W)
+    x_grid = torch.arange(W, device=device).float().view(1, W).expand(H, W)
+    
+    for i in range(N):
+        num_dots = random.randint(5, 15)
         
-        # 1. Inputs
-        device = image_batch.device
-        dtype = image_batch.dtype
-        N, C, H, W = image_batch.shape
-        image_batch = image_batch.float()
-        
-        if binary_mask is None:
-            binary_mask = torch.ones((N, 1, H, W), device=device)
-        else:
-            binary_mask = binary_mask.to(device)
-
-        if input_noise is None:
-            z = torch.randn_like(image_batch) * float(noise_std)
-        else:
-            z = input_noise.to(device)
-
-        # 2. Decomposition (Perform ONCE)
-        # Ensure J is deep enough to cover t_all
-        J = max(1, math.ceil(-math.log2(all_keep + 1e-9)))
-        decomp = DTCWTDecomposer(J=J, biort=biort, qshift=qshift).to(device)
-        
-        with torch.no_grad():
-            LL_img, C_img = decomp(image_batch)
-            LL_z, C_z = decomp(z)
-
-            # 3. Fuse using the optimized class
-            fuser = DTCWTFusePhaseMag_Recursive(biort=biort, qshift=qshift).to(device)
+        for _ in range(num_dots):
+            # Center
+            cx = random.uniform(0, W)
+            cy = random.uniform(0, H)
             
-            x_hat, _, _ = fuser(
-                LL_img, C_img,
-                LL_z, C_z,
-                binary_mask,
-                t_all=all_keep,
-                t_mask=mask_keep,
-                pad_factor=pad_factor
-            )
+            # Radii (Major/Minor axes)
+            min_dim = min(H, W)
+            rx = random.uniform(min_dim * 0.01, min_dim * 0.15)
+            ry = random.uniform(min_dim * 0.01, min_dim * 0.15)
+            
+            # Rotation angle (radians)
+            theta = random.uniform(0, 2 * math.pi)
+            cos_t = math.cos(theta)
+            sin_t = math.sin(theta)
+            
+            # Translate to (0,0) -> Rotate -> Scale -> Check <= 1
+            dx = x_grid - cx
+            dy = y_grid - cy
+            
+            # Rotated coordinates
+            # x' = x*cos + y*sin
+            # y' = -x*sin + y*cos
+            x_rot = dx * cos_t + dy * sin_t
+            y_rot = -dx * sin_t + dy * cos_t
+            
+            # Ellipse equation: (x'/rx)^2 + (y'/ry)^2 <= 1
+            ellipse_mask = ((x_rot / rx)**2 + (y_rot / ry)**2 <= 1.0).float()
+            
+            # Combine
+            masks[i, 0] = torch.max(masks[i, 0], ellipse_mask)
+            
+    return masks
 
-        return x_hat.to(dtype=dtype)
+def _sample_dyadic(min_val, max_val, max_n=5):
+    """
+    Returns a random float k / 2^n in [min_val, max_val].
+    Using fixed denominator 2^max_n ensures all values are exactly representable
+    in the wavelet packet tree up to depth max_n.
+    """
+    denom = 1 << max_n # e.g. 32
+    k_min = math.ceil(min_val * denom)
+    k_max = math.floor(max_val * denom)
+    
+    # Ensure range is valid
+    if k_min > k_max: 
+        k_min = k_max
+        
+    k = random.randint(k_min, k_max)
+    return k / float(denom)
 
 def generate_wavelet_structured_noise_batch_vectorized(
     image_batch: torch.Tensor,
-    mask_keep: float,
-    all_keep: float,
+    mask_keep: Optional[float] = None, # If None, sample automatically (training mode)
+    all_keep: Optional[float] = None,  # If None, sample automatically (training mode)
     binary_mask: Optional[torch.Tensor] = None,
     noise_std: float = 1.0,
     pad_factor: float = 1.5,
     input_noise: torch.Tensor = None,
     biort: str = 'near_sym_b',
     qshift: str = 'qshift_b',
+    random_mask_prob: float = 0.5, # Probability to use random box masks if in training mode
 ):
+    """
+    Generates CDTWPT Structured Noise.
+    
+    Updates:
+    1. Sampling: Uses strictly Dyadic Rationals (k/32) for thresholds.
+    2. Masks: Uses Random Rotated Ellipses instead of Dots.
+    """
     if image_batch.ndim != 4:
         raise ValueError(f"Expected image_batch in NCHW")
     
-    # 1. Inputs
     device = image_batch.device
     dtype = image_batch.dtype
     N, C, H, W = image_batch.shape
     image_batch = image_batch.float()
     
+    # 1. Dyadic Parameter Sampling (Training Mode)
+    training_mode = (mask_keep is None) or (all_keep is None)
+    if training_mode:
+        # Sample base quality: e.g. 0.125 (4/32) to 0.5 (16/32)
+        # We use strict dyadic sampling to ensure recursion termination
+        all_keep = _sample_dyadic(0.125, 0.5)
+        
+        # Constraint: Ensure distinct separation (at least 0.2 gap)
+        # but strictly aligned to the grid
+        mask_keep = _sample_dyadic(all_keep, 1.0)
+    # 2. Mask Handling (Ellipses)
     if binary_mask is None:
-        binary_mask = torch.ones((N, 1, H, W), device=device)
+        if training_mode and random.random() < random_mask_prob:
+            # Synthetic Random Rotated Ellipse Mask
+            binary_mask = _generate_random_ellipse_masks(N, 8*H, 8*W, device)
+        else:
+            # Global Degradation
+            binary_mask = torch.ones((N, 1, H, W), device=device)
     else:
         binary_mask = binary_mask.to(device)
 
@@ -446,8 +495,7 @@ def generate_wavelet_structured_noise_batch_vectorized(
     else:
         z = input_noise.to(device)
 
-    # 2. Decomposition (Perform ONCE)
-    # Ensure J is deep enough to cover t_all
+    # 3. Decomposition
     J = max(1, math.ceil(-math.log2(all_keep + 1e-9)))
     decomp = DTCWTDecomposer(J=J, biort=biort, qshift=qshift).to(device)
     
@@ -455,7 +503,6 @@ def generate_wavelet_structured_noise_batch_vectorized(
         LL_img, C_img = decomp(image_batch)
         LL_z, C_z = decomp(z)
 
-        # 3. Fuse using the optimized class
         fuser = DTCWTFusePhaseMag_Recursive(biort=biort, qshift=qshift).to(device)
         
         x_hat, _, _ = fuser(
