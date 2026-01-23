@@ -7,6 +7,7 @@ from typing import Optional, Tuple, Union, List
 import math
 import random
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
@@ -37,7 +38,7 @@ def _is_power_of_two(x: int) -> bool:
 def parse_dyadic_cutoff(
     t: Union[float, Tuple[int, int], DyadicCutoff],
     *,
-    max_n: int = 12,
+    max_n: int = 6,
     tol: float = 0.0,
 ) -> DyadicCutoff:
     """
@@ -51,12 +52,9 @@ def parse_dyadic_cutoff(
     elif isinstance(t, tuple):
         k, n = int(t[0]), int(t[1])
     else:
-        # Convert float -> rational, then verify denominator is power of two.
-        # Using Fraction(str(t)) avoids some binary-float artifacts if you pass a decimal literal.
         frac = Fraction(str(t)).limit_denominator(1 << max_n)
         k, d = frac.numerator, frac.denominator
         if tol > 0.0:
-            # allow small mismatch: find best dyadic approx
             best = None
             for n_try in range(max_n + 1):
                 denom = 1 << n_try
@@ -118,61 +116,79 @@ class DTCWTDecomposer(nn.Module):
 def resize_mask(mask_n1hw: torch.Tensor, h: int, w: int, mode: str = "nearest") -> torch.Tensor:
     return F.interpolate(mask_n1hw.float(), size=(h, w), mode=mode)
 
+def resize_tensor(tensor: torch.Tensor, h: int, w: int, mode: str = "nearest") -> torch.Tensor:
+    """Helper to resize masks or leak maps to match wavelet coefficient dimensions."""
+    if tensor.shape[-2:] == (h, w):
+        return tensor
+    return F.interpolate(tensor.float(), size=(h, w), mode=mode)
 
 def complex_phase(re: torch.Tensor, im: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     # atan2 is stable; eps not strictly needed, kept for symmetry with mag
     return torch.atan2(im, re)
 
-
 def complex_mag(re: torch.Tensor, im: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     return torch.sqrt(re * re + im * im + eps)
 
-def fuse_noise_only(C_noise: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
-    # magnitude + phase from noise
-    re_n, im_n = C_noise[..., 0], C_noise[..., 1]
-    phi_n = complex_phase(re_n, im_n, eps=eps)
-    mag_n = complex_mag(re_n, im_n, eps=eps)
-    re = mag_n * torch.cos(phi_n)
-    im = mag_n * torch.sin(phi_n)
-    return torch.stack([re, im], dim=-1)
-
-def fuse_subband_phase_from_signal_mag_from_noise(
-    C_in: torch.Tensor,     # (N,C,H,W,2)
-    C_noise: torch.Tensor,  # (N,C,H,W,2)
-    mask_n1hw: torch.Tensor,  # (N,1,H,W) in this subband resolution
-    eps: float = 1e-8,
+def fuse_subband_generic(
+    C_signal: torch.Tensor,
+    C_noise: torch.Tensor,
+    mask: Union[float, torch.Tensor],
+    leak: Union[float, torch.Tensor] = 0.0,
+    eps: float = 1e-8
 ) -> torch.Tensor:
     """
-    Build C_mix = |C_noise| * exp(j * (mask*phase(C_in) + (1-mask)*phase(C_out))).
+    Unified fusion function for DTCWT coefficients.
+    
+    Controls Phase and Magnitude separately:
+    - Phase Source: Controlled by 'mask' (1.0 = Signal Phase, 0.0 = Noise Phase).
+    - Magnitude Source: Controlled by 'leak' (1.0 = Signal Mag, 0.0 = Noise Mag).
+    
+    Args:
+        C_signal: Signal coefficients (N, C, H, W, 2).
+        C_noise: Noise coefficients (N, C, H, W, 2).
+        mask: Phase mixing ratio. Can be a float or Tensor broadcastable to coefficients.
+        leak: Magnitude mixing ratio. Can be a float or Tensor broadcastable to coefficients.
+        eps: Small value for numerical stability.
     """
-    re_in,  im_in  = C_in[..., 0], C_in[..., 1]
-    re_n,   im_n   = C_noise[..., 0], C_noise[..., 1]
+    # 1. Decompose inputs
+    re_s, im_s = C_signal[..., 0], C_signal[..., 1]
+    re_n, im_n = C_noise[..., 0], C_noise[..., 1]
 
-    phi_in  = complex_phase(re_in,  im_in,  eps=eps)
-    phi_n = complex_phase(re_n,   im_n,   eps=eps)
+    # 2. Phase Mixing
+    # Calculate phases
+    phi_s = complex_phase(re_s, im_s)
+    phi_n = complex_phase(re_n, im_n)
+    
+    # Expand mask if it is a spatial tensor (N, 1, H, W) -> (N, C, H, W)
+    if isinstance(mask, torch.Tensor) and mask.ndim == 4:
+        # Assuming C is dim 1
+        m = mask.expand(phi_s.shape[0], phi_s.shape[1], phi_s.shape[2], phi_s.shape[3])
+    else:
+        m = mask
 
-    # broadcast mask to (N,C,H,W)
-    m = mask_n1hw
-    if m.ndim != 4:
-        raise ValueError(f"mask must be (N,1,H,W), got {tuple(m.shape)}")
-    m = m.expand(phi_in.shape[0], phi_in.shape[1], phi_in.shape[2], phi_in.shape[3])
+    # Mix Phase: Mask=1 keeps Signal Phase, Mask=0 takes Noise Phase
+    # Note: Simple linear interpolation of phase is standard in PPD for binary masks.
+    phi = m * phi_s + (1.0 - m) * phi_n
 
-    phi = m * phi_in + (1.0 - m) * phi_n#phi_out
+    # 3. Magnitude Mixing
+    # Calculate magnitudes
+    mag_s = complex_mag(re_s, im_s, eps=eps)
+    mag_n = complex_mag(re_n, im_n, eps=eps)
+    
+    # Expand leak if it is a spatial tensor
+    if isinstance(leak, torch.Tensor) and leak.ndim == 4:
+        l = leak.expand(mag_s.shape[0], mag_s.shape[1], mag_s.shape[2], mag_s.shape[3])
+    else:
+        l = leak
 
-    mag = complex_mag(re_n, im_n, eps=eps)
+    # Mix Magnitude: Leak=1 keeps Signal Mag, Leak=0 takes Noise Mag
+    mag = l * mag_s + (1.0 - l) * mag_n
 
-    re = mag * torch.cos(phi)
-    im = mag * torch.sin(phi)
-    return torch.stack([re, im], dim=-1)
-
-def fuse_subband_phase_from_signal_mag_from_noise_global(C_phase_src, C_noise, eps=1e-8):
-    re_p, im_p = C_phase_src[...,0], C_phase_src[...,1]
-    re_n, im_n = C_noise[...,0], C_noise[...,1]
-    phi = torch.atan2(im_p, re_p)
-    mag = torch.sqrt(re_n*re_n + im_n*im_n + eps)
-    re = mag * torch.cos(phi)
-    im = mag * torch.sin(phi)
-    return torch.stack([re, im], dim=-1)
+    # 4. Reconstruct Complex Coefficients
+    re_out = mag * torch.cos(phi)
+    im_out = mag * torch.sin(phi)
+    
+    return torch.stack([re_out, im_out], dim=-1)
 
 def pack_C_to_yh_list(C, o_dim: int = 2):
     """
@@ -254,11 +270,9 @@ class ComplexBandPacketSplitter(nn.Module):
     def split_once(self, band_nc_hw_2):
         # 1. Store original size
         orig_h, orig_w = band_nc_hw_2.shape[-3], band_nc_hw_2.shape[-2]
-        
         x = _cplx_to_chan(band_nc_hw_2)
         yl, yh = self.fwd(x)
         yh0 = yh[0]
-        
         low  = self.inv((yl, [torch.zeros_like(yh0)]))
         high = self.inv((torch.zeros_like(yl), [yh0]))
         
@@ -273,157 +287,107 @@ class ComplexBandPacketSplitter(nn.Module):
             
         return low_cplx, high_cplx
 
-def dyadic_to_grid(dc, n_target: int):
-    """Return (k_grid, n_target, t_float) where k_grid is numerator on 2^n_target grid."""
-    if n_target < dc.n:
-        raise ValueError("n_target must be >= dc.n")
-    k_grid = dc.k << (n_target - dc.n)
-    # t is exact dyadic; float is just for comparisons/debug
-    t_float = k_grid / float(1 << n_target)
-    return k_grid, n_target, t_float
 
 class DTCWTFusePhaseMag_Recursive(nn.Module):
     def __init__(self, biort="antonini", qshift="qshift_d", mode="symmetric", o_dim=2, ri_dim=-1):
         super().__init__()
         self.o_dim = o_dim
-        # Only need inverse for final reconstruction, and splitter for the recursion
         self.ifm = DTCWTInverse(biort=biort, qshift=qshift, mode=mode, o_dim=o_dim, ri_dim=ri_dim)
         self.splitter = ComplexBandPacketSplitter(biort=biort, qshift=qshift, mode=mode, o_dim=o_dim, ri_dim=ri_dim)
 
     def forward(
         self,
-        LL_img, C_img,      # Source Image Coefficients
-        LL_z, C_z,          # Noise Coefficients
-        mask_n1hw,          # Binary Mask
-        t_all: float,       # Global keep threshold (e.g. 0.375)
-        t_mask: float,      # Mask keep threshold (e.g. 0.625)
+        LL_img, C_img,
+        LL_z, C_z,
+        depth_map: torch.Tensor,
+        cutoff_norm: float,
+        maximal_norm: float,
+        gamma: float = 0.5,
         pad_factor: float = 1.5,
-        max_packet_depth: int = 12,
-        mask_mode: str = "nearest",
-        eps: float = 1e-8
-    ):
-        # 1. Fuse LL Band (Global Phase)
-        # We assume LL is always low-freq enough to be <= t_all
-        LL_mix = ll_fusion_fftshift_global_phase(LL_img, LL_z, pad_factor=pad_factor)
+        max_packet_depth: int = 4,
+        eps: float = 1e-8,
+    ):  
+        disparity_map = 1 / (depth_map + eps)  # convert depth (m) to disparity (1/m)
 
-        # 2. Recursive Fusion for High Bands
+        # Assuming depth_map is (N, 1, H, W)
+        flattened = disparity_map.view(disparity_map.size(0), -1)
+        d_min = flattened.min(dim=1, keepdim=True)[0].view(disparity_map.size(0), 1, 1, 1)
+        d_max = flattened.max(dim=1, keepdim=True)[0].view(disparity_map.size(0), 1, 1, 1)
+        
+        div = d_max - d_min + eps
+        
+        # Calculate Normalized Map
+        # 1.0 = Near (High Disparity), 0.0 = Far (Low Disparity)
+        norm_disp = (disparity_map - d_min) / div
+
+        # Invert to create Control Map: 
+        # 0.0 = Near (Use Cutoff/Degrade), 1.0 = Far (Use Max/Preserve)
+        control_map = 1.0 - norm_disp
+
+        # Handle "Flat Depth" Case per image
+        # If dynamic range is tiny, force control map to 0.0 (Cutoff/Degrade)
+        is_flat = (d_max - d_min) < 1e-5
+        # Broadcast mask to (N, 1, H, W) and fill zeros where flat
+        control_map = torch.where(is_flat, torch.zeros_like(control_map), control_map)
+
+        LL_mix = ll_fusion_fftshift_global_phase(LL_img, LL_z, pad_factor=pad_factor)
         J = len(C_img)
         C_mix = []
 
         for l in range(J):
-            # Level l covers freq range [2^{-(l+1)}, 2^{-l}]
             level_idx = l + 1
             freq_high = 1.0 / (2.0 ** (level_idx - 1))
             freq_low  = 1.0 / (2.0 ** level_idx)
             
             C_mix_l = []
-            
-            # Prepare mask for this level
             ref = C_z[l][0]
             H_l, W_l = ref.shape[-3], ref.shape[-2]
-            m_l = resize_mask(mask_n1hw, H_l, W_l, mode=mask_mode)
+            
+            d_l = resize_tensor(control_map, H_l, W_l, mode='bilinear')
 
             for o in range(6):
-                # Process each orientation
                 c_fused = self._process_band_recursive(
                     C_img[l][o], C_z[l][o],
                     freq_low, freq_high,
-                    m_l, 
-                    t_all, t_mask,
+                    d_l, 
+                    cutoff_norm, maximal_norm, gamma,
                     0, max_packet_depth, eps
                 )
                 C_mix_l.append(c_fused)
             
             C_mix.append(C_mix_l)
 
-        # 3. Inverse Transform
         yh_mix = pack_C_to_yh_list(C_mix, o_dim=self.o_dim)
         x_hat = self.ifm((LL_mix, yh_mix))
         
         return x_hat, LL_mix, C_mix
 
-    def _process_band_recursive(self, c_img, c_nz, f_start, f_end, mask, t_all, t_mask, depth, max_depth, eps):
-        # Base Case: Global (Frequency <= t_all)
-        if f_end <= t_all + 1e-9:
-             return fuse_subband_phase_from_signal_mag_from_noise_global(c_img, c_nz, eps=eps)
-
-        # Base Case: Noise Only (Frequency > t_mask)
-        if f_start >= t_mask - 1e-9:
-            return fuse_noise_only(c_nz, eps=eps)
-
-        # Base Case: Masked (t_all < Frequency <= t_mask)
-        # If the entire packet fits inside the "Mask" zone
-        if (f_start >= t_all - 1e-9) and (f_end <= t_mask + 1e-9):
-            return fuse_subband_phase_from_signal_mag_from_noise(c_img, c_nz, mask, eps=eps)
-
-        # Base Case: Max Depth Limit (Avoid infinite recursion)
+    def _process_band_recursive(self, c_img, c_nz, f_start, f_end, depth_map, r_min, r_max, gamma, depth, max_depth, eps):
+        # 1. Global Low Freq: Structure kept, Mag replaced
+        if f_end <= r_min + 1e-9:
+             return fuse_subband_generic(c_img, c_nz, mask=1.0, eps=eps)
+        
+        # 2. Pure Noise Band:
+        if f_start >= r_max - 1e-9:
+            return fuse_subband_generic(c_img, c_nz, mask=0.0, eps=eps)
+            
+        # 3. Transition Band (The Masked Region): Use PPD mixing
         if depth >= max_depth:
             mid = (f_start + f_end) / 2
-            if mid <= t_all:
-                return fuse_subband_phase_from_signal_mag_from_noise_global(c_img, c_nz, eps=eps)
-            elif mid <= t_mask:
-                return fuse_subband_phase_from_signal_mag_from_noise(c_img, c_nz, mask, eps=eps)
-            else:
-                return fuse_noise_only(c_nz, eps=eps)
+            pixel_thresholds = r_min + (depth_map ** gamma) * (r_max - r_min)
+            decision_map = (mid <= pixel_thresholds).float()
+            return fuse_subband_generic(c_img, c_nz, mask=decision_map, eps=eps)
 
-        # Recursive Split
         lo_img, hi_img = self.splitter.split_once(c_img)
         lo_nz, hi_nz   = self.splitter.split_once(c_nz)
         
         H_sub, W_sub = lo_img.shape[-3], lo_img.shape[-2]
-        sub_mask = F.interpolate(mask.float(), size=(H_sub, W_sub), mode='nearest')
-        
+        sub_depth = resize_tensor(depth_map, H_sub, W_sub, mode='bilinear')
         mid_freq = (f_start + f_end) / 2.0
-        
-        # Recurse
-        out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_mask, t_all, t_mask, depth + 1, max_depth, eps)
-        out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_mask, t_all, t_mask, depth + 1, max_depth, eps)
+        out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_depth, r_min, r_max, gamma, depth + 1, max_depth, eps)
+        out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_depth, r_min, r_max, gamma, depth + 1, max_depth, eps)
         return out_lo + out_hi
 
-def _generate_random_ellipse_masks(N, H, W, device):
-    """Generates random rotated elliptical masks for training robustness."""
-    masks = torch.zeros((N, 1, H, W), device=device)
-    
-    # Create coordinate grid once
-    # Shape: (H, W)
-    y_grid = torch.arange(H, device=device).float().view(H, 1).expand(H, W)
-    x_grid = torch.arange(W, device=device).float().view(1, W).expand(H, W)
-    
-    for i in range(N):
-        num_dots = random.randint(5, 15)
-        
-        for _ in range(num_dots):
-            # Center
-            cx = random.uniform(0, W)
-            cy = random.uniform(0, H)
-            
-            # Radii (Major/Minor axes)
-            min_dim = min(H, W)
-            rx = random.uniform(min_dim * 0.01, min_dim * 0.15)
-            ry = random.uniform(min_dim * 0.01, min_dim * 0.15)
-            
-            # Rotation angle (radians)
-            theta = random.uniform(0, 2 * math.pi)
-            cos_t = math.cos(theta)
-            sin_t = math.sin(theta)
-            
-            # Translate to (0,0) -> Rotate -> Scale -> Check <= 1
-            dx = x_grid - cx
-            dy = y_grid - cy
-            
-            # Rotated coordinates
-            # x' = x*cos + y*sin
-            # y' = -x*sin + y*cos
-            x_rot = dx * cos_t + dy * sin_t
-            y_rot = -dx * sin_t + dy * cos_t
-            
-            # Ellipse equation: (x'/rx)^2 + (y'/ry)^2 <= 1
-            ellipse_mask = ((x_rot / rx)**2 + (y_rot / ry)**2 <= 1.0).float()
-            
-            # Combine
-            masks[i, 0] = torch.max(masks[i, 0], ellipse_mask)
-            
-    return masks
 
 def _sample_dyadic(min_val, max_val, max_n=5):
     """
@@ -431,35 +395,40 @@ def _sample_dyadic(min_val, max_val, max_n=5):
     Using fixed denominator 2^max_n ensures all values are exactly representable
     in the wavelet packet tree up to depth max_n.
     """
-    denom = 1 << max_n # e.g. 32
+    denom = 1 << max_n
     k_min = math.ceil(min_val * denom)
     k_max = math.floor(max_val * denom)
     
     # Ensure range is valid
     if k_min > k_max: 
         k_min = k_max
-        
     k = random.randint(k_min, k_max)
     return k / float(denom)
 
 def generate_wavelet_structured_noise_batch_vectorized(
     image_batch: torch.Tensor,
-    mask_keep: Optional[float] = None, # If None, sample automatically (training mode)
-    all_keep: Optional[float] = None,  # If None, sample automatically (training mode)
-    binary_mask: Optional[torch.Tensor] = None,
+    cutoff_radius: int, 
+    maximal_radius: Optional[int] = None,  
+    depth_map: Optional[torch.Tensor] = None,
     noise_std: float = 1.0,
     pad_factor: float = 1.5,
     input_noise: torch.Tensor = None,
     biort: str = 'near_sym_b',
     qshift: str = 'qshift_b',
-    random_mask_prob: float = 0.5, # Probability to use random box masks if in training mode
+    gamma: float = 1.0
 ):
     """
-    Generates CDTWPT Structured Noise.
+    Generates Depth-Guided DTCWT Structured Noise using pixel-defined radii.
     
-    Updates:
-    1. Sampling: Uses strictly Dyadic Rationals (k/32) for thresholds.
-    2. Masks: Uses Random Rotated Ellipses instead of Dots.
+    Args:
+        image_batch: (N, C, H, W) source images.
+        depth_map: (N, 1, H, W) depth map (meters).
+        cutoff_radius: Int. Pixel radius for the 'Near' degradation cutoff. 
+                       (e.g., 1 = heavy blur/noise, 30 = moderate).
+        maximal_radius: Int. Pixel radius for 'Far' structure preservation.
+                        If None, defaults to Nyquist (min_dim/2).
+        gamma: Float. Controls the curvature of the frequency transition.
+               0.5 is recommended for preserving structure (concave curve).
     """
     if image_batch.ndim != 4:
         raise ValueError(f"Expected image_batch in NCHW")
@@ -469,131 +438,63 @@ def generate_wavelet_structured_noise_batch_vectorized(
     N, C, H, W = image_batch.shape
     image_batch = image_batch.float()
     
-    # 1. Dyadic Parameter Sampling (Training Mode)
-    training_mode = (mask_keep is None) or (all_keep is None)
-    if training_mode:
-        # Sample base quality: e.g. 0.125 (4/32) to 0.5 (16/32)
-        # We use strict dyadic sampling to ensure recursion termination
-        all_keep = _sample_dyadic(0.125, 0.5)
-        
-        # Constraint: Ensure distinct separation (at least 0.2 gap)
-        # but strictly aligned to the grid
-        mask_keep = _sample_dyadic(all_keep, 1.0)
-    # 2. Mask Handling (Ellipses)
-    if binary_mask is None:
-        if training_mode and random.random() < random_mask_prob:
-            # Synthetic Random Rotated Ellipse Mask
-            binary_mask = _generate_random_ellipse_masks(N, 8*H, 8*W, device)
-        else:
-            # Global Degradation
-            binary_mask = torch.ones((N, 1, H, W), device=device)
+    # 1. Parameter Normalization (Pixel -> Normalized Freq)
+    # Nyquist frequency corresponds to radius = min_dim / 2
+    min_dim = min(H, W)
+    nyquist_radius = min_dim / 2.0
+    
+    # Normalize Cutoff (Near limit)
+    # Clamp to ensure we don't divide by zero or go out of bounds
+    r_pix = max(float(cutoff_radius), 1.0)
+    r_min_norm = r_pix / nyquist_radius
+    # Normalize Maximal (Far limit)
+    if maximal_radius is None:
+        # Default to Nyquist (keep everything for infinite distance)
+        r_max_norm = 1.0
     else:
-        binary_mask = binary_mask.to(device)
+        r_max_norm = float(maximal_radius) / nyquist_radius
+    if depth_map is None:
+        depth_map = torch.ones((N, 1, H, W), device=device) # Will just use r_min_norm everywhere
 
+    # Safety clamping
+    r_min_norm = min(max(r_min_norm, 0.0), 1.0)
+    r_max_norm = min(max(r_max_norm, r_min_norm), 1.0)
+
+    # 2. Prepare Noise
     if input_noise is None:
         z = torch.randn_like(image_batch) * float(noise_std)
     else:
         z = input_noise.to(device)
 
-    # 3. Decomposition
-    J = max(1, math.ceil(-math.log2(all_keep + 1e-9)))
+    # 3. Determine Decomposition Depth J
+    # We need J deep enough so that the lowest band is below r_min_norm.
+    # Level J lowest freq is roughly 1 / 2^J.
+    # We want 1 / 2^J <= r_min_norm  =>  2^J >= 1/r_min  =>  J >= log2(1/r_min)
+    if r_min_norm < 1e-2:
+        J = 6 # Arbitrary max depth for safety
+    else:
+        J = math.ceil(-math.log2(r_min_norm))
+        J = max(1, min(J, 6)) # Clamp J between 1 and 6 (practical limits)
+    
+    # 4. Execution
     decomp = DTCWTDecomposer(J=J, biort=biort, qshift=qshift).to(device)
+    fuser = DTCWTFusePhaseMag_Recursive(biort=biort, qshift=qshift).to(device)
     
     with torch.no_grad():
         LL_img, C_img = decomp(image_batch)
         LL_z, C_z = decomp(z)
-
-        fuser = DTCWTFusePhaseMag_Recursive(biort=biort, qshift=qshift).to(device)
         
         x_hat, _, _ = fuser(
             LL_img, C_img,
             LL_z, C_z,
-            binary_mask,
-            t_all=all_keep,
-            t_mask=mask_keep,
+            depth_map=depth_map,
+            cutoff_norm=r_min_norm,
+            maximal_norm=r_max_norm,
+            gamma=gamma,
             pad_factor=pad_factor
         )
 
     return x_hat.to(dtype=dtype)
-
-def create_frequency_probe(shape, target_band_idx, biort='near_sym_b', qshift='qshift_b', device='cuda'):
-    """
-    Creates an image that has energy ONLY at a specific wavelet decomposition level (frequency band).
-    target_band_idx: 0 = Highest Freq (Level 1), 1 = Level 2, etc.
-    """
-    N, C, H, W = shape
-    J = 6  # Deep enough decomposition
-    
-    # We construct the probe in the WAVELET domain directly
-    # Start with zeros
-    inv = DTCWTInverse(biort=biort, qshift=qshift).to(device)
-    
-    # Create empty coefficients
-    # We need to know the shapes, so let's do a dummy forward pass
-    dummy = torch.zeros(N, C, H, W, device=device)
-    decomp = DTCWTDecomposer(J=J, biort=biort, qshift=qshift).to(device)
-    LL, Cs = decomp(dummy)
-    
-    # Construct our probe coefficients
-    C_probe = []
-    for l, C_level in enumerate(Cs):
-        C_l_new = []
-        for o in range(6): # For all orientations
-            # If this is our target level, fill it with 1.0 (signal)
-            # Otherwise keep it 0.0
-            if l == target_band_idx:
-                # specific pattern to be visible
-                t = torch.ones_like(C_level[o]) 
-            else:
-                t = torch.zeros_like(C_level[o])
-            C_l_new.append(t)
-        C_probe.append(C_l_new)
-        
-    # If target is deeper than J, put it in LL (lowest freq)
-    if target_band_idx >= J:
-        LL_probe = torch.ones_like(LL)
-    else:
-        LL_probe = torch.zeros_like(LL)
-        
-    # Inverse to get the spatial image
-    yh_probe = pack_C_to_yh_list(C_probe)
-    x_probe = inv((LL_probe, yh_probe))
-    
-    return x_probe
-
-def generate_fft_blending_wrapper(image, mask, noise, all_keep, mask_keep):
-    """
-    Calls the FFT Blending function twice and blends them.
-    Converts normalized cutoffs (0.0-1.0) to pixel radii.
-    """
-    N, C, H, W = image.shape
-    # Approximate radius conversion: 1.0 = Nyquist (H/2)
-    # Note: Pad factor 1.5 increases the FFT grid size. 
-    # The function expects cutoff relative to the PADDED size in pixels.
-    pad_factor = 1.5
-    H_pad, W_pad = int(H * pad_factor), int(W * pad_factor)
-    
-    # Calculate radius in pixels for the padded grid
-    # all_keep is roughly "fraction of max radius"
-    r_global = all_keep * (min(H_pad, W_pad) / 2)
-    r_mask   = mask_keep * (min(H_pad, W_pad) / 2)
-    
-    # 1. Generate Global Stream
-    out_global = generate_structured_noise_batch_vectorized(
-        image, noise_std=1.0, pad_factor=pad_factor,
-        cutoff_radius=r_global,
-        input_noise=noise, sampling_method='fft'
-    )
-    
-    # 2. Generate Mask Stream
-    out_mask = generate_structured_noise_batch_vectorized(
-        image, noise_std=1.0, pad_factor=pad_factor,
-        cutoff_radius=r_mask,
-        input_noise=noise, sampling_method='fft'
-    )
-    
-    # 3. Blend
-    return mask * out_mask + (1 - mask) * out_global
 
 def make_zone_plate(size):
     """Generates a pattern where frequency increases with distance from center."""
@@ -601,220 +502,144 @@ def make_zone_plate(size):
     y = torch.linspace(-1, 1, size)
     Y, X = torch.meshgrid(y, x, indexing='ij')
     R2 = X**2 + Y**2
-    
-    # Calculate factor to hit Nyquist at R=1
-    # Freq = d/dr(k*r^2) = 2kr. Nyquist is pi*(size/2). Normalized... 
-    # Empirical factor ~ 400 fills the 512 spectrum nicely without excessive aliasing.
-    return torch.cos(400 * R2).unsqueeze(0).unsqueeze(0)
-
-def make_split_mask(size):
-    """
-    Left Half = 0 (Outside Mask)
-    Right Half = 1 (Inside Mask)
-    """
-    mask = torch.zeros(1, 1, size, size)
-    mask[..., size//2:] = 1.0 # Right side is Keep
-    return mask
+    # Factor 140 covers the spectrum nicely for 512x512
+    return torch.cos(140 * R2).unsqueeze(0).unsqueeze(0)
 
 def make_brushed_metal(size):
-    """Generates diagonal lines to simulate brushed metal or wood grain."""
+    """Generates diagonal lines."""
     x = torch.linspace(-1, 1, size)
     y = torch.linspace(-1, 1, size)
     Y, X = torch.meshgrid(y, x, indexing='ij')
-    
-    # Create diagonal sine waves (45 degrees)
-    # sin(k * (x + y)) -> Diagonal wavefronts
-    # Add some low freq variation to make it look organic
     base = torch.sin(100 * (X + Y)) 
     variation = 0.5 * torch.sin(20 * X) 
     return (base + variation).unsqueeze(0).unsqueeze(0)
 
-if __name__ == "__main__":
+def make_depth_gradient(size, near=1.0, far=100.0):
+    """
+    Creates a horizontal depth gradient from Near (Left) to Far (Right).
+    """
+    # Linear interpolation in depth space
+    d = torch.linspace(near, far, size)
+    # Expand to (1, 1, H, W)
+    depth_map = d.view(1, 1, 1, size).expand(1, 1, size, size)
+    return depth_map
+
+def make_step_depth(size, split_idx, near=1.0, far=100.0):
+    """
+    Left side = Near (Degrade), Right side = Far (Keep).
+    """
+    depth_map = torch.ones(1, 1, size, size) * near
+    depth_map[..., split_idx:] = far
+    return depth_map
+
+def generate_fft_depth_blend(image, depth_map, cutoff_radius, maximal_radius, gamma=1.0):
+    """
+    FFT baseline
+    """
+    near_img = generate_structured_noise_batch_vectorized(
+        image_batch=image, 
+        cutoff_radius=float(cutoff_radius),
+        noise_std=1.0,
+        pad_factor=1.5,
+        sampling_method='fft'
+    )
+    
+    far_img = generate_structured_noise_batch_vectorized(
+        image_batch=image,
+        cutoff_radius=float(maximal_radius),
+        noise_std=1.0,
+        pad_factor=1.5,
+        sampling_method='fft'
+    )
+    
+    eps = 1e-8
+    disparity = 1.0 / (depth_map + eps)
+    d_min = disparity.min()
+    d_max = disparity.max()
+    
+    # Disparity: 1.0 = Near, 0.0 = Far
+    norm_disp = (disparity - d_min) / (d_max - d_min + eps)
+    
+    # Control: 0.0 = Near, 1.0 = Far
+    control_map = 1.0 - norm_disp
+    control_map = control_map ** gamma
+    
+    return control_map * far_img + (1.0 - control_map) * near_img
+
+def run_comparison():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    size = 512 
+    size = 512
     
-    # Data
-    x_img = make_zone_plate(size).to(device)
-    z_noise = torch.randn_like(x_img)
-    mask = make_split_mask(size).to(device)
+    # Setup Data
+    x_zone = make_zone_plate(size).to(device)
+    x_metal = make_brushed_metal(size).to(device)
+    near_m, far_m = 1.0, 100.0
+    depth_grad = make_depth_gradient(size, near=near_m, far=far_m).to(device)
     
-    all_keep = 0.15 
-    mask_keep = 0.65
+    r_near, r_far, gamma = 5, 256, 100
     
-    print(f"Generating Comparison (Size {size})...")
-
-    out_wavelet = generate_wavelet_structured_noise_batch_vectorized(
-        image_batch=x_img, mask_keep=mask_keep, all_keep=all_keep,
-        binary_mask=mask, input_noise=z_noise
+    # --- Execute ---
+    print("Running Zone Plate Tests...")
+    fft_zone = generate_fft_depth_blend(x_zone, depth_grad, r_near, r_far, gamma)
+    wav_zone = generate_wavelet_structured_noise_batch_vectorized(
+        x_zone, r_near, r_far, depth_grad, noise_std=1.0, gamma=gamma
     )
 
-    # 2. FFT (Hard Cutoff)
-    out_fft = generate_fft_blending_wrapper(
-        x_img, mask, z_noise, all_keep=all_keep, mask_keep=mask_keep
+    print("Running Brushed Metal Tests...")
+    fft_metal = generate_fft_depth_blend(x_metal, depth_grad, r_near, r_far, gamma)
+    wav_metal = generate_wavelet_structured_noise_batch_vectorized(
+        x_metal, r_near, r_far, depth_grad, noise_std=1.0, gamma=gamma
     )
-
-    # ==========================================
-    # 3. Visualization
-    # ==========================================
     
-    # Convert to numpy
-    img_np  = x_img[0,0].cpu().numpy()
-    mask_np = mask[0,0].cpu().numpy()
-    wave_np = out_wavelet[0,0].cpu().numpy()
-    fft_np  = out_fft[0,0].cpu().numpy()
-
-    # Create 1x4 Grid
-    fig, axs = plt.subplots(1, 4, figsize=(24, 6))
-    
-    zoom_half_size = 40
-    # X: Centered on vertical seam (256)
-    x1, x2 = size//2 - zoom_half_size, size//2 + zoom_half_size # 216 - 296
-    
-    # Y: Centered on the Green Circle top edge (~218)
-    # Let's pick center y=210. 
-    y_center = size//2 - 46 # approx 210
-    y1, y2 = y_center - zoom_half_size, y_center + zoom_half_size # 170 - 250
-    
-    # Rectangle for main image (Top-Left corner, Width, Height)
-    # In imshow, y1 (170) is higher/top, y2 (250) is lower/bottom.
-    rect_x = x1
-    rect_y = y1 
-    rect_w = x2 - x1
-    rect_h = y2 - y1
-
-    def plot_clean(ax, data, title, is_fft=False, show_circles=True):
+    # --- Visualization ---
+    fig, axs = plt.subplots(2, 3, figsize=(20, 14))
+    plt.subplots_adjust(bottom=0.15, hspace=0.3)
+    zx, zy = size // 2, size // 2 
+    z_size = 60
+    def format_plot_with_bar(ax, data, title, show_bar=False, zoom_color=None):
         ax.imshow(data, cmap='gray')
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_title(title, fontsize=15, pad=15, fontweight='bold')
         ax.axis('off')
-        
-        # Circles
-        if show_circles:
-            center = size // 2
-            r1 = int(all_keep * center)
-            r2 = int(mask_keep * center)
-            ax.add_patch(plt.Circle((center, center), r1, color='lime', fill=False, lw=1, ls='--', alpha=0.7))
-            ax.add_patch(plt.Circle((center, center), r2, color='red', fill=False, lw=1, ls='--', alpha=0.7))
-
-        # 1. Draw Rectangle (Corrected logic)
-        rect = patches.Rectangle((rect_x, rect_y), rect_w, rect_h, linewidth=2, edgecolor='yellow', facecolor='none')
-        ax.add_patch(rect)
-        
-        # 2. Draw Zoom Inset
-        axins = zoomed_inset_axes(ax, zoom=2.5, loc='lower right')
+        if zoom_color is not None:
+            rect = patches.Rectangle((zx - z_size, zy - z_size), z_size*2, z_size*2, 
+                                     linewidth=2, edgecolor=zoom_color, facecolor='none', alpha=0.8)
+            ax.add_patch(rect)
+        if show_bar:
+            pos = ax.get_position()
+            cax = fig.add_axes([pos.x0, pos.y0 - 0.05, pos.width, 0.01])
+            
+            gradient = np.linspace(0, 1, 256).reshape(1, -1)
+            cax.imshow(gradient, aspect='auto', cmap='gray')
+            
+            cax.set_yticks([])
+            cax.set_xticks([0, 255])
+            cax.set_xticklabels([f"Near\n(Noise)", f"Far\n(Signal)"], fontsize=9)
+            
+    def add_conservative_zoom(ax, data, color):
+        axins = zoomed_inset_axes(ax, zoom=1.5, loc='lower right') 
         axins.imshow(data, cmap='gray')
-        axins.set_xlim(x1, x2)
-        axins.set_ylim(y2, y1) # Flip Y: Bottom(250) -> Top(170)
-        axins.set_xticks([])
-        axins.set_yticks([])
-        
-        # Border
+        axins.set_xlim(zx - z_size, zx + z_size)
+        axins.set_ylim(zy + z_size, zy - z_size)
+        axins.set_xticks([]); axins.set_yticks([])
         for spine in axins.spines.values():
-            spine.set_edgecolor('yellow')
+            spine.set_edgecolor(color)
             spine.set_linewidth(2)
 
-        # Annotations
-        if is_fft:
-            ax.text(0.5, -0.1, "Artifact: Ghosting at Seam", transform=ax.transAxes, 
-                    ha='center', color='red', fontweight='bold')
-        elif show_circles:
-            ax.text(0.5, -0.1, "Benefit: Natural Transition", transform=ax.transAxes, 
-                    ha='center', color='green', fontweight='bold')
+    # 第一行: Zone Plate
+    format_plot_with_bar(axs[0,0], x_zone[0,0].cpu().numpy(), "Input: Zone Plate")
+    format_plot_with_bar(axs[0,1], fft_zone[0,0].cpu().numpy(), "FFT Blend", show_bar=True, zoom_color='red')
+    format_plot_with_bar(axs[0,2], wav_zone[0,0].cpu().numpy(), "DTCWT", show_bar=True, zoom_color='green')
 
-    # Plot
-    plot_clean(axs[0], img_np, "Input Zone Plate", show_circles=False)
-    plot_clean(axs[1], mask_np, "Mask (Right=Keep)", show_circles=False)
-    plot_clean(axs[2], fft_np, "FFT Blend (Soft)", is_fft=True)
-    plot_clean(axs[3], wave_np, "Wavelet Output", show_circles=True)
+    add_conservative_zoom(axs[0,1], fft_zone[0,0].cpu().numpy(), 'red')
+    add_conservative_zoom(axs[0,2], wav_zone[0,0].cpu().numpy(), 'green')
 
-    plt.savefig("fft_vs_wavelet1.png", dpi=150)
-    plt.close()
+    # 第二行: Brushed Metal
+    format_plot_with_bar(axs[1,0], x_metal[0,0].cpu().numpy(), "Input: Brushed Metal")
+    format_plot_with_bar(axs[1,1], fft_metal[0,0].cpu().numpy(), "FFT Blend", show_bar=True)
+    format_plot_with_bar(axs[1,2], wav_metal[0,0].cpu().numpy(), "DTCWT Phase-Only Structure", show_bar=True)
 
-    # 1. Data: Brushed Metal (Diagonal)
-    x_img = make_brushed_metal(size).to(device)
-    z_noise = torch.randn_like(x_img)
-    
-    # Simple Split Mask (Left=Noise, Right=Signal)
-    mask = torch.zeros(1, 1, size, size).to(device)
-    mask[..., size//2:] = 1.0 
-    
-    # Cutoffs: We want to preserve the MAIN diagonal lines (Low Freq)
-    # but replace the fine detail with noise.
-    all_keep = 0.10  # Keep base structure
-    mask_keep = 0.90 # Keep almost everything in mask
-    
-    print(f"Generating Brushed Metal Comparison...")
+    plt.savefig("fft_vs_wavelet.png")
+    print("Saved fft_vs_wavelet.png")
 
-    # 2. Generate
-    out_wavelet = generate_wavelet_structured_noise_batch_vectorized(
-        image_batch=x_img, mask_keep=mask_keep, all_keep=all_keep,
-        binary_mask=mask, input_noise=z_noise
-    )
-
-    out_fft = generate_fft_blending_wrapper(
-        x_img, mask, z_noise, all_keep=all_keep, mask_keep=mask_keep
-    )
-
-    # 3. Visualization
-    img_np  = x_img[0,0].cpu().numpy()
-    wave_np = out_wavelet[0,0].cpu().numpy()
-    fft_np  = out_fft[0,0].cpu().numpy()
-
-    fig, axs = plt.subplots(1, 4, figsize=(24, 6))
-    
-    # Zoom Region: Focus on the LEFT side (Mask=0 / Noise Zone)
-    # We want to see how the texture degrades.
-    # Center y, Left x.
-    zoom_size = 80
-    x_center = 256 # Middle of the left half (0-256)
-    y_center = 256
-    
-    x1, x2 = x_center - zoom_size//2, x_center + zoom_size//2
-    y1, y2 = y_center - zoom_size//2, y_center + zoom_size//2
-    
-    # Rect coords (Top-Left for patches)
-    # y1 is top (smaller index), y2 is bottom (larger index)
-    rect_x = x1
-    rect_y = y1
-    rect_w = x2 - x1
-    rect_h = y2 - y1
-
-    def plot_clean_texture(ax, data, title, is_fft=False):
-        ax.imshow(data, cmap='gray')
-        ax.set_title(title, fontsize=14, fontweight='bold')
-        ax.axis('off')
-
-        # 1. Draw Indicator Box on Main Image
-        rect = patches.Rectangle((rect_x, rect_y), rect_w, rect_h, 
-                               linewidth=2, edgecolor='yellow', facecolor='none')
-        ax.add_patch(rect)
-        
-        # 2. Floating Zoom Inset
-        axins = zoomed_inset_axes(ax, zoom=2.0, loc='lower right')
-        axins.imshow(data, cmap='gray')
-        axins.set_xlim(x1, x2)
-        axins.set_ylim(y2, y1) # Flip Y
-        axins.set_xticks([])
-        axins.set_yticks([])
-        
-        # Yellow border for inset
-        for spine in axins.spines.values():
-            spine.set_edgecolor('yellow')
-            spine.set_linewidth(2)
-
-        # 3. Text Annotations
-        if is_fft:
-            ax.text(0.5, -0.1, "Result: Speckle / 'Sand' Noise", transform=ax.transAxes, 
-                    ha='center', color='red', fontweight='bold')
-        elif "Wavelet" in title:
-            ax.text(0.5, -0.1, "Result: Directional 'Scratches'", transform=ax.transAxes, 
-                    ha='center', color='green', fontweight='bold')
-        elif "Mask" in title:
-             ax.text(0.5, -0.1, "(Black = Noise Zone)", transform=ax.transAxes, 
-                    ha='center', color='black', fontweight='bold')
-
-    plot_clean_texture(axs[0], img_np, "Input: Brushed Metal")
-    plot_clean_texture(axs[1], mask_np, "Mask")
-    plot_clean_texture(axs[2], fft_np, "FFT Blending Output", is_fft=True)
-    plot_clean_texture(axs[3], wave_np, "Wavelet Output")
-
-    plt.savefig("fft_vs_wavelet2.png", bbox_inches='tight')
+if __name__ == "__main__":
+    run_comparison()
