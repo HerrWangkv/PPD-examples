@@ -37,12 +37,17 @@ def parse_args():
         help="Output image filename"
     )
     parser.add_argument(
-        "--J",
-        type=int,
-        default=4,
-        help="Number of wavelet decomposition levels"
+        "--mask_keep",
+        type=float,
+        default=0.75,
+        help="Fraction of wavelet bands to keep within the masked region"
     )
-    # Removed max_threshold and decay arguments
+    parser.add_argument(
+        "--all_keep",
+        type=float,
+        default=0.5,
+        help="Fraction of wavelet bands to keep outside the masked region"
+    )
     parser.add_argument(
         "--prompt",
         type=str,
@@ -161,9 +166,10 @@ if __name__ == "__main__":
         # 4. Generate Semantic Structured Noise
         # Passing binary_mask explicitly. No thresholds needed.
         noise = generate_wavelet_structured_noise_batch_vectorized(
-            image_batch=input_latents, 
+            image_batch=input_latents,
+            mask_keep=args.mask_keep,
+            all_keep=args.all_keep, 
             binary_mask=binary_mask, 
-            J=args.J
         )
         noise = noise.contiguous()
 
