@@ -1,4 +1,3 @@
-# from structured_noise import generate_structured_noise_batch_vectorized
 import argparse
 import torch
 import os
@@ -10,9 +9,10 @@ from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ModelConfig
 from diffsynth import download_models
 from wavelet_noise import generate_wavelet_structured_noise_batch_vectorized
 
-# SYNTHIA Dataset Target Classes (Traffic Participants)
-# See trainIds in https://github.molgen.mpg.de/mohomran/cityscapes/blob/master/scripts/helpers/labels.py#L55
-# 4: Fence, 5: Pole, 6: Traffic Light, 7: Traffic Sign, 11: Person, 12: Rider, 13: Car, 14: Truck, 15: Bus, 16: Train, 17: Motorcycle, 18: Bicycle
+# SYNTHIA Dataset Mapping
+# Sky is 10. We treat it specially to avoid rendering artifacts.
+SKY_CLASS = 10 
+# We keep target classes logic for potential future overrides
 TARGET_CLASSES = [4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18]
 
 def parse_args():
@@ -37,17 +37,20 @@ def parse_args():
         help="Output image filename"
     )
     parser.add_argument(
-        "--mask_keep",
-        type=float,
-        default=0.75,
-        help="Fraction of wavelet bands to keep within the masked region"
-    )
+        "--cutoff_radius", 
+        type=int, 
+        default=5, 
+        help="Pixel radius for near degradation (heavy noise)")
     parser.add_argument(
-        "--all_keep",
-        type=float,
-        default=0.5,
-        help="Fraction of wavelet bands to keep outside the masked region"
-    )
+        "--maximal_radius", 
+        type=int, 
+        default=256, 
+        help="Pixel radius for far protection (sharp)")
+    parser.add_argument(
+        "--gamma", 
+        type=float, 
+        default=0.5, 
+        help="Depth curve control")
     parser.add_argument(
         "--prompt",
         type=str,
@@ -71,41 +74,66 @@ def parse_args():
     )
     return parser.parse_args()
 
-def get_gt_mask_path(image_path):
+def get_related_paths(image_path):
     """
-    Infers the Ground Truth mask path from the input image path 
-    based on SYNTHIA dataset structure.
-    Replaces 'RGB' folder with 'GT/LABELS'.
+    Infers Depth and Mask paths from SYNTHIA structure.
+    RGB: data/synthia/RGB/0009330.png
+    Depth: data/synthia/Depth/Depth/0009330.png
+    Labels: data/synthia/GT/LABELS/0009330_labelTrainIds.png
     """
-    # Check common dataset structure patterns
-    if "RGB" in image_path:
-        # Standard SYNTHIA structure: root/RGB/img.png -> root/GT/LABELS/img.png
-        mask_path = image_path.replace("RGB", "GT/LABELS").replace(".png", "_labelTrainIds.png")
-    else:
-        # Fallback: Try to find a 'GT/LABELS' folder in the parent directory
-        # This handles cases where user might point to a flat folder structure
-        dir_name = os.path.dirname(image_path)
-        base_name = os.path.basename(image_path)
-        # Try moving up one level and looking for GT/LABELS
-        parent_dir = os.path.dirname(dir_name)
-        mask_path = os.path.join(parent_dir, "GT", "LABELS", base_name.replace(".png", "_labelTrainIds.png"))
+    base_name = os.path.basename(image_path)
+    root = image_path.split("/RGB/")[0]
     
-    return mask_path
+    depth_path = os.path.join(root, "Depth", "Depth", base_name)
+    mask_path = os.path.join(root, "GT", "LABELS", base_name.replace(".png", "_labelTrainIds.png"))
+    
+    return depth_path, mask_path
+
+def load_and_preprocess_synthia_data(depth_path, mask_path, size, device, max_depth_limit=500.0):
+    """Loads depth and handles sky/outlier depth values."""
+    # Load 16-bit depth (cm)
+    depth_cv2 = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
+    if depth_cv2 is None: raise FileNotFoundError(f"Depth not found: {depth_path}")
+    
+    # Handle multi-channel encoding
+    if len(depth_cv2.shape) == 3:
+        depth_cv2 = np.max(depth_cv2, axis=2)
+    
+    # Convert to meters
+    depth_m = depth_cv2.astype(np.float32) / 100.0
+    
+    # --- Assert/Clamp Outliers ---
+    # Any depth significantly beyond realistic scene limits is treated as "Far" 
+    # and clamped to prevent normalization skewing.
+    depth_m = np.clip(depth_m, 0.0, max_depth_limit)
+    
+    # Load mask and move to tensor
+    depth_pt = torch.from_numpy(depth_m).to(device).view(1, 1, *depth_m.shape)
+    mask_cv2 = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
+    mask_pt = torch.from_numpy(mask_cv2.astype(np.int32)).to(device).view(1, 1, *mask_cv2.shape)
+    # --- Sky Depth Logic ---
+    sky_mask = (mask_pt == SKY_CLASS)
+    non_sky_mask = ~sky_mask
+    
+    if sky_mask.any():
+        # Compute average of valid non-sky areas
+        # This now benefits from the previous clamping of non-sky outliers
+        avg_non_sky_depth = depth_pt[non_sky_mask].mean()
+        depth_pt[sky_mask] = avg_non_sky_depth
+        
+    # Resize
+    depth_pt = F.interpolate(depth_pt, size=size, mode='bilinear')
+    mask_pt = F.interpolate(mask_pt.float(), size=size, mode='nearest').long()
+
+    return depth_pt
 
 if __name__ == "__main__":
     args = parse_args()
+    device = "cuda"
     
-    # 1. Infer and Check GT Mask Path
-    mask_path = get_gt_mask_path(args.input_image)
-    if not os.path.exists(mask_path):
-        raise FileNotFoundError(
-            f"\n[Error] Ground Truth Label not found!\n"
-            f"Input Image: {args.input_image}\n"
-            f"Expected Mask: {mask_path}\n"
-            f"Please ensure your dataset follows the SYNTHIA structure (RGB/ vs GT/LABELS/) or adjust path logic."
-        )
-    print(f"Loading GT Mask from: {mask_path}")
-
+    depth_path, mask_path = get_related_paths(args.input_image)
+    
+    # 1. Download and Init Pipe
     download_models(["FLUX.1-dev"])
     pipe = FluxImagePipeline.from_pretrained(
         torch_dtype=torch.bfloat16,
@@ -121,7 +149,7 @@ if __name__ == "__main__":
     embed_layers = None
     pipe.load_lora(pipe.dit, args.lora_checkpoint_path, alpha=1)
 
-    # 2. Load and Resize Image
+    # 2. Process Input Image
     image_in_pil = Image.open(args.input_image).convert("RGB")
     w, h = image_in_pil.size
     if args.height is not None and args.width is not None:
@@ -133,43 +161,24 @@ if __name__ == "__main__":
     
     image_in_pil = image_in_pil.resize((new_w, new_h), resample=Image.LANCZOS)
 
-    # 3. Load and Resize Mask (Crucial: Use NEAREST to preserve IDs)
-    # Using cv2 to read unchanged (uint8/uint16) data
-    mask_cv2 = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
-    if mask_cv2 is None:
-         raise ValueError(f"Failed to load mask image from {mask_path}. Is the file corrupted?")
-         
-    mask_pil = Image.fromarray(mask_cv2)
-    mask_pil = mask_pil.resize((new_w, new_h), resample=Image.NEAREST)
-    
-    # Convert Mask to Tensor and Binary Mask
-    mask_tensor = torch.from_numpy(np.array(mask_pil)).long().to(pipe.device) # (H, W)
-    
-    # Create Binary Mask: 1 for Target Classes, 0 for Background
-    # isin requires a 1D tensor for test_elements
-    target_classes_tensor = torch.tensor(TARGET_CLASSES, device=pipe.device)
-    binary_mask = torch.isin(mask_tensor, target_classes_tensor).float() # (H, W)
-    
-    # Ensure shape is (B, 1, H, W) for the noise generator if needed, 
-    # though the generator handles (H, W) or (1, H, W) usually.
-    # The VAE output will be (B, C, H_lat, W_lat). The mask is (H_img, W_img).
-    # The noise generator handles the downsampling of the mask internally.
-    binary_mask = binary_mask.unsqueeze(0).unsqueeze(0) # (1, 1, H, W)
+    # 3. Load Depth Map 
+    depth_map = load_and_preprocess_synthia_data(depth_path, mask_path, (new_h, new_w), device=device)
 
+    # 4. Diffusion Process
     prompt = args.prompt
     with torch.no_grad():
         image = pipe.preprocess_image(image_in_pil).to(device=pipe.device, dtype=pipe.torch_dtype)
         input_latents = pipe.vae_encoder(image, tiled=False)
 
         input_noise = torch.randn_like(input_latents)
-        
-        # 4. Generate Semantic Structured Noise
-        # Passing binary_mask explicitly. No thresholds needed.
+        # Generate Structured Noise guided by Depth Control Map
         noise = generate_wavelet_structured_noise_batch_vectorized(
             image_batch=input_latents,
-            mask_keep=args.mask_keep,
-            all_keep=args.all_keep, 
-            binary_mask=binary_mask, 
+            depth_map=depth_map, 
+            cutoff_radius=args.cutoff_radius,
+            maximal_radius=args.maximal_radius,
+            gamma=args.gamma,
+            noise_std=1.0
         )
         noise = noise.contiguous()
 

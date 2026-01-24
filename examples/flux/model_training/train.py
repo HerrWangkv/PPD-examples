@@ -1,20 +1,63 @@
-import torch, os, json
+import os, time
+from pathlib import Path
+from datetime import datetime
+
 import numpy as np
-from diffsynth import load_state_dict
-from wavelet_noise import generate_wavelet_structured_noise_batch_vectorized
-from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ModelConfig, ControlNetInput
+import torch
+from tqdm import tqdm
+
+from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ControlNetInput
 from diffsynth.trainers.utils import DiffusionTrainingModule, ModelLogger, flux_parser
 from diffsynth.models.lora import FluxLoRAConverter
-from diffsynth.trainers.unified_dataset import UnifiedDataset
 from diffsynth.trainers.hf_url_dataset import HuggingFaceURLImageDataset
+
 from accelerate import Accelerator
 from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration
-from tqdm import tqdm
-from datetime import datetime
+
+from wavelet_noise import generate_wavelet_structured_noise_batch_vectorized
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
+# -------------------------
+# TorchHub file lock
+# -------------------------
+class FileLock:
+    def __init__(self, lock_path: str):
+        self.lock_path = Path(lock_path)
 
+    def __enter__(self):
+        while True:
+            try:
+                fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                os.close(fd)
+                break
+            except FileExistsError:
+                time.sleep(0.2)
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            self.lock_path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def load_unidepth_locked():
+    os.makedirs("/root/.cache/torch/hub", exist_ok=True)
+    with FileLock("/root/.cache/torch/hub/unidepth_download.lock"):
+        return torch.hub.load(
+            "lpiccinelli-eth/UniDepth",
+            "UniDepth",
+            version="v2",
+            backbone="vitl14",
+            pretrained=True,
+            trust_repo=True,
+        )
+
+
+# -------------------------
+# Training module
+# -------------------------
 class FluxTrainingModule(DiffusionTrainingModule):
     def __init__(
         self,
@@ -26,23 +69,35 @@ class FluxTrainingModule(DiffusionTrainingModule):
         extra_inputs=None,
     ):
         super().__init__()
+
         # Load models
         model_configs = self.parse_model_configs(model_paths, model_id_with_origin_paths, enable_fp8_training=False)
         self.pipe = FluxImagePipeline.from_pretrained(torch_dtype=torch.bfloat16, device="cpu", model_configs=model_configs)
         self.mapping_lora_state_dict = FluxLoRAConverter.align_to_diffsynth_format
-        # Training mode
+
+        # Switch to training mode (LoRA / trainable modules)
         self.switch_pipe_to_training_mode(
             self.pipe, trainable_models,
             lora_base_model, lora_target_modules, lora_rank, lora_checkpoint=lora_checkpoint,
             enable_fp8_training=False,
         )
-        
-        # Store other configs
+
+        # Store configs
         self.use_gradient_checkpointing = use_gradient_checkpointing
         self.use_gradient_checkpointing_offload = use_gradient_checkpointing_offload
         self.extra_inputs = extra_inputs.split(",") if extra_inputs is not None else []
-        
-    
+
+        # Load depth estimator
+        self.depth_estimator = load_unidepth_locked().to(self.pipe.device).eval()
+        for p in self.depth_estimator.parameters():
+            p.requires_grad_(False)
+
+        # Accelerator will be injected after accelerator.prepare(...)
+        self.accelerator: Accelerator | None = None
+
+    def set_accelerator(self, accelerator: Accelerator):
+        self.accelerator = accelerator
+
     def forward_preprocess(self, data):
         # CFG-sensitive parameters
         inputs_posi = {"prompt": data["prompt"]}
@@ -65,7 +120,7 @@ class FluxTrainingModule(DiffusionTrainingModule):
             "use_gradient_checkpointing": self.use_gradient_checkpointing,
             "use_gradient_checkpointing_offload": self.use_gradient_checkpointing_offload,
         }
-        
+
         # Extra inputs
         controlnet_input = {}
         for extra_input in self.extra_inputs:
@@ -80,18 +135,78 @@ class FluxTrainingModule(DiffusionTrainingModule):
         for unit in self.pipe.units:
             inputs_shared, inputs_posi, inputs_nega = self.pipe.unit_runner(unit, self.pipe, inputs_shared, inputs_posi, inputs_nega)
         return {**inputs_shared, **inputs_posi}
-    
-    
-    def forward(self, data, inputs=None):
-        if inputs is None: inputs = self.forward_preprocess(data)
+
+    def forward(self, data, inputs=None, step: int | None = None):
+        if inputs is None:
+            inputs = self.forward_preprocess(data)
+
         models = {name: getattr(self.pipe, name) for name in self.pipe.in_iteration_models}
+
+        # RGB -> UniDepth
+        img = inputs["input_image"].convert("RGB")
+        rgb = torch.from_numpy(np.array(img)).permute(2, 0, 1).to(self.pipe.device).float() / 255.0
+
+        with torch.no_grad():
+            pred = self.depth_estimator.infer(rgb.unsqueeze(0))
+            depth_map = pred["depth"]  # (1,1,H,W)
+
+            # NOTE: placeholder sky logic (should be replaced later)
+            sky_mask = (depth_map > 200).bool()
+            if (~sky_mask).any():
+                depth_map[sky_mask] = depth_map[~sky_mask].mean()
+
         input_latents = inputs["input_latents"]
+        h, w = input_latents.shape[-2:]
+
+        # Sample params
+        cutoff_radius = np.random.exponential(scale=1 / 0.1) + 4
+        cutoff_radius = min(cutoff_radius, min(h, w) // 2)
+
+        k = np.random.uniform(2.0, 4.0)
+        maximal_radius = min(cutoff_radius * k, min(h, w) // 2)
+
+        gamma = float(np.exp(np.random.uniform(np.log(0.3), np.log(2.0))))
+
         input_noise = torch.randn_like(input_latents.float())
-        structured_noise = generate_wavelet_structured_noise_batch_vectorized(input_latents.float(), input_noise=input_noise)
+
+        structured_noise = generate_wavelet_structured_noise_batch_vectorized(
+            input_latents.float(),
+            cutoff_radius=cutoff_radius,
+            maximal_radius=maximal_radius,
+            depth_map=depth_map,
+            gamma=gamma,
+            input_noise=input_noise,
+        )
+
         inputs["noise"] = structured_noise.to(dtype=self.pipe.torch_dtype, device=self.pipe.device)
         loss = self.pipe.training_loss(**models, **inputs)
+        
+        # Log stats (only if accelerator injected)
+        if self.accelerator is not None and step is not None:
+            with torch.no_grad():
+                n = structured_noise.detach().float()
+                stats = torch.stack([n.mean(), n.std(), n.abs().max(), loss.detach().float()])  # (4,)
+                stats = self.accelerator.gather(stats[None]).mean(dim=0)  # (4,)
+
+            if self.accelerator.is_main_process:
+                self.accelerator.log(
+                    {
+                        "noise/mean": stats[0].item(),
+                        "noise/std": stats[1].item(),
+                        "noise/max_abs": stats[2].item(),
+                        "noise/cutoff_radius": float(cutoff_radius),
+                        "noise/maximal_radius": float(maximal_radius),
+                        "noise/gamma": float(gamma),
+                        "loss": stats[3].item(),
+                    },
+                    step=step,
+                )
         return loss
 
+
+# -------------------------
+# Training loop
+# -------------------------
 def launch_training_task(
     dataset: torch.utils.data.Dataset,
     model: DiffusionTrainingModule,
@@ -103,7 +218,7 @@ def launch_training_task(
     num_epochs: int = 1,
     gradient_accumulation_steps: int = 1,
     find_unused_parameters: bool = False,
-    args = None,
+    args=None,
 ):
     if args is not None:
         learning_rate = args.learning_rate
@@ -113,7 +228,7 @@ def launch_training_task(
         num_epochs = args.num_epochs
         gradient_accumulation_steps = args.gradient_accumulation_steps
         find_unused_parameters = args.find_unused_parameters
-    
+
     optimizer = torch.optim.AdamW(model.trainable_modules(), lr=learning_rate, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer)
     dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, collate_fn=lambda x: x[0], num_workers=num_workers)
@@ -125,27 +240,43 @@ def launch_training_task(
         kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=find_unused_parameters)],
     )
     accelerator.init_trackers(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+
     model, optimizer, dataloader, scheduler = accelerator.prepare(model, optimizer, dataloader, scheduler)
-    
+
+    # Inject accelerator into model (so forward() can log)
+    raw_model = accelerator.unwrap_model(model)
+    if hasattr(model, "module") and hasattr(model.module, "set_accelerator"):
+        model.module.set_accelerator(accelerator)
+    elif hasattr(raw_model, "set_accelerator"):
+        raw_model.set_accelerator(accelerator)
+
+
+    global_step = 0
     for epoch_id in range(num_epochs):
         for data in tqdm(dataloader):
             with accelerator.accumulate(model):
                 optimizer.zero_grad()
-                loss = model(data)
+                loss = model(data, step=global_step)
                 accelerator.backward(loss)
                 optimizer.step()
-                avg_loss = accelerator.gather(loss).mean().item()
-                accelerator.log({"loss": avg_loss}, step=model_logger.num_steps)
                 model_logger.on_step_end(accelerator, model, save_steps)
                 scheduler.step()
+                global_step += 1
+
         if save_steps is None:
             model_logger.on_epoch_end(accelerator, model, epoch_id)
+
     model_logger.on_training_end(accelerator, model, save_steps)
 
+
+# -------------------------
+# Main
+# -------------------------
 if __name__ == "__main__":
     parser = flux_parser()
     parser.add_argument("--max_samples", type=int, default=None, help="Maximum number of samples to use for debugging.")
     args = parser.parse_args()
+
     dataset = HuggingFaceURLImageDataset(
         dataset_name="bghira/photo-concept-bucket",
         url_field="url",

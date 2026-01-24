@@ -112,15 +112,12 @@ class DTCWTDecomposer(nn.Module):
         LL, yh = self.xfm(x_nchw)   # yh: list len J
         C = split_yh_to_C(yh, o_dim=self.o_dim)
         return LL, C
-    
-def resize_mask(mask_n1hw: torch.Tensor, h: int, w: int, mode: str = "nearest") -> torch.Tensor:
-    return F.interpolate(mask_n1hw.float(), size=(h, w), mode=mode)
 
 def resize_tensor(tensor: torch.Tensor, h: int, w: int, mode: str = "nearest") -> torch.Tensor:
     """Helper to resize masks or leak maps to match wavelet coefficient dimensions."""
     if tensor.shape[-2:] == (h, w):
         return tensor
-    return F.interpolate(tensor.float(), size=(h, w), mode=mode)
+    return F.interpolate(tensor.float(), size=(h, w), mode=mode, align_corners=False)
 
 def complex_phase(re: torch.Tensor, im: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     # atan2 is stable; eps not strictly needed, kept for symmetry with mag
@@ -159,12 +156,7 @@ def fuse_subband_generic(
     phi_s = complex_phase(re_s, im_s)
     phi_n = complex_phase(re_n, im_n)
     
-    # Expand mask if it is a spatial tensor (N, 1, H, W) -> (N, C, H, W)
-    if isinstance(mask, torch.Tensor) and mask.ndim == 4:
-        # Assuming C is dim 1
-        m = mask.expand(phi_s.shape[0], phi_s.shape[1], phi_s.shape[2], phi_s.shape[3])
-    else:
-        m = mask
+    m = mask
 
     # Mix Phase: Mask=1 keeps Signal Phase, Mask=0 takes Noise Phase
     # Note: Simple linear interpolation of phase is standard in PPD for binary masks.
@@ -175,11 +167,7 @@ def fuse_subband_generic(
     mag_s = complex_mag(re_s, im_s, eps=eps)
     mag_n = complex_mag(re_n, im_n, eps=eps)
     
-    # Expand leak if it is a spatial tensor
-    if isinstance(leak, torch.Tensor) and leak.ndim == 4:
-        l = leak.expand(mag_s.shape[0], mag_s.shape[1], mag_s.shape[2], mag_s.shape[3])
-    else:
-        l = leak
+    l = leak
 
     # Mix Magnitude: Leak=1 keeps Signal Mag, Leak=0 takes Noise Mag
     mag = l * mag_s + (1.0 - l) * mag_n
@@ -294,6 +282,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         self.o_dim = o_dim
         self.ifm = DTCWTInverse(biort=biort, qshift=qshift, mode=mode, o_dim=o_dim, ri_dim=ri_dim)
         self.splitter = ComplexBandPacketSplitter(biort=biort, qshift=qshift, mode=mode, o_dim=o_dim, ri_dim=ri_dim)
+        self.early_exit_p = 0.05  # If mask is mostly one side, do direct fusion
 
     def forward(
         self,
@@ -304,7 +293,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         maximal_norm: float,
         gamma: float = 0.5,
         pad_factor: float = 1.5,
-        max_packet_depth: int = 4,
+        max_packet_level: int = 4,
         eps: float = 1e-8,
     ):  
         disparity_map = 1 / (depth_map + eps)  # convert depth (m) to disparity (1/m)
@@ -339,30 +328,42 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
             freq_high = 1.0 / (2.0 ** (level_idx - 1))
             freq_low  = 1.0 / (2.0 ** level_idx)
             
-            C_mix_l = []
             ref = C_z[l][0]
             H_l, W_l = ref.shape[-3], ref.shape[-2]
             
             d_l = resize_tensor(control_map, H_l, W_l, mode='bilinear')
 
-            for o in range(6):
-                c_fused = self._process_band_recursive(
-                    C_img[l][o], C_z[l][o],
-                    freq_low, freq_high,
-                    d_l, 
-                    cutoff_norm, maximal_norm, gamma,
-                    0, max_packet_depth, eps
-                )
-                C_mix_l.append(c_fused)
-            
+            # C_img[l] and C_z[l] are lists of 6 tensors, each (N, C, H_l, W_l, 2)
+            Cimg6 = torch.stack(C_img[l], dim=2)   # (N, C, 6, H, W, 2)
+            Cz6   = torch.stack(C_z[l],   dim=2)   # (N, C, 6, H, W, 2)
+
+            N, C, O, H, W, two = Cimg6.shape
+            assert O == 6 and two == 2
+
+            # reshape to (N, C*6, H, W, 2)
+            Cimg_merged = Cimg6.contiguous().view(N, C * 6, H, W, 2)
+            Cz_merged   = Cz6.contiguous().view(N, C * 6, H, W, 2)
+
+            # One recursive call instead of 6
+            Cfused_merged = self._process_band_recursive(
+                Cimg_merged, Cz_merged,
+                freq_low, freq_high,
+                d_l,
+                cutoff_norm, maximal_norm, gamma,
+                0, max_packet_level, eps
+            )  # (N, C*6, H, W, 2)
+
+            # reshape back to list-of-6 for pack_C_to_yh_list
+            Cfused6 = Cfused_merged.view(N, C, 6, H, W, 2)
+            C_mix_l = list(Cfused6.unbind(dim=2))  # 6 tensors of shape (N,C,H,W,2)
+
             C_mix.append(C_mix_l)
 
         yh_mix = pack_C_to_yh_list(C_mix, o_dim=self.o_dim)
         x_hat = self.ifm((LL_mix, yh_mix))
-        
         return x_hat, LL_mix, C_mix
 
-    def _process_band_recursive(self, c_img, c_nz, f_start, f_end, depth_map, r_min, r_max, gamma, depth, max_depth, eps):
+    def _process_band_recursive(self, c_img, c_nz, f_start, f_end, depth_map, r_min, r_max, gamma, level, max_level, eps):
         # 1. Global Low Freq: Structure kept, Mag replaced
         if f_end <= r_min + 1e-9:
              return fuse_subband_generic(c_img, c_nz, mask=1.0, eps=eps)
@@ -372,20 +373,26 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
             return fuse_subband_generic(c_img, c_nz, mask=0.0, eps=eps)
             
         # 3. Transition Band (The Masked Region): Use PPD mixing
-        if depth >= max_depth:
-            mid = (f_start + f_end) / 2
-            pixel_thresholds = r_min + (depth_map ** gamma) * (r_max - r_min)
-            decision_map = (mid <= pixel_thresholds).float()
+        mid = (f_start + f_end) / 2
+        pixel_thresholds = r_min + (depth_map ** gamma) * (r_max - r_min)
+        decision_map = (mid <= pixel_thresholds).float()
+        p_per = decision_map.mean(dim=(-2,-1), keepdim=True)  # (N,1,1,1)
+        uniform = (p_per < self.early_exit_p) | (p_per > 1.0 - self.early_exit_p)
+        if uniform.all().item():
+            mask = (p_per > 0.5).float()
+            return fuse_subband_generic(c_img, c_nz, mask=mask, eps=eps)
+        if level >= max_level:
             return fuse_subband_generic(c_img, c_nz, mask=decision_map, eps=eps)
 
+        
         lo_img, hi_img = self.splitter.split_once(c_img)
         lo_nz, hi_nz   = self.splitter.split_once(c_nz)
         
         H_sub, W_sub = lo_img.shape[-3], lo_img.shape[-2]
         sub_depth = resize_tensor(depth_map, H_sub, W_sub, mode='bilinear')
         mid_freq = (f_start + f_end) / 2.0
-        out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_depth, r_min, r_max, gamma, depth + 1, max_depth, eps)
-        out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_depth, r_min, r_max, gamma, depth + 1, max_depth, eps)
+        out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_depth, r_min, r_max, gamma, level + 1, max_level, eps)
+        out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_depth, r_min, r_max, gamma, level + 1, max_level, eps)
         return out_lo + out_hi
 
 
@@ -493,8 +500,9 @@ def generate_wavelet_structured_noise_batch_vectorized(
             gamma=gamma,
             pad_factor=pad_factor
         )
-
-    return x_hat.to(dtype=dtype)
+    clamp_mask = x_hat.abs() > 5
+    structured_noise = torch.where(clamp_mask, z, x_hat)
+    return structured_noise.to(dtype=dtype)
 
 def make_zone_plate(size):
     """Generates a pattern where frequency increases with distance from center."""
