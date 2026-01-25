@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from pytorch_wavelets import DTCWTForward, DTCWTInverse
 from structured_noise import generate_structured_noise_batch_vectorized
-from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 
 @dataclass(frozen=True)
@@ -134,7 +134,7 @@ def fuse_subband_generic(
     eps: float = 1e-8
 ) -> torch.Tensor:
     """
-    Unified fusion function for DTCWT coefficients.
+    Unified fusion function for DTCWPT coefficients.
     
     Controls Phase and Magnitude separately:
     - Phase Source: Controlled by 'mask' (1.0 = Signal Phase, 0.0 = Noise Phase).
@@ -249,7 +249,7 @@ def _chan_to_cplx(x):
     return torch.stack([re, im], dim=-1)
 
 class ComplexBandPacketSplitter(nn.Module):
-    """Split a *complex* subband into low/high halves using one-level DTCWT on stacked (re,im) channels."""
+    """Split a *complex* subband into low/high halves using one-level DTCWPT on stacked (re,im) channels."""
     def __init__(self, biort="antonini", qshift="qshift_d", mode="symmetric", o_dim=2, ri_dim=-1):
         super().__init__()
         self.fwd = DTCWTForward(J=1, biort=biort, qshift=qshift, mode=mode, o_dim=o_dim, ri_dim=ri_dim)
@@ -268,7 +268,7 @@ class ComplexBandPacketSplitter(nn.Module):
         low_cplx = _chan_to_cplx(low)
         high_cplx = _chan_to_cplx(high)
         
-        # 3. Crop if necessary (DTCWT padding fix)
+        # 3. Crop if necessary (DTCWPT padding fix)
         if low_cplx.shape[-3] != orig_h or low_cplx.shape[-2] != orig_w:
             low_cplx = low_cplx[..., :orig_h, :orig_w, :]
             high_cplx = high_cplx[..., :orig_h, :orig_w, :]
@@ -425,7 +425,7 @@ def generate_wavelet_structured_noise_batch_vectorized(
     gamma: float = 1.0
 ):
     """
-    Generates Depth-Guided DTCWT Structured Noise using pixel-defined radii.
+    Generates Depth-Guided DTCWPT Structured Noise using pixel-defined radii.
     
     Args:
         image_batch: (N, C, H, W) source images.
@@ -577,15 +577,17 @@ def generate_fft_depth_blend(image, depth_map, cutoff_radius, maximal_radius, ga
 def run_comparison():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     size = 512
-    
-    # Setup Data
+
+    # --- Setup Data ---
     x_zone = make_zone_plate(size).to(device)
     x_metal = make_brushed_metal(size).to(device)
+
+    # Keep depth generation internally (used for blending), but DO NOT present it as "depth" in the plot.
     near_m, far_m = 1.0, 100.0
     depth_grad = make_depth_gradient(size, near=near_m, far=far_m).to(device)
-    
+
     r_near, r_far, gamma = 5, 256, 100
-    
+
     # --- Execute ---
     print("Running Zone Plate Tests...")
     fft_zone = generate_fft_depth_blend(x_zone, depth_grad, r_near, r_far, gamma)
@@ -598,56 +600,197 @@ def run_comparison():
     wav_metal = generate_wavelet_structured_noise_batch_vectorized(
         x_metal, r_near, r_far, depth_grad, noise_std=1.0, gamma=gamma
     )
-    
-    # --- Visualization ---
+
+    # --- To numpy (avoid repeated cpu/numpy calls) ---
+    zone_in   = x_zone[0, 0].detach().cpu().numpy()
+    zone_fft  = fft_zone[0, 0].detach().cpu().numpy()
+    zone_wav  = wav_zone[0, 0].detach().cpu().numpy()
+    metal_in  = x_metal[0, 0].detach().cpu().numpy()
+    metal_fft = fft_metal[0, 0].detach().cpu().numpy()
+    metal_wav = wav_metal[0, 0].detach().cpu().numpy()
+
+    # --- Visualization (2x3 grid) ---
     fig, axs = plt.subplots(2, 3, figsize=(20, 14))
     plt.subplots_adjust(bottom=0.15, hspace=0.3)
-    zx, zy = size // 2, size // 2 
+
+    zx, zy = size // 2, size // 2
     z_size = 60
-    def format_plot_with_bar(ax, data, title, show_bar=False, zoom_color=None):
-        ax.imshow(data, cmap='gray')
-        ax.set_title(title, fontsize=15, pad=15, fontweight='bold')
-        ax.axis('off')
-        if zoom_color is not None:
-            rect = patches.Rectangle((zx - z_size, zy - z_size), z_size*2, z_size*2, 
-                                     linewidth=2, edgecolor=zoom_color, facecolor='none', alpha=0.8)
+
+    def _add_threshold_frequency_bar(fig_, parent_ax):
+        """Add a horizontal legend bar under `parent_ax` explaining threshold frequency."""
+        pos = parent_ax.get_position()
+        # [left, bottom, width, height] in figure coordinates
+        cax = fig_.add_axes([pos.x0, pos.y0 - 0.05, pos.width, 0.012])
+
+        gradient = np.linspace(0, 1, 256).reshape(1, -1)
+        cax.imshow(gradient, aspect="auto", cmap="gray")
+        cax.set_yticks([])
+        cax.set_xticks([0, 255])
+        cax.set_xticklabels(
+            ["Lower threshold frequency\n(more noise)",
+             "Higher threshold frequency\n(more structure)"],
+            fontsize=8
+        )
+        cax.set_xlabel("Threshold frequency", fontsize=9, labelpad=2)
+        for spine in cax.spines.values():
+            spine.set_visible(False)
+
+    def format_plot(ax, data, title, *, show_bar=False, roi_color=None):
+        ax.imshow(data, cmap="gray")
+        ax.set_title(title, fontsize=15, pad=15, fontweight="bold")
+        ax.axis("off")
+
+        # Draw ROI on the parent axes if requested
+        if roi_color is not None:
+            rect = patches.Rectangle(
+                (zx - z_size, zy - z_size),
+                2 * z_size, 2 * z_size,
+                linewidth=2, edgecolor=roi_color, facecolor="none", alpha=0.9
+            )
             ax.add_patch(rect)
+
         if show_bar:
-            pos = ax.get_position()
-            cax = fig.add_axes([pos.x0, pos.y0 - 0.05, pos.width, 0.01])
-            
-            gradient = np.linspace(0, 1, 256).reshape(1, -1)
-            cax.imshow(gradient, aspect='auto', cmap='gray')
-            
-            cax.set_yticks([])
-            cax.set_xticks([0, 255])
-            cax.set_xticklabels([f"Near\n(Noise)", f"Far\n(Signal)"], fontsize=9)
-            
-    def add_conservative_zoom(ax, data, color):
-        axins = zoomed_inset_axes(ax, zoom=1.5, loc='lower right') 
-        axins.imshow(data, cmap='gray')
-        axins.set_xlim(zx - z_size, zx + z_size)
-        axins.set_ylim(zy + z_size, zy - z_size)
+            _add_threshold_frequency_bar(fig, ax)
+
+    def add_zoom_and_connect(ax, data, color):
+        """Add zoom inset + connect it to ROI on the parent axis."""
+        # --- ROI rectangle on the main axis (in data coords) ---
+        x0, x1 = zx - z_size, zx + z_size
+        y0, y1 = zy - z_size, zy + z_size
+
+        roi = patches.Rectangle(
+            (x0, y0), 2 * z_size, 2 * z_size,
+            linewidth=5, edgecolor=color, facecolor="none", alpha=0.9
+        )
+        ax.add_patch(roi)
+
+        # --- Inset axis with controlled size ---
+        axins = inset_axes(ax, width="33%", height="33%", loc="lower right", borderpad=1.0)
+        axins.imshow(data, cmap="gray")
+        axins.set_xlim(x0, x1)
+        axins.set_ylim(y1, y0)  # invert y to match image display
         axins.set_xticks([]); axins.set_yticks([])
+
         for spine in axins.spines.values():
             spine.set_edgecolor(color)
-            spine.set_linewidth(2)
+            spine.set_linewidth(5)
 
-    # 第一行: Zone Plate
-    format_plot_with_bar(axs[0,0], x_zone[0,0].cpu().numpy(), "Input: Zone Plate")
-    format_plot_with_bar(axs[0,1], fft_zone[0,0].cpu().numpy(), "FFT Blend", show_bar=True, zoom_color='red')
-    format_plot_with_bar(axs[0,2], wav_zone[0,0].cpu().numpy(), "DTCWT", show_bar=True, zoom_color='green')
+        # --- Connect BL->BL and TR->TR (use axis-fraction coordinates to hit inset corners) ---
+        # Main axis corners (data coords)
+        bl_data = (x0, y1)  # bottom-left in image display sense
+        tr_data = (x1, y0)  # top-right in image display sense
 
-    add_conservative_zoom(axs[0,1], fft_zone[0,0].cpu().numpy(), 'red')
-    add_conservative_zoom(axs[0,2], wav_zone[0,0].cpu().numpy(), 'green')
+        # Inset corners (axes-fraction coords): BL=(0,0), TR=(1,1)
+        con_bl = patches.ConnectionPatch(
+            xyA=(0, 0), coordsA=axins.transAxes,
+            xyB=bl_data, coordsB=ax.transData,
+            color=color, linewidth=1.5
+        )
+        con_tr = patches.ConnectionPatch(
+            xyA=(1, 1), coordsA=axins.transAxes,
+            xyB=tr_data, coordsB=ax.transData,
+            color=color, linewidth=1.5
+        )
 
-    # 第二行: Brushed Metal
-    format_plot_with_bar(axs[1,0], x_metal[0,0].cpu().numpy(), "Input: Brushed Metal")
-    format_plot_with_bar(axs[1,1], fft_metal[0,0].cpu().numpy(), "FFT Blend", show_bar=True)
-    format_plot_with_bar(axs[1,2], wav_metal[0,0].cpu().numpy(), "DTCWT Phase-Only Structure", show_bar=True)
+        ax.add_artist(con_bl)
+        ax.add_artist(con_tr)
 
-    plt.savefig("fft_vs_wavelet.png")
-    print("Saved fft_vs_wavelet.png")
+        return axins
+
+    # Row 1: Zone Plate
+    format_plot(axs[0, 0], zone_in,  "Input: Zone Plate", show_bar=False)
+    format_plot(axs[0, 1], zone_fft, "FFT Blending", show_bar=False, roi_color="red")
+    format_plot(axs[0, 2], zone_wav, "DTCWPT",       show_bar=False, roi_color="green")
+    add_zoom_and_connect(axs[0, 1], zone_fft, "red")
+    add_zoom_and_connect(axs[0, 2], zone_wav, "green")
+
+    # Row 2: Brushed Metal
+    format_plot(axs[1, 0], metal_in,  "Input: Brushed Metal", show_bar=False)
+    format_plot(axs[1, 1], metal_fft, "FFT Blending",         show_bar=False)
+    format_plot(axs[1, 2], metal_wav, "DTCWPT",               show_bar=False)
+
+    # Save the full grid (existing behavior)
+    plt.savefig("fft_vs_wavelet.png", dpi=300, bbox_inches="tight")
+
+    # --- Save 6 standalone panels (for LaTeX subfigures) ---
+    def _save_panel(fname_stem, data, title, *, add_bar, add_zoom, color):
+        f, ax = plt.subplots(1, 1, figsize=(6.5, 5.2))
+        ax.imshow(data, cmap="gray")
+        ax.set_title(title, fontsize=14, pad=10, fontweight="bold")
+        ax.axis("off")
+
+        if add_zoom:
+            # --- ROI rectangle on the main axis (in data coords) ---
+            x0, x1 = zx - z_size, zx + z_size
+            y0, y1 = zy - z_size, zy + z_size
+
+            roi = patches.Rectangle(
+                (x0, y0), 2 * z_size, 2 * z_size,
+                linewidth=5, edgecolor=color, facecolor="none", alpha=0.9
+            )
+            ax.add_patch(roi)
+
+            # --- Inset axis with controlled size ---
+            axins = inset_axes(ax, width="33%", height="33%", loc="lower right", borderpad=1.0)
+            axins.imshow(data, cmap="gray")
+            axins.set_xlim(x0, x1)
+            axins.set_ylim(y1, y0)  # invert y to match image display
+            axins.set_xticks([]); axins.set_yticks([])
+
+            for spine in axins.spines.values():
+                spine.set_edgecolor(color)
+                spine.set_linewidth(5)
+
+            # --- Connect BL->BL and TR->TR (use axis-fraction coordinates to hit inset corners) ---
+            # Main axis corners (data coords)
+            bl_data = (x0, y1)  # bottom-left in image display sense
+            tr_data = (x1, y0)  # top-right in image display sense
+
+            # Inset corners (axes-fraction coords): BL=(0,0), TR=(1,1)
+            con_bl = patches.ConnectionPatch(
+                xyA=(0, 0), coordsA=axins.transAxes,
+                xyB=bl_data, coordsB=ax.transData,
+                color=color, linewidth=1.5
+            )
+            con_tr = patches.ConnectionPatch(
+                xyA=(1, 1), coordsA=axins.transAxes,
+                xyB=tr_data, coordsB=ax.transData,
+                color=color, linewidth=1.5
+            )
+
+            ax.add_artist(con_bl)
+            ax.add_artist(con_tr)
+
+        if add_bar:
+            pos = ax.get_position()
+            cax = f.add_axes([pos.x0, pos.y0 - 0.05, pos.width, 0.018])
+            gradient = np.linspace(0, 1, 256).reshape(1, -1)
+            cax.imshow(gradient, aspect="auto", cmap="gray")
+            cax.set_yticks([])
+            cax.set_xticks([0, 255])
+            cax.set_xticklabels(
+                ["Lower threshold frequency\n(more noise)",
+                 "Higher threshold frequency\n(more structure)"],
+                fontsize=8
+            )
+            cax.set_xlabel("Threshold frequency", fontsize=9, labelpad=2)
+            for spine in cax.spines.values():
+                spine.set_visible(False)
+
+        for ext in ("pdf",):
+            f.savefig(f"{fname_stem}.{ext}", dpi=300, bbox_inches="tight")
+        plt.close(f)
+
+    _save_panel("panel_a_zone_input",  zone_in,   "",             add_bar=False, add_zoom=False, color="red")
+    _save_panel("panel_b_zone_fft",    zone_fft,  "",                  add_bar=False,  add_zoom=True,  color="red")
+    _save_panel("panel_c_zone_dtcwpt", zone_wav,  "",                        add_bar=False,  add_zoom=True,  color="green")
+    _save_panel("panel_d_metal_input", metal_in,  "",          add_bar=False, add_zoom=False, color="red")
+    _save_panel("panel_e_metal_fft",   metal_fft, "",                  add_bar=False,  add_zoom=False, color="red")
+    _save_panel("panel_f_metal_dtcwpt",metal_wav, "",                        add_bar=False,  add_zoom=False, color="green")
+
+    plt.close(fig)
+
+
 
 if __name__ == "__main__":
     run_comparison()
