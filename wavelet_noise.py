@@ -544,12 +544,14 @@ def generate_fft_depth_blend(image, depth_map, cutoff_radius, maximal_radius, ga
     """
     FFT baseline
     """
+    noise = torch.randn_like(image)
     near_img = generate_structured_noise_batch_vectorized(
         image_batch=image, 
         cutoff_radius=float(cutoff_radius),
         noise_std=1.0,
         pad_factor=1.5,
-        sampling_method='fft'
+        sampling_method='fft',
+        input_noise=noise
     )
     
     far_img = generate_structured_noise_batch_vectorized(
@@ -557,7 +559,8 @@ def generate_fft_depth_blend(image, depth_map, cutoff_radius, maximal_radius, ga
         cutoff_radius=float(maximal_radius),
         noise_std=1.0,
         pad_factor=1.5,
-        sampling_method='fft'
+        sampling_method='fft',
+        input_noise=noise
     )
     
     eps = 1e-8
