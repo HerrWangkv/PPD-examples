@@ -21,6 +21,11 @@ RUN cd PPD-examples && pip install -r requirements.txt
 RUN pip install git+https://github.com/zengxianyu/structured-noise
 
 # Install opencv specifically (headless is better for servers/docker)
-RUN pip install opencv-python-headless scikit-image datasets tensorboard matplotlib timm wandb prettytable
+RUN pip install opencv-python-headless scikit-image datasets tensorboard matplotlib timm wandb prettytable clean-fid
+RUN pip install git+https://github.com/openai/CLIP.git
+RUN apt-get update && apt-get install -y \
+    squashfuse \
+    fuse \
+    && rm -rf /var/lib/apt/lists/*
 
 CMD ["/bin/bash"]
