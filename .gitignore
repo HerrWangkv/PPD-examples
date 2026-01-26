@@ -6,3 +6,4 @@ data/images
 data/
 outputs/
 *.pdf
+logs/
