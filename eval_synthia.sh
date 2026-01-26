@@ -18,5 +18,6 @@ docker run -it --rm --gpus all --name eval_synthia --ipc=host \
         echo 'Cityscapes mounted at /workspace/data/cityscapes' && \
         CUDA_VISIBLE_DEVICES=1 python calc_miou_synthia.py --gen_folder \"$1\" && \
         CUDA_VISIBLE_DEVICES=1 python calc_fid_synthia.py --gen_folder \"$1\" && \
-        CUDA_VISIBLE_DEVICES=1 python calc_clip_synthia.py --gen_folder \"$1\"
+        CUDA_VISIBLE_DEVICES=1 python calc_clip_synthia.py --gen_folder \"$1\" && \
+        CUDA_VISIBLE_DEVICES=1 python calc_as_synthia.py --gen_folder \"$1\"
     "
