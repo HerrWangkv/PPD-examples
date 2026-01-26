@@ -4,15 +4,14 @@ import os
 import cv2
 import numpy as np
 import torch.nn.functional as F
+import torch.distributed as dist
 from PIL import Image
 from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ModelConfig
 from diffsynth import download_models
 from wavelet_noise import generate_wavelet_structured_noise_batch_vectorized
 
 # SYNTHIA Dataset Mapping
-# Sky is 10. We treat it specially to avoid rendering artifacts.
 SKY_CLASS = 10 
-# We keep target classes logic for potential future overrides
 TARGET_CLASSES = [4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18]
 
 def parse_args():
@@ -74,12 +73,24 @@ def parse_args():
     )
     return parser.parse_args()
 
+def setup_distributed():
+    """Initializes the distributed backend for DDP."""
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+        rank = int(os.environ["RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+        local_rank = int(os.environ["LOCAL_RANK"])
+        
+        torch.cuda.set_device(local_rank)
+        dist.init_process_group(backend="nccl", init_method="env://")
+        return rank, world_size, local_rank
+    else:
+        # Fallback for single GPU/CPU run
+        print("Not running in distributed mode.")
+        return 0, 1, 0
+
 def get_related_paths(image_path):
     """
     Infers Depth and Mask paths from SYNTHIA structure.
-    RGB: data/synthia/RGB/0009330.png
-    Depth: data/synthia/Depth/Depth/0009330.png
-    Labels: data/synthia/GT/LABELS/0009330_labelTrainIds.png
     """
     base_name = os.path.basename(image_path)
     root = image_path.split("/RGB/")[0]
@@ -91,37 +102,26 @@ def get_related_paths(image_path):
 
 def load_and_preprocess_synthia_data(depth_path, mask_path, size, device, max_depth_limit=500.0):
     """Loads depth and handles sky/outlier depth values."""
-    # Load 16-bit depth (cm)
     depth_cv2 = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
     if depth_cv2 is None: raise FileNotFoundError(f"Depth not found: {depth_path}")
     
-    # Handle multi-channel encoding
     if len(depth_cv2.shape) == 3:
         depth_cv2 = np.max(depth_cv2, axis=2)
     
-    # Convert to meters
     depth_m = depth_cv2.astype(np.float32) / 100.0
-    
-    # --- Assert/Clamp Outliers ---
-    # Any depth significantly beyond realistic scene limits is treated as "Far" 
-    # and clamped to prevent normalization skewing.
     depth_m = np.clip(depth_m, 0.0, max_depth_limit)
     
-    # Load mask and move to tensor
     depth_pt = torch.from_numpy(depth_m).to(device).view(1, 1, *depth_m.shape)
     mask_cv2 = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
     mask_pt = torch.from_numpy(mask_cv2.astype(np.int32)).to(device).view(1, 1, *mask_cv2.shape)
-    # --- Sky Depth Logic ---
+    
     sky_mask = (mask_pt == SKY_CLASS)
     non_sky_mask = ~sky_mask
     
     if sky_mask.any():
-        # Compute average of valid non-sky areas
-        # This now benefits from the previous clamping of non-sky outliers
         avg_non_sky_depth = depth_pt[non_sky_mask].mean()
         depth_pt[sky_mask] = avg_non_sky_depth
         
-    # Resize
     depth_pt = F.interpolate(depth_pt, size=size, mode='bilinear')
     mask_pt = F.interpolate(mask_pt.float(), size=size, mode='nearest').long()
 
@@ -129,10 +129,23 @@ def load_and_preprocess_synthia_data(depth_path, mask_path, size, device, max_de
 
 if __name__ == "__main__":
     args = parse_args()
-    download_models(["FLUX.1-dev"])
+    
+    # 1. Setup Distributed Environment
+    rank, world_size, local_rank = setup_distributed()
+    device = torch.device(f"cuda:{local_rank}")
+
+    if rank == 0:
+        print(f"Initializing DDP: Rank {rank}/{world_size} on device {device}")
+        download_models(["FLUX.1-dev"])
+    
+    # Wait for Rank 0 to finish downloading
+    if world_size > 1:
+        dist.barrier()
+
+    # 2. Load Model
     pipe = FluxImagePipeline.from_pretrained(
         torch_dtype=torch.bfloat16,
-        device="cuda",
+        device=device,
         model_configs=[
             ModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="flux1-dev.safetensors"),
             ModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="text_encoder/model.safetensors"),
@@ -142,13 +155,50 @@ if __name__ == "__main__":
     )
 
     embed_layers = None
-
     pipe.load_lora(pipe.dit, args.lora_checkpoint_path, alpha=1)
 
-    for img_name in os.listdir(os.path.join(args.synthia_folder, "RGB")):
+    # =========================================================================
+    # 3. GLOBAL FILTERING & WORKLOAD DISTRIBUTION
+    # =========================================================================
+    rgb_folder = os.path.join(args.synthia_folder, "RGB")
+    all_files = sorted(os.listdir(rgb_folder))
+    valid_images = [f for f in all_files if f.endswith(('.png', '.jpg', '.jpeg'))]
+
+    # Filter out already processed images to support resuming
+    images_to_process = []
+    for img_name in valid_images:
+        output_path = os.path.join(args.output_folder, "RGB", img_name)
+        if not os.path.exists(output_path):
+            images_to_process.append(img_name)
+
+    total_count = len(valid_images)
+    todo_count = len(images_to_process)
+
+    if rank == 0:
+        print(f"Total Dataset: {total_count}")
+        print(f"Already Done:  {total_count - todo_count}")
+        print(f"Remaining:     {todo_count} (Distributing these among {world_size} GPUs)")
+
+    # Distribute remaining work
+    my_images = images_to_process[rank::world_size]
+
+    if len(my_images) == 0:
+        print(f"[GPU {rank}] No work assigned. Exiting.")
+        if world_size > 1: dist.destroy_process_group()
+        exit(0)
+
+    print(f"[GPU {rank}] Assigned {len(my_images)} tasks.")
+
+    # 4. Processing Loop
+    for img_name in my_images:
         input_image_path = os.path.join(args.synthia_folder, "RGB", img_name)
         depth_path, mask_path = get_related_paths(input_image_path)
         output_image_path = os.path.join(args.output_folder, "RGB", img_name)
+        
+        # Double check existence (rare race condition or user intervention)
+        if os.path.exists(output_image_path):
+            continue
+
         os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
 
         image_in_pil = Image.open(input_image_path).convert("RGB")
@@ -161,13 +211,15 @@ if __name__ == "__main__":
             new_w, new_h = w//16*16,h//16*16
         
         image_in_pil = image_in_pil.resize((new_w, new_h), resample=Image.LANCZOS)
+        # Note: Pass the correct DDP device here
         depth_map = load_and_preprocess_synthia_data(depth_path, mask_path, (new_h, new_w), device=pipe.device)
         prompt = args.prompt
+        
         with torch.no_grad():
             image = pipe.preprocess_image(image_in_pil).to(device=pipe.device, dtype=pipe.torch_dtype)
             input_latents = pipe.vae_encoder(image, tiled=False)
 
-            input_noise = torch.randn_like(input_latents)
+            # Generate structured noise
             noise = generate_wavelet_structured_noise_batch_vectorized(
                 image_batch=input_latents,
                 depth_map=depth_map, 
@@ -176,10 +228,9 @@ if __name__ == "__main__":
                 gamma=args.gamma,
                 noise_std=1.0
             )
-            noise = noise.contiguous()
+            noise = noise.contiguous().to(device) # Ensure it's on the right device
 
             negative_prompt = args.negative_prompt
-
             image = pipe(
                 prompt=prompt, negative_prompt=negative_prompt,
                 height=new_h, width=new_w,
@@ -188,5 +239,9 @@ if __name__ == "__main__":
 
             if use_original_size:
                 image = image.resize((w,h))
-            os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
+            
             image.save(output_image_path)
+            print(f"[GPU {rank}] Generated: {img_name}")
+
+    if world_size > 1:
+        dist.destroy_process_group()
