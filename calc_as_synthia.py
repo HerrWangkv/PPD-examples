@@ -62,28 +62,43 @@ def main():
     # 3. 定义 NeuralRemaster 专用提示词
     # 注意：这里使用论文原文指定的"单条"提示词，而不是列表
     # Positive: t_p
-    pos_prompt = "Photo, camera captured, picture, photorealistic"
-    # Negative: t_n
-    neg_prompt = "Game, render, cartoon, unreal"
+    positive_prompts = [
+        "Photorealistic",
+        "Natural material properties",
+        "Realistic texture"
+    ]
+    
+    negative_prompts = [
+        "Simulated",
+        "Plastic-looking materials",
+        "Artificial texture",
+        "Artifacts"
+    ]
 
     print(f"--------------------------------------------------")
     print(f"Metric: NeuralRemaster Appearance Score (AS)")
-    print(f"Pos Prompt: '{pos_prompt}'")
-    print(f"Neg Prompt: '{neg_prompt}'")
+    print("Pos Prompts:")
+    for p in positive_prompts:
+        print(f"  - {p}")
+    print("Neg Prompts:")
+    for n in negative_prompts:
+        print(f"  - {n}")
     print(f"Formula:    Sim(Img, Pos) / Sim(Img, Neg)")
     print(f"--------------------------------------------------")
 
     # 预计算文本特征
     # shape: [2, 512] -> index 0 is Pos, index 1 is Neg
-    text_inputs = clip.tokenize([pos_prompt, neg_prompt]).to(device)
-    
+    # 预计算文本特征（prompt ensemble，仍保持 NeuralRemaster 的 AS 形式：Sim(img,tp)/Sim(img,tn)）
+    pos_inputs = clip.tokenize(positive_prompts).to(device)
+    neg_inputs = clip.tokenize(negative_prompts).to(device)
+
     with torch.no_grad():
-        text_features = model.encode_text(text_inputs)
-        text_features /= text_features.norm(dim=-1, keepdim=True)
-        
-        # 分离特征向量，方便后续计算
-        tp = text_features[0] # Positive Embedding
-        tn = text_features[1] # Negative Embedding
+        pos_feats = model.encode_text(pos_inputs)
+        tp = pos_feats.mean(dim=0)
+
+        neg_feats = model.encode_text(neg_inputs)
+        tn = neg_feats.mean(dim=0)
+
 
     # 4. 批量计算
     scores = []
@@ -110,7 +125,6 @@ def main():
         with torch.no_grad():
             # 提取图像特征
             image_features = model.encode_image(image_input)
-            image_features /= image_features.norm(dim=-1, keepdim=True)
             
             # 计算余弦相似度 (Cosine Similarity)
             # 不再使用 Softmax 和 Temperature (100.0)
@@ -125,6 +139,8 @@ def main():
             
             # 安全性处理：防止分母为 0 或负数导致分数翻转
             # CLIP 的余弦相似度极少为负，但在极端合成图上可能出现
+            sim_pos = (sim_pos + 1.0) / 2.0  # 归一化到 [0, 1]
+            sim_neg = (sim_neg + 1.0) / 2.0  # 归一化到 [0, 1]
             sim_neg = torch.clamp(sim_neg, min=1e-6)
             
             batch_scores = sim_pos / sim_neg
