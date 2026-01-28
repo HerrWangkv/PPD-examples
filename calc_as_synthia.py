@@ -65,13 +65,15 @@ def main():
     positive_prompts = [
         "Photorealistic",
         "Natural material properties",
-        "Realistic texture"
+        "Realistic texture",
+        "Real people with natural poses"
     ]
     
     negative_prompts = [
         "Simulated",
         "Plastic-looking materials",
-        "Artificial texture"
+        "Artificial texture",
+        "Stiff mannequin-like characters"
     ]
 
     print(f"--------------------------------------------------")
