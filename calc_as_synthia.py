@@ -71,8 +71,7 @@ def main():
     negative_prompts = [
         "Simulated",
         "Plastic-looking materials",
-        "Artificial texture",
-        "Artifacts"
+        "Artificial texture"
     ]
 
     print(f"--------------------------------------------------")
