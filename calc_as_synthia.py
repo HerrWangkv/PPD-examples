@@ -73,7 +73,8 @@ def main():
         "Simulated",
         "Plastic-looking materials",
         "Artificial texture",
-        "Stiff mannequin-like characters"
+        "Stiff mannequin-like characters",
+        "Artifacts"
     ]
 
     print(f"--------------------------------------------------")
