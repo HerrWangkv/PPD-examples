@@ -288,7 +288,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         self,
         LL_img, C_img,
         LL_z, C_z,
-        depth_map: torch.Tensor,
+        disparity_map: torch.Tensor,
         cutoff_norm: float,
         maximal_norm: float,
         gamma: float = 0.5,
@@ -296,9 +296,8 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         max_packet_level: int = 4,
         eps: float = 1e-8,
     ):  
-        disparity_map = 1 / (depth_map + eps)  # convert depth (m) to disparity (1/m)
 
-        # Assuming depth_map is (N, 1, H, W)
+        # Assuming disparity_map is (N, 1, H, W)
         flattened = disparity_map.view(disparity_map.size(0), -1)
         d_min = flattened.min(dim=1, keepdim=True)[0].view(disparity_map.size(0), 1, 1, 1)
         d_max = flattened.max(dim=1, keepdim=True)[0].view(disparity_map.size(0), 1, 1, 1)
@@ -416,7 +415,8 @@ def generate_wavelet_structured_noise_batch_vectorized(
     image_batch: torch.Tensor,
     cutoff_radius: int, 
     maximal_radius: Optional[int] = None,  
-    depth_map: Optional[torch.Tensor] = None,
+    depth_map: Optional[torch.Tensor] = None,      
+    disparity_map: Optional[torch.Tensor] = None,  
     noise_std: float = 1.0,
     pad_factor: float = 1.5,
     input_noise: torch.Tensor = None,
@@ -429,7 +429,8 @@ def generate_wavelet_structured_noise_batch_vectorized(
     
     Args:
         image_batch: (N, C, H, W) source images.
-        depth_map: (N, 1, H, W) depth map (meters).
+        depth_map: (N, 1, H, W) metric depth map (meters). Used if disparity_map is None.
+        disparity_map: (N, 1, H, W) disparity map. Prioritized if provided.
         cutoff_radius: Int. Pixel radius for the 'Near' degradation cutoff. 
                        (e.g., 1 = heavy blur/noise, 30 = moderate).
         maximal_radius: Int. Pixel radius for 'Far' structure preservation.
@@ -460,8 +461,17 @@ def generate_wavelet_structured_noise_batch_vectorized(
         r_max_norm = 1.0
     else:
         r_max_norm = float(maximal_radius) / nyquist_radius
-    if depth_map is None:
-        depth_map = torch.ones((N, 1, H, W), device=device) # Will just use r_min_norm everywhere
+
+    if disparity_map is not None:
+        # Use provided disparity directly
+        target_map = disparity_map.to(device).float()
+    elif depth_map is not None:
+        # Convert Depth -> Disparity
+        target_map = 1.0 / (depth_map.to(device).float() + 1e-8)
+    else:
+        # Default fallback (Flat map, treats everything as 'Near')
+        target_map = torch.ones((N, 1, H, W), device=device)
+    # ------------------------------------------
 
     # Safety clamping
     r_min_norm = min(max(r_min_norm, 0.0), 1.0)
@@ -494,7 +504,7 @@ def generate_wavelet_structured_noise_batch_vectorized(
         x_hat, _, _ = fuser(
             LL_img, C_img,
             LL_z, C_z,
-            depth_map=depth_map,
+            disparity_map=target_map, 
             cutoff_norm=r_min_norm,
             maximal_norm=r_max_norm,
             gamma=gamma,
