@@ -610,13 +610,13 @@ class WanVideoUnit_InputVideoEmbedder(PipelineUnit):
     def __init__(self):
         super().__init__(
             input_params=("input_video", "noise", "tiled", "tile_size", "tile_stride", "vace_reference_image"),
-            onload_model_names=("vae",)
+            onload_model_names=("vae", "color_embed")
         )
 
     def process(self, pipe: WanVideoPipeline, input_video, noise, tiled, tile_size, tile_stride, vace_reference_image):
         if input_video is None:
             return {"latents": noise}
-        pipe.load_models_to_device(["vae"])
+        pipe.load_models_to_device(["vae", "color_embed"])
         vae_device = pipe.vae_device
 
         saturation_factor = random.uniform(0, 1)
