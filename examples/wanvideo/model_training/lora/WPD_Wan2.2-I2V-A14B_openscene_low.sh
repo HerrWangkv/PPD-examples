@@ -12,7 +12,7 @@ accelerate launch examples/wanvideo/model_training/train_wan_openscene.py \
   --lora_base_model "dit" \
   --lora_target_modules "q,k,v,o,ffn.0,ffn.2" \
   --lora_rank 64 \
-  --lora_checkpoint "models/ppd/low_noise_model_converted.safetensors" \
+  --lora_checkpoint "models/ppd/wan2.2-14b-low-step-12400.safetensors" \
   --extra_inputs "input_image" \
   --max_timestep_boundary 1 \
   --min_timestep_boundary 0.358 \
