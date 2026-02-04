@@ -1,6 +1,7 @@
 __pycache__
 models/black-forest-labs
 models/FLUX
+models/Wan-AI
 models/train
 data/images
 data/
