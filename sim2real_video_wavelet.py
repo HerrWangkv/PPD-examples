@@ -23,19 +23,20 @@ def parse_args():
     parser.add_argument("--depth_video", type=str, required=True, help="Path to input Depth/Disparity video (for structure)")
     parser.add_argument("--output_video", type=str, default="output_wpd.mp4", help="Path for final output video")
     parser.add_argument("--prompt", type=str, default="A photorealistic driving scene in a city, view from a car dashboard. Natural lighting, urban buildings, trees, cars on the street. High resolution, realistic textures.", help="Prompt for generation")
-    
+    parser.add_argument("--image-only", action="store_true", help="If set, only runs the Flux stage and saves the first frame image.")
+
     # --- Flux Arguments ---
-    parser.add_argument("--flux_lora", type=str, default="models/ppd/flux1-dev_lora_color_step=266000_biased.safetensors")
+    parser.add_argument("--flux_lora", type=str, default="models/ppd/flux1-dev_phipd_lora_302000.safetensors")
     parser.add_argument("--flux_cutoff_radius", type=int, default=20, help="Flux: Near degradation radius")
     parser.add_argument("--flux_maximal_radius", type=int, default=40, help="Flux: Far preservation radius")
-    parser.add_argument("--flux_gamma", type=float, default=5, help="Flux: Depth curve control")
+    parser.add_argument("--flux_gamma", type=float, default=10, help="Flux: Depth curve control")
 
     # --- Wan Arguments ---
-    parser.add_argument("--wan_low_lora", type=str, default="models/ppd/wan2.2-i2v-a14b_color_low_step=3600_biased.safetensors")
-    parser.add_argument("--wan_high_lora", type=str, default="models/ppd/wan2.2-i2v-a14b_color_high_step=3600_biased.safetensors")
-    parser.add_argument("--wan_cutoff_radius", type=int, default=20, help="Wan: Radius for structured noise")
+    parser.add_argument("--wan_low_lora", type=str, default="models/ppd/wan2.2-14b-low-step-12400.safetensors")
+    parser.add_argument("--wan_high_lora", type=str, default="models/ppd/wan2.2-14b-high-step-12400.safetensors")
+    parser.add_argument("--wan_cutoff_radius", type=int, default=40, help="Wan: Radius for structured noise")
     parser.add_argument("--wan_maximal_radius", type=int, default=40, help="Wan: Max Radius (usually > cutoff)")
-    parser.add_argument("--wan_gamma", type=float, default=5)
+    parser.add_argument("--wan_gamma", type=float, default=1)
     parser.add_argument("--n_frames", type=int, default=49)
     parser.add_argument("--fps", type=int, default=10)
     
@@ -305,4 +306,7 @@ if __name__ == "__main__":
     flux_output = run_flux_stage(args, first_frame_pil, first_frame_disp, device)
     
     # 2. Wan Stage (Full Video)
-    run_wan_stage(args, flux_output, rgb_frames, disparity_tensor, device)
+    if args.image_only:
+        print("Image-only flag set; skipping Wan video generation.")
+    else:
+        run_wan_stage(args, flux_output, rgb_frames, disparity_tensor, device)

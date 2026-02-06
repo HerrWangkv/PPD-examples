@@ -1,0 +1,23 @@
+#!/bin/bash
+
+docker build -t wpd .
+
+docker run -it --rm --gpus all \
+    -v "$(pwd):/workspace" \
+    -e HF_TOKEN=$HUGGING_FACE_TOKEN \
+    wpd bash -c "
+        cd /workspace && \
+        CUDA_VISIBLE_DEVICES=2 \
+        PYTHONPATH=. python sim2real_video_wavelet.py \
+        --rgb_video video_rgb.mp4 \
+        --depth_video video_depth.mp4 \
+        --flux_lora models/ppd/flux1-dev_phipd_lora_302000.safetensors \
+        --flux_cutoff_radius 30 \
+        --flux_maximal_radius 30 \
+        --flux_gamma 1 \
+        --wan_low_lora models/ppd/wan2.2-14b-low-step-12400.safetensors \
+        --wan_high_lora models/ppd/wan2.2-14b-high-step-12400.safetensors \
+        --wan_cutoff_radius 30 \
+        --wan_maximal_radius 30 \
+        --wan_gamma 1
+    "
