@@ -31,6 +31,12 @@ def parse_args():
         help="Input image filename. Script assumes standard SYNTHIA structure to find GT."
     )
     parser.add_argument(
+        "--input_disparity",
+        type=str,
+        default=None,
+        help="Input disparity filename. Otherwise, script assumes standard SYNTHIA structure to find GT."
+    )
+    parser.add_argument(
         "--output_name",
         type=str,
         default="output.png",
@@ -105,7 +111,7 @@ def load_and_preprocess_synthia_data(depth_path, mask_path, size, device, max_de
     # --- Assert/Clamp Outliers ---
     # Any depth significantly beyond realistic scene limits is treated as "Far" 
     # and clamped to prevent normalization skewing.
-    depth_m = np.clip(depth_m, 0.0, max_depth_limit)
+    depth_m = np.clip(depth_m, 1.0, max_depth_limit)
     
     # Load mask and move to tensor
     depth_pt = torch.from_numpy(depth_m).to(device).view(1, 1, *depth_m.shape)
@@ -130,8 +136,12 @@ def load_and_preprocess_synthia_data(depth_path, mask_path, size, device, max_de
 if __name__ == "__main__":
     args = parse_args()
     device = "cuda"
-    
-    depth_path, mask_path = get_related_paths(args.input_image)
+    if args.input_disparity is not None:
+        is_synthia = False
+        disparity_path = args.input_disparity
+    else:
+        is_synthia = True
+        depth_path, mask_path = get_related_paths(args.input_image)
     
     # 1. Download and Init Pipe
     download_models(["FLUX.1-dev"])
@@ -162,7 +172,32 @@ if __name__ == "__main__":
     image_in_pil = image_in_pil.resize((new_w, new_h), resample=Image.LANCZOS)
 
     # 3. Load Depth Map 
-    depth_map = load_and_preprocess_synthia_data(depth_path, mask_path, (new_h, new_w), device=device)
+    if is_synthia:
+        depth_map = load_and_preprocess_synthia_data(depth_path, mask_path, (new_h, new_w), device=device)
+    else:
+        # Load disparity (grayscale)
+        disp_img = cv2.imread(disparity_path, cv2.IMREAD_UNCHANGED)
+        if disp_img is None:
+            raise ValueError(f"Read error: {disparity_path}")
+
+        # Handle potential 3-channel input (take first channel)
+        if len(disp_img.shape) == 3:
+            disp_img = disp_img[:, :, 0]
+
+        disp_img = cv2.resize(disp_img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        # Normalize based on bit depth
+        if disp_img.dtype == np.uint8:
+            disp_float = disp_img.astype(np.float32) / 255.0
+        else:
+            disp_float = disp_img.astype(np.float32) / 65535.0
+            
+        # Shape: (1, 1, H, W)
+        sky_mask = (disp_float == 0.0)
+        non_sky_mask = ~sky_mask
+        if np.any(sky_mask):
+            avg_non_sky_disp = disp_float[non_sky_mask].mean()
+            disp_float[sky_mask] = avg_non_sky_disp
+        disparity_map = torch.from_numpy(disp_float).to(device=device).view(1, 1, new_h, new_w)
 
     # 4. Diffusion Process
     prompt = args.prompt
@@ -172,14 +207,24 @@ if __name__ == "__main__":
 
         input_noise = torch.randn_like(input_latents)
         # Generate Structured Noise guided by Depth Control Map
-        noise = generate_wavelet_structured_noise_batch_vectorized(
-            image_batch=input_latents,
-            depth_map=depth_map, 
-            cutoff_radius=args.cutoff_radius,
-            maximal_radius=args.maximal_radius,
-            gamma=args.gamma,
-            noise_std=1.0
-        )
+        if is_synthia:
+            noise = generate_wavelet_structured_noise_batch_vectorized(
+                image_batch=input_latents,
+                depth_map=depth_map, 
+                cutoff_radius=args.cutoff_radius,
+                maximal_radius=args.maximal_radius,
+                gamma=args.gamma,
+                noise_std=1.0
+            )
+        else:
+            noise = generate_wavelet_structured_noise_batch_vectorized(
+                image_batch=input_latents,
+                disparity_map=disparity_map,
+                cutoff_radius=args.cutoff_radius,
+                maximal_radius=args.maximal_radius,
+                gamma=args.gamma,
+                noise_std=1.0
+            )
         noise = noise.contiguous()
 
         negative_prompt = args.negative_prompt

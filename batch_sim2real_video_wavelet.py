@@ -6,6 +6,7 @@ import numpy as np
 import torch.nn.functional as F
 from PIL import Image
 import gc
+import glob
 
 # Import DiffSynth components
 from diffsynth import download_models, save_video
@@ -16,20 +17,18 @@ from diffsynth.pipelines.wan_video_new import WanVideoPipeline, ModelConfig as W
 from wavelet_noise import generate_wavelet_structured_noise_batch_vectorized
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="PPD Pipeline: Flux Re-render -> Wan Video Generation")
+    parser = argparse.ArgumentParser(description="Batch PPD Pipeline (Wavelet)")
     
-    # --- Input/Output ---
-    parser.add_argument("--rgb_video", type=str, required=True, help="Path to input RGB video (for structure/motion)")
-    parser.add_argument("--depth_video", type=str, required=True, help="Path to input Depth/Disparity video (for structure)")
-    parser.add_argument("--output_video", type=str, default="output_wpd.mp4", help="Path for final output video")
-    parser.add_argument("--prompt", type=str, default="A photorealistic driving scene in a city, view from a car dashboard. Natural lighting, urban buildings, trees, cars on the street. High resolution, realistic textures.", help="Prompt for generation")
-    parser.add_argument("--image-only", action="store_true", help="If set, only runs the Flux stage and saves the first frame image.")
+    # --- Batch Input/Output ---
+    parser.add_argument("--input_dataset", type=str, required=True, help="Path to input dataset folder (must contain 'rgb' and 'disparity' subfolders)")
+    parser.add_argument("--output_dir", type=str, required=True, help="Path to output folder for re-rendered videos")
 
     # --- Flux Arguments ---
     parser.add_argument("--flux_lora", type=str, default="models/ppd/flux1-dev_phipd_lora_302000.safetensors")
     parser.add_argument("--flux_cutoff_radius", type=int, default=20, help="Flux: Near degradation radius")
     parser.add_argument("--flux_maximal_radius", type=int, default=40, help="Flux: Far preservation radius")
     parser.add_argument("--flux_gamma", type=float, default=10, help="Flux: Depth curve control")
+    parser.add_argument("--prompt", type=str, default="A photorealistic driving scene in a city, view from a car dashboard. Natural lighting, urban buildings, trees, cars on the street. High resolution, realistic textures.", help="Prompt for generation")
 
     # --- Wan Arguments ---
     parser.add_argument("--wan_low_lora", type=str, default="models/ppd/wan2.2-14b-low-step-12400.safetensors")
@@ -100,7 +99,7 @@ def load_depth_frames_as_tensor(video_path, height, width, n_frames, device):
     
     # Stack and Normalize
     # Shape: (T, H, W)
-    depth_stack = np.stack(frames[:n_frames], axis=0).astype(np.float32)
+    depth_stack = np.stack(frames, axis=0).astype(np.float32)
     
     # Normalize 0-255 -> 0.0-1.0
     # We treat this as DISPARITY (White=Near) to match common visualization and PPD training logic
@@ -116,40 +115,37 @@ def flush():
     gc.collect()
     torch.cuda.empty_cache()
 
-def run_flux_stage(args, first_frame_pil, first_frame_disparity, device):
-    """
-    Re-renders the first frame using Flux WPD.
-    first_frame_disparity: (1, 1, H, W) tensor
-    """
+def process_video(args, rgb_video_path, depth_video_path, output_video_path, flux_pipe, wan_pipe, device):
+    # Load Data
+    print(f"Loading {rgb_video_path}...")
+    try:
+        rgb_frames = load_frames(rgb_video_path, args.height, args.width, n_frames=None)
+        disparity_tensor = load_depth_frames_as_tensor(depth_video_path, args.height, args.width, n_frames=None, device=device)
+    except Exception as e:
+        print(f"Error loading files: {e}")
+        return
+
+    # 1. Flux Stage (First Frame)
+    first_frame_pil = rgb_frames[0]
+    # Use first frame of disparity
+    first_frame_disp = disparity_tensor[0].unsqueeze(0).to(device) # (1, 1, H, W)
+    generated_image = None
+    
     print(f"--- Stage 1: Flux Re-rendering ---")
-    
-    download_models(["FLUX.1-dev"])
-    pipe = FluxImagePipeline.from_pretrained(
-        torch_dtype=torch.bfloat16,
-        device=device,
-        model_configs=[
-            FluxModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="flux1-dev.safetensors"),
-            FluxModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="text_encoder/model.safetensors"),
-            FluxModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="text_encoder_2/"),
-            FluxModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="ae.safetensors"),
-        ],
-    )
-    
     if os.path.exists(args.flux_lora):
-        pipe.load_lora(pipe.dit, args.flux_lora, alpha=1.0)
+        pass # Loaded in main
     else:
         print(f"Warning: Flux LoRA not found: {args.flux_lora}")
 
     with torch.no_grad():
         # Encode original image to get content structure (Phase)
-        image_tensor = pipe.preprocess_image(first_frame_pil).to(device=device, dtype=pipe.torch_dtype)
-        input_latents = pipe.vae_encoder(image_tensor, tiled=False)
+        image_tensor = flux_pipe.preprocess_image(first_frame_pil).to(device=device, dtype=flux_pipe.torch_dtype)
+        input_latents = flux_pipe.vae_encoder(image_tensor, tiled=False)
         
         # Generate Wavelet Noise
-        # Using Disparity directly (no inversion needed if input is Disparity)
         noise = generate_wavelet_structured_noise_batch_vectorized(
             image_batch=input_latents,
-            disparity_map=first_frame_disparity, # Passed as disparity
+            disparity_map=first_frame_disp,
             cutoff_radius=args.flux_cutoff_radius,
             maximal_radius=args.flux_maximal_radius,
             gamma=args.flux_gamma,
@@ -157,7 +153,7 @@ def run_flux_stage(args, first_frame_pil, first_frame_disparity, device):
         ).contiguous()
 
         # Generate
-        generated_image = pipe(
+        generated_image = flux_pipe(
             prompt=args.prompt,
             negative_prompt="ugly, low quality, CG, Render, unreal, game, cartoon, blur, low res",
             height=args.height, width=args.width,
@@ -165,107 +161,49 @@ def run_flux_stage(args, first_frame_pil, first_frame_disparity, device):
             num_inference_steps=50,
             noise=noise
         )
-    
-    # Cleanup
-    del pipe
     flush()
-    
-    # Save debug
-    debug_path = args.output_video.replace(".mp4", "_flux_first_frame.png")
-    generated_image.save(debug_path)
-    print(f"Flux output saved to {debug_path}")
-    
-    return generated_image
 
-def run_wan_stage(args, first_frame_gen, rgb_frames_pil, disparity_video_tensor, device):
-    """
-    Generates video using Wan2.2 WPD.
-    rgb_frames_pil: List of PIL images (Original Video)
-    disparity_video_tensor: (T, 1, H, W)
-    """
+    # 2. Wan Stage (Full Video)
     print("--- Stage 2: Wan Video Generation ---")
-    
-    download_models(["Wan2.2-I2V-A14B"])
-    pipe = WanVideoPipeline.from_pretrained(
-        torch_dtype=torch.bfloat16,
-        device=device,
-        model_configs=[
-            WanModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="high_noise_model/diffusion_pytorch_model*.safetensors", offload_device="cpu"),
-            WanModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="low_noise_model/diffusion_pytorch_model*.safetensors", offload_device="cpu"),
-            WanModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="models_t5_umt5-xxl-enc-bf16.pth", offload_device="cpu"),
-            WanModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="Wan2.1_VAE.pth", offload_device="cpu"),
-        ],
-    )
-    
-    # Load LoRAs
-    if args.wan_high_lora and os.path.exists(args.wan_high_lora):
-        pipe.load_lora(pipe.dit, args.wan_high_lora, alpha=1.0)
-    if args.wan_low_lora and os.path.exists(args.wan_low_lora):
-        pipe.load_lora(pipe.dit2, args.wan_low_lora, alpha=1.0)
-
-    pipe.load_lora(pipe.dit, "models/ppd/high_noise_model_converted.safetensors", alpha=8.0/64)
-    pipe.load_lora(pipe.dit2, "models/ppd/low_noise_model_converted.safetensors", alpha=8.0/64)
-    pipe.enable_vram_management()
     
     # Sliding Window params
     window_size = args.n_frames
     stride = window_size - 1
-    total_frames = len(rgb_frames_pil)
+    total_frames = len(rgb_frames)
     
     final_video_frames = []
-    current_condition_image = first_frame_gen
+    current_condition_image = generated_image
+    
+    # disparity_tensor is (Total, 1, H, W) on CPU
     
     print(f"Processing {total_frames} frames in windows of {window_size} (stride {stride})...")
     
     for start_idx in range(0, total_frames, stride):
         end_idx = start_idx + window_size
-        print(f"Generating window: {start_idx} to {end_idx}")
         
-        # Prepare Inputs for chunk
-        # Slice RGB Frames
-        chunk_frames = rgb_frames_pil[start_idx : end_idx]
-        
-        # Slice Disparity
-        # disparity_video_tensor: (Total, 1, H, W)
-        # Note: Disparity tensor might be shorter or longer than rgb if issues, but assuming matched.
-        # Need to handle padding for disparity too.
-        
+        chunk_frames = rgb_frames[start_idx : end_idx]
         if len(chunk_frames) < window_size:
             pad_count = window_size - len(chunk_frames)
-            # Pad List
             chunk_frames = chunk_frames + [chunk_frames[-1]] * pad_count
             
         # Handle Disparity Slice
-        # Safely slice.
-        chunk_disparity = disparity_video_tensor[start_idx : end_idx]
+        chunk_disparity = disparity_tensor[start_idx : end_idx]
         if chunk_disparity.shape[0] < window_size:
             pad_count_disp = window_size - chunk_disparity.shape[0]
-            # Pad via repetition of last frame
             last_frame = chunk_disparity[-1:] # (1, 1, H, W)
             padding = last_frame.repeat(pad_count_disp, 1, 1, 1)
             chunk_disparity = torch.cat([chunk_disparity, padding], dim=0)
 
-        # Move chunk to device for processing
+        # Move to GPU
         chunk_disparity = chunk_disparity.to(device)
 
-        # Preprocess video for VAE
-        # Wan pipeline expects list of PIL images
         with torch.no_grad():
-            pipe.load_models_to_device(["vae"])
+            wan_pipe.load_models_to_device(["vae"])
+            pixel_values = wan_pipe.preprocess_video(chunk_frames).to(device=device, dtype=torch.bfloat16)
+            input_latents = wan_pipe.vae.encode(pixel_values, device=device, tiled=True)
             
-            # Encode Original Video -> Latents
-            # Input to VAE should be (B, C, T, H, W) or list logic handled by pipeline
-            # pipe.preprocess_video returns tensor (1, C, T, H, W)
-            pixel_values = pipe.preprocess_video(chunk_frames).to(device=device, dtype=torch.bfloat16)
-            input_latents = pipe.vae.encode(pixel_values, device=device, tiled=True)
-            # input_latents shape: (1, 16, T_lat, H_lat, W_lat) usually
-            
-            # 2. Prepare Disparity for Noise Generation
-            # Disparity shape (T_chunk, 1, H, W). Need to interpolate to latent T and Spatial size.
             _, C, T_lat, H_lat, W_lat = input_latents.shape
             
-            # Interpolate Disparity to (T_lat, 1, H_lat, W_lat)
-            # Permute to (1, 1, T, H, W) for interpolation
             target_disparity = chunk_disparity.permute(1, 0, 2, 3).unsqueeze(0).float()
             target_disparity = F.interpolate(
                 target_disparity, 
@@ -273,20 +211,13 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, disparity_video_tensor,
                 mode="trilinear", 
                 align_corners=False
             )
-            # Back to (T_lat, 1, H_lat, W_lat)
             target_disparity = target_disparity.squeeze(0).permute(1, 0, 2, 3)
             
-            # Sky Mask Logic (from original code)
             sky_mask = (target_disparity < 0.01).bool()
             if (~sky_mask).any():
                 target_disparity[sky_mask] = target_disparity[~sky_mask].mean()
 
-            # 3. Generate WPD Noise
-            # input_latents[0] is (C, T, H, W). 
-            # Wavelet function expects (Batch, C, H, W). We treat T as Batch.
-            # Transpose to (T, C, H, W)
             latents_for_noise = input_latents[0].transpose(0, 1).float()
-            
             input_noise_random = torch.randn_like(latents_for_noise)
             
             structured_noise = generate_wavelet_structured_noise_batch_vectorized(
@@ -297,16 +228,14 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, disparity_video_tensor,
                 gamma=args.wan_gamma,
                 input_noise=input_noise_random
             )
-            # Transpose back to (1, C, T, H, W) for pipeline
-            structured_noise = structured_noise.transpose(0, 1).unsqueeze(0).to(dtype=pipe.torch_dtype, device=device)
+            structured_noise = structured_noise.transpose(0, 1).unsqueeze(0).to(dtype=wan_pipe.torch_dtype, device=device)
 
-            # 4. Generate Video
-            video_chunk = pipe(
+            video_chunk = wan_pipe(
                 prompt=args.prompt,
                 negative_prompt="色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，卡通，渲染，游戏，CG，render, simulation, game, cartoon, 3D",
                 tiled=True,
-                input_image=current_condition_image, # Condition on re-rendered first frame (or last of prev)
-                input_noise=structured_noise, # Preserves structure of original video
+                input_image=current_condition_image,
+                input_noise=structured_noise,
                 height=args.height, width=args.width,
                 num_frames=window_size,
                 switch_DiT_boundary=0.9,
@@ -314,22 +243,20 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, disparity_video_tensor,
                 num_inference_steps=4,
             )
             
-        # Accumulate
         if start_idx == 0:
             final_video_frames.extend(video_chunk)
         else:
             final_video_frames.extend(video_chunk[1:])
-            
+
         current_condition_image = video_chunk[-1]
         
         del video_chunk
         flush()
     
-    # Trim
     final_video_frames = final_video_frames[:total_frames]
-        
-    save_video(final_video_frames, args.output_video, fps=args.fps, quality=5)
-    print(f"Final video saved to {args.output_video}")
+    save_video(final_video_frames, output_video_path, fps=args.fps, quality=5)
+    print(f"Saved: {output_video_path}")
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -339,20 +266,78 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     
-    # Load Data
-    print("Loading data...")
-    rgb_frames = load_frames(args.rgb_video, args.height, args.width, n_frames=None)
-    disparity_tensor = load_depth_frames_as_tensor(args.depth_video, args.height, args.width, n_frames=None, device=device)
-    
-    # 1. Flux Stage (First Frame)
-    first_frame_pil = rgb_frames[0]
-    # Use first frame of disparity
-    first_frame_disp = disparity_tensor[0].unsqueeze(0) # (1, 1, H, W)
-    
-    flux_output = run_flux_stage(args, first_frame_pil, first_frame_disp, device)
-    
-    # 2. Wan Stage (Full Video)
-    if args.image_only:
-        print("Image-only flag set; skipping Wan video generation.")
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    # 1. Initialize Models ONCE
+    print("Initializing Flux Model...")
+    download_models(["FLUX.1-dev"])
+    flux_pipe = FluxImagePipeline.from_pretrained(
+        torch_dtype=torch.bfloat16,
+        device=device,
+        model_configs=[
+            FluxModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="flux1-dev.safetensors"),
+            FluxModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="text_encoder/model.safetensors"),
+            FluxModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="text_encoder_2/"),
+            FluxModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="ae.safetensors"),
+        ],
+    )
+    # Load Flux LoRA Once
+    if os.path.exists(args.flux_lora):
+        print(f"Loading Flux LoRA: {args.flux_lora}")
+        flux_pipe.load_lora(flux_pipe.dit, args.flux_lora, alpha=1.0)
     else:
-        run_wan_stage(args, flux_output, rgb_frames, disparity_tensor, device)
+        print(f"Warning: Flux LoRA not found: {args.flux_lora}")
+        
+    flux_pipe.enable_vram_management()
+
+
+    print("Initializing Wan Model...")
+    download_models(["Wan2.2-I2V-A14B"])
+    wan_pipe = WanVideoPipeline.from_pretrained(
+        torch_dtype=torch.bfloat16,
+        device=device,
+        model_configs=[
+            WanModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="high_noise_model/diffusion_pytorch_model*.safetensors", offload_device="cpu"),
+            WanModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="low_noise_model/diffusion_pytorch_model*.safetensors", offload_device="cpu"),
+            WanModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="models_t5_umt5-xxl-enc-bf16.pth", offload_device="cpu"),
+            WanModelConfig(model_id="Wan-AI/Wan2.2-I2V-A14B", origin_file_pattern="Wan2.1_VAE.pth", offload_device="cpu"),
+        ],
+    )
+    
+    # Load Wan LoRAs Once
+    if args.wan_high_lora and os.path.exists(args.wan_high_lora):
+        print(f"Loading Wan High LoRA: {args.wan_high_lora}")
+        wan_pipe.load_lora(wan_pipe.dit, args.wan_high_lora, alpha=1.0)
+    if args.wan_low_lora and os.path.exists(args.wan_low_lora):
+        print(f"Loading Wan Low LoRA: {args.wan_low_lora}")
+        wan_pipe.load_lora(wan_pipe.dit2, args.wan_low_lora, alpha=1.0)
+
+    wan_pipe.load_lora(wan_pipe.dit, "models/ppd/high_noise_model_converted.safetensors", alpha=8.0/64)
+    wan_pipe.load_lora(wan_pipe.dit2, "models/ppd/low_noise_model_converted.safetensors", alpha=8.0/64)
+    
+    wan_pipe.enable_vram_management()
+
+    # 2. Iterate Dataset
+    rgb_dir = os.path.join(args.input_dataset, "rgb")
+    disparity_dir = os.path.join(args.input_dataset, "disparity") 
+    
+    video_files = glob.glob(os.path.join(rgb_dir, "*.mp4")) + glob.glob(os.path.join(rgb_dir, "*.avi"))
+    
+    print(f"Found {len(video_files)} videos in {rgb_dir}")
+
+    for rgb_path in sorted(video_files):
+        filename = os.path.basename(rgb_path)
+        output_path = os.path.join(args.output_dir, filename)
+        
+        # Check Disparity exists
+        depth_path = os.path.join(disparity_dir, filename)
+        if not os.path.exists(depth_path):
+            print(f"Warning: Disparity video not found for {filename} at {depth_path}. Skipping.")
+            continue
+        
+        if os.path.exists(output_path):
+            print(f"Skipping {filename} (already exists)")
+            continue
+            
+        process_video(args, rgb_path, depth_path, output_path, flux_pipe, wan_pipe, device)

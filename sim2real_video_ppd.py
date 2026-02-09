@@ -155,62 +155,93 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, device):
     pipe.load_lora(pipe.dit2, "models/ppd/low_noise_model_converted.safetensors", alpha=8.0/64)
     pipe.enable_vram_management()
     
-    # Prepare Inputs
-    # 1. Encode Original Video to Latents (to capture Motion/Phase)
-    # Ensure we use exactly n_frames
-    rgb_frames = rgb_frames_pil[:args.n_frames]
+    # Sliding Window Logic
+    window_size = args.n_frames
+    stride = window_size - 1
+    total_frames = len(rgb_frames_pil)
     
-    # Preprocess video for VAE
-    # Wan pipeline expects list of PIL images
-    with torch.no_grad():
-        pipe.load_models_to_device(["vae"])
+    final_video_frames = []
+    current_condition_image = first_frame_gen
+    
+    print(f"Processing {total_frames} frames in windows of {window_size} (stride {stride})...")
+    
+    for start_idx in range(0, total_frames, stride):
+        end_idx = start_idx + window_size
+        print(f"Generating window: {start_idx} to {end_idx}")
         
-        # Encode Original Video -> Latents
-        # Input to VAE should be (B, C, T, H, W) or list logic handled by pipeline
-        # pipe.preprocess_video returns tensor (1, C, T, H, W)
-        pixel_values = pipe.preprocess_video(rgb_frames).to(device=device, dtype=torch.bfloat16)
-        input_latents = pipe.vae.encode(pixel_values, device=device, tiled=True)
-        # input_latents shape: (1, 16, T_lat, H_lat, W_lat) usually
+        # Prepare Input Chunk (Pad if necessary)
+        chunk_frames = rgb_frames_pil[start_idx : end_idx]
+        if len(chunk_frames) < window_size:
+            pad_count = window_size - len(chunk_frames)
+            chunk_frames = chunk_frames + [chunk_frames[-1]] * pad_count
         
-        # 2. Prepare Disparity for Noise Generation
-        # Disparity shape (T, 1, H, W). Need to interpolate to latent T and Spatial size.
-        # Wan VAE temporal compression is usually 1 (for some models) or 4. 
-        # But 'input_latents' shape tells us truth.
-        _, C, T_lat, H_lat, W_lat = input_latents.shape
+        # Preprocess video for VAE
+        # Wan pipeline expects list of PIL images
+        with torch.no_grad():
+            pipe.load_models_to_device(["vae"])
+            
+            # Encode Original Video -> Latents
+            # Input to VAE should be (B, C, T, H, W) or list logic handled by pipeline
+            # pipe.preprocess_video returns tensor (1, C, T, H, W)
+            pixel_values = pipe.preprocess_video(chunk_frames).to(device=device, dtype=torch.bfloat16)
+            input_latents = pipe.vae.encode(pixel_values, device=device, tiled=True)
+            # input_latents shape: (1, 16, T_lat, H_lat, W_lat) usually
+            
+            # 2. Prepare Disparity for Noise Generation
+            # Disparity shape (T, 1, H, W). Need to interpolate to latent T and Spatial size.
+            # Wan VAE temporal compression is usually 1 (for some models) or 4. 
+            # But 'input_latents' shape tells us truth.
+            _, C, T_lat, H_lat, W_lat = input_latents.shape
 
-        # 3. Generate PPD Noise
-        # input_latents[0] is (C, T, H, W). 
-        # Wavelet function expects (Batch, C, H, W). We treat T as Batch.
-        # Transpose to (T, C, H, W)
-        latents_for_noise = input_latents[0].transpose(0, 1).float()
-        
-        input_noise_random = torch.randn_like(latents_for_noise)
-        
-        structured_noise = generate_structured_noise_batch_vectorized(
-            image_batch=latents_for_noise,
-            cutoff_radius=args.wan_cutoff_radius,
-            input_noise=input_noise_random
-        )
-        # Transpose back to (1, C, T, H, W) for pipeline
-        structured_noise = structured_noise.transpose(0, 1).unsqueeze(0).to(dtype=pipe.torch_dtype, device=device)
+            # 3. Generate PPD Noise
+            # input_latents[0] is (C, T, H, W). 
+            # Wavelet function expects (Batch, C, H, W). We treat T as Batch.
+            # Transpose to (T, C, H, W)
+            latents_for_noise = input_latents[0].transpose(0, 1).float()
+            
+            input_noise_random = torch.randn_like(latents_for_noise)
+            
+            structured_noise = generate_structured_noise_batch_vectorized(
+                image_batch=latents_for_noise,
+                cutoff_radius=args.wan_cutoff_radius,
+                input_noise=input_noise_random
+            )
+            # Transpose back to (1, C, T, H, W) for pipeline
+            structured_noise = structured_noise.transpose(0, 1).unsqueeze(0).to(dtype=pipe.torch_dtype, device=device)
 
-        # 4. Generate Video
-        # I2V Generation: We use the Flux-generated frame as the condition
-        # and the PPD Noise (derived from original video motion) as the starting noise.
-        video = pipe(
-            prompt=args.prompt,
-            negative_prompt="色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，卡通，渲染，游戏，CG，render, simulation, game, cartoon, 3D",
-            tiled=True,
-            input_image=first_frame_gen, # Condition on re-rendered first frame
-            input_noise=structured_noise, # Preserves structure of original video
-            height=args.height, width=args.width,
-            num_frames=args.n_frames,
-            switch_DiT_boundary=0.9,
-            cfg_scale=1,
-            num_inference_steps=4,
-        )
+            # 4. Generate Video
+            # I2V Generation: Use current_condition_image as input
+            video_chunk = pipe(
+                prompt=args.prompt,
+                negative_prompt="色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，卡通，渲染，游戏，CG，render, simulation, game, cartoon, 3D",
+                tiled=True,
+                input_image=current_condition_image, 
+                input_noise=structured_noise, # Preserves structure of original video
+                height=args.height, width=args.width,
+                num_frames=window_size,
+                switch_DiT_boundary=0.9,
+                cfg_scale=1,
+                num_inference_steps=4,
+            )
+            
+        # Append frames
+        if start_idx == 0:
+            final_video_frames.extend(video_chunk)
+        else:
+            # Drop the first frame because it overlaps with the last frame of previous chunk (the condition)
+            final_video_frames.extend(video_chunk[1:])
+
+        # Update condition for next window
+        current_condition_image = video_chunk[-1]
         
-    save_video(video, args.output_video, fps=args.fps, quality=5)
+        # Cleanup
+        del video_chunk
+        flush()
+    
+    # Trim to original length if we padded
+    final_video_frames = final_video_frames[:total_frames]
+        
+    save_video(final_video_frames, args.output_video, fps=args.fps, quality=5)
     print(f"Final video saved to {args.output_video}")
 
 if __name__ == "__main__":
@@ -223,7 +254,7 @@ if __name__ == "__main__":
     
     # Load Data
     print("Loading data...")
-    rgb_frames = load_frames(args.rgb_video, args.height, args.width, args.n_frames)
+    rgb_frames = load_frames(args.rgb_video, args.height, args.width, n_frames=None)
     
     # 1. Flux Stage (First Frame)
     first_frame_pil = rgb_frames[0]
