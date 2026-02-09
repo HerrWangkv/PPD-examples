@@ -8,3 +8,4 @@ data/
 outputs/
 *.pdf
 logs/
+my_sim2real_*/
