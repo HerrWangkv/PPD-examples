@@ -64,15 +64,17 @@ def main():
     # Positive: t_p
     positive_prompts = [
         "Photorealistic",
-        "Natural material properties",
-        "Realistic texture",
-        "Real people with natural poses"
+        "Real-world",
+        # "Camera captured"
+        "Natural illumination",
+        "Real people with natural poses",
     ]
-    
+
     negative_prompts = [
+        "Unrealistic",
         "Simulated",
-        "Plastic-looking materials",
-        "Artificial texture",
+        # "Render",
+        "Flat lighting",
         "Stiff mannequin-like characters",
         "Artifacts"
     ]
@@ -128,9 +130,9 @@ def main():
             # 提取图像特征
             image_features = model.encode_image(image_input)
             
-            # 计算余弦相似度 (Cosine Similarity)
-            # 不再使用 Softmax 和 Temperature (100.0)
-            
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            tp = tp / tp.norm(dim=-1, keepdim=True)
+            tn = tn / tn.norm(dim=-1, keepdim=True)
             # sim_pos: [Batch_Size]
             sim_pos = (image_features @ tp)
             # sim_neg: [Batch_Size]
@@ -141,8 +143,6 @@ def main():
             
             # 安全性处理：防止分母为 0 或负数导致分数翻转
             # CLIP 的余弦相似度极少为负，但在极端合成图上可能出现
-            sim_pos = (sim_pos + 1.0) / 2.0  # 归一化到 [0, 1]
-            sim_neg = (sim_neg + 1.0) / 2.0  # 归一化到 [0, 1]
             sim_neg = torch.clamp(sim_neg, min=1e-6)
             
             batch_scores = sim_pos / sim_neg
