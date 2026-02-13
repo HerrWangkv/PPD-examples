@@ -65,15 +65,13 @@ def main():
     positive_prompts = [
         "Photorealistic",
         "Real-world",
-        # "Camera captured"
         "Natural illumination",
-        "Real people with natural poses",
+        "Real people with natural poses"
     ]
 
     negative_prompts = [
         "Unrealistic",
         "Simulated",
-        # "Render",
         "Flat lighting",
         "Stiff mannequin-like characters",
         "Artifacts"

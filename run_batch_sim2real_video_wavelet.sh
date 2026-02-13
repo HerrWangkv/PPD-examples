@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default Arguments
-INPUT_DATASET="my_sim2real_videos"
+INPUT_DATASET="data/my_sunny_videos"
 OUTPUT_DIR="outputs/wavelet/flux_20_40_10_wan_20_40_10"
 
 # Override if provided
@@ -16,10 +16,11 @@ docker build -t wpd .
 
 docker run -it --rm --gpus all \
     -v "$(pwd):/workspace" \
+    -v /mrtstorage/users/kwang/my_sunny_videos:/workspace/data/my_sunny_videos \
     -e HF_TOKEN=$HUGGING_FACE_TOKEN \
     wpd bash -c "
         cd /workspace && \
-        CUDA_VISIBLE_DEVICES=1 \
+        CUDA_VISIBLE_DEVICES=6 \
         PYTHONPATH=. python batch_sim2real_video_wavelet.py \
         --input_dataset '$INPUT_DATASET' \
         --output_dir '$OUTPUT_DIR' \
