@@ -155,17 +155,13 @@ if __name__ == "__main__":
         prompt = args.prompt
         
         with torch.no_grad():
-            image = pipe.preprocess_image(image_in_pil).to(device=pipe.device, dtype=pipe.torch_dtype)
-            input_latents = pipe.vae_encoder(image, tiled=False)
-
-            input_noise = torch.randn_like(input_latents)
-            noise = input_noise.contiguous().to(device)
             image = pipe(
                 prompt=prompt, 
                 negative_prompt=args.negative_prompt,
+                input_image=image_in_pil,
                 height=new_h, width=new_w,
                 denoising_strength=args.timestep,
-                cfg_scale=2, num_inference_steps=50, noise=noise
+                cfg_scale=2, num_inference_steps=50
             )
 
             if use_original_size:
