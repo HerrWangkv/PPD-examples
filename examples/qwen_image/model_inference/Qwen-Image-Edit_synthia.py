@@ -5,17 +5,11 @@ import os
 import math
 import torch.distributed as dist
 from PIL import Image
-from diffsynth.pipelines.flux_image_new import FluxImagePipeline, ModelConfig, ControlNetInput
+from diffsynth.pipelines.qwen_image import QwenImagePipeline, ModelConfig
 from diffsynth import download_models
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Generate videos with trained model")
-    parser.add_argument(
-        "--scale",
-        type=float,
-        required=True,
-        help="scale for ContrlNet-Tile"
-    )
     parser.add_argument(
         "--synthia_folder",
         type=str,
@@ -25,20 +19,14 @@ def parse_args():
     parser.add_argument(
         "--output_folder",
         type=str,
-        default="data/synthia_controlnet",
+        default="data/synthia_qwen_image_edit",
         help="Output folder"
     )
     parser.add_argument(
         "--prompt",
         type=str,
-        default="A photorealistic driving scene in a European city, view from a car dashboard. Natural lighting, detailed asphalt road, urban buildings, trees, cars on the street. High resolution, cinematic, realistic textures, automotive photography.",
+        default="将图片变真实",
         help="Prompt"
-    )
-    parser.add_argument(
-        "--negative_prompt",
-        type=str,
-        default="cartoon, video game, cgi, 3d render, unity engine, synthetic, low resolution, blurry, distorted, overexposed, oversaturated, painting, drawing, illustration, glitch, artifacts, deformed vehicles.",
-        help="Negative prompt"
     )
     parser.add_argument(
         "--height",
@@ -76,22 +64,21 @@ if __name__ == "__main__":
 
     if rank == 0:
         print(f"Initializing DDP: Rank {rank}/{world_size} on device {device}")
-        download_models(["FLUX.1-dev"])
+        download_models(["Qwen-Image"])
     
     if world_size > 1:
         dist.barrier()
 
     # 2. Load Model
-    pipe = FluxImagePipeline.from_pretrained(
+    pipe = QwenImagePipeline.from_pretrained(
         torch_dtype=torch.bfloat16,
         device=device,
         model_configs=[
-            ModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="flux1-dev.safetensors"),
-            ModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="text_encoder/model.safetensors"),
-            ModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="text_encoder_2/"),
-            ModelConfig(model_id="black-forest-labs/FLUX.1-dev", origin_file_pattern="ae.safetensors"),
-            ModelConfig(model_id="InstantX/FLUX.1-dev-Controlnet-Union-alpha", origin_file_pattern="diffusion_pytorch_model.safetensors", offload_device="cpu"),
+            ModelConfig(model_id="Qwen/Qwen-Image-Edit", origin_file_pattern="transformer/diffusion_pytorch_model*.safetensors", offload_device="cpu"),
+            ModelConfig(model_id="Qwen/Qwen-Image", origin_file_pattern="text_encoder/model*.safetensors"),
+            ModelConfig(model_id="Qwen/Qwen-Image", origin_file_pattern="vae/diffusion_pytorch_model.safetensors"),
         ],
+        processor_config=ModelConfig(model_id="Qwen/Qwen-Image-Edit", origin_file_pattern="processor/"),
     )
     pipe.enable_vram_management()
 
@@ -159,17 +146,9 @@ if __name__ == "__main__":
         with torch.no_grad():
             image = pipe(
                 prompt=prompt, 
-                negative_prompt=args.negative_prompt,
-                input_image=image_in_pil,
+                edit_image=image_in_pil,
                 height=new_h, width=new_w,
-                cfg_scale=2, num_inference_steps=50,
-                controlnet_inputs=[
-                    ControlNetInput(
-                        image=image_in_pil, 
-                        scale=args.scale,
-                        processor_id="tile"
-                    ),
-                ],
+                num_inference_steps=40
             )
 
             if use_original_size:
