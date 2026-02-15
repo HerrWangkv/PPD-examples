@@ -113,11 +113,36 @@ class DTCWTDecomposer(nn.Module):
         C = split_yh_to_C(yh, o_dim=self.o_dim)
         return LL, C
 
-def resize_tensor(tensor: torch.Tensor, h: int, w: int, mode: str = "nearest") -> torch.Tensor:
-    """Helper to resize masks or leak maps to match wavelet coefficient dimensions."""
+def resize_tensor(tensor: torch.Tensor, h: int, w: int, mode: str = "nearest", use_maxpool: bool = False) -> torch.Tensor:
+    """
+    Helper to resize masks or leak maps to match wavelet coefficient dimensions.
+    
+    Args:
+        tensor: Input tensor (N, C, H, W)
+        h: Target height
+        w: Target width
+        mode: Interpolation mode ('nearest', 'bilinear') used for upsampling or if use_maxpool is False.
+        use_maxpool: If True, uses adaptive max pooling for downsampling. 
+                     This allows small high-frequency features (like poles) to survive 
+                     downsampling instead of being averaged out by the background.
+    """
+    # 1. If dimensions match, return immediately
     if tensor.shape[-2:] == (h, w):
         return tensor
-    return F.interpolate(tensor.float(), size=(h, w), mode=mode, align_corners=False)
+
+    # 2. Check if this is a downsampling operation (Target size <= Original size)
+    is_downsample = (h <= tensor.shape[-2]) and (w <= tensor.shape[-1])
+
+    # 3. If MaxPool is enabled and we are downsampling -> Use Adaptive Max Pool
+    # This ensures that if a pixel block contains a "structure" value (1.0), 
+    # the downsampled block retains 1.0 instead of averaging with the "blur" value (0.0).
+    if use_maxpool and is_downsample:
+        return F.adaptive_max_pool2d(tensor.float(), output_size=(h, w))
+
+    # 4. Otherwise (Upsampling OR MaxPool disabled) -> Use standard interpolation
+    # Note: align_corners is typically None for 'nearest', but False for 'bilinear'
+    align = False if mode != 'nearest' else None
+    return F.interpolate(tensor.float(), size=(h, w), mode=mode, align_corners=align)
 
 def complex_phase(re: torch.Tensor, im: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     # atan2 is stable; eps not strictly needed, kept for symmetry with mag
@@ -330,7 +355,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
             ref = C_z[l][0]
             H_l, W_l = ref.shape[-3], ref.shape[-2]
             
-            d_l = resize_tensor(control_map, H_l, W_l, mode='bilinear')
+            d_l = resize_tensor(control_map, H_l, W_l, mode='bilinear', use_maxpool=True)
 
             # C_img[l] and C_z[l] are lists of 6 tensors, each (N, C, H_l, W_l, 2)
             Cimg6 = torch.stack(C_img[l], dim=2)   # (N, C, 6, H, W, 2)
@@ -388,7 +413,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         lo_nz, hi_nz   = self.splitter.split_once(c_nz)
         
         H_sub, W_sub = lo_img.shape[-3], lo_img.shape[-2]
-        sub_depth = resize_tensor(depth_map, H_sub, W_sub, mode='bilinear')
+        sub_depth = resize_tensor(depth_map, H_sub, W_sub, mode='bilinear', use_maxpool=True)
         mid_freq = (f_start + f_end) / 2.0
         out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_depth, r_min, r_max, gamma, level + 1, max_level, eps)
         out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_depth, r_min, r_max, gamma, level + 1, max_level, eps)
