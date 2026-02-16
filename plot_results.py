@@ -4,10 +4,10 @@ import numpy as np
 
 # --- 1. 数据准备 (基于 Results.md) ---
 data = {
-    "Method": ["Original", "PPD10", "PPD20", "PPD30", "PPD40", "PPD44", "WPD10_10", "WPD20_20", "WPD30_30", "WPD40_40", "WPD44_44", "WPD10_30_1", "WPD10_30_2", "WPD10_30_5", "WPD10_30_10", "WPD20_40_0.5", "WPD20_40_1", "WPD20_40_1.5", "WPD20_40_2", "WPD20_40_5", "WPD20_40_10"],
-    "mIoU": [32.61, 10.62, 17.47, 23.44, 27.01, 29.10, 18.50, 28.46, 29.18, 32.27, 32.21, 28.48, 26.35, 23.05, 21.07, 31.33, 31.08, 30.86, 30.92, 30.16, 29.72],
-    "AS": [0.9791, 1.0641, 1.0472, 1.0319, 1.0202, 1.0105, 1.0560, 1.0387, 1.0225, 0.9964, 0.9965, 1.0165, 1.0198, 1.0278, 1.0373, 1.0014, 1.0036, 1.0047, 1.0057, 1.0106, 1.0155],
-    "SSIM": [0.9143, 0.7937, 0.8314, 0.8635, 0.8841, 0.8953, 0.8323, 0.8913, 0.8947, 0.9107, 0.9106, 0.8847, 0.8750, 0.8570, 0.8458, 0.9022, 0.9007, 0.8998, 0.8999, 0.8976, 0.8949]
+    "Method": ["Original", "PPD10", "PPD20", "PPD30", "PPD40", "PPD44", "WPD10_10", "WPD20_20", "WPD30_30", "WPD40_40", "WPD44_44", "WPD10_30_1", "WPD10_30_2", "WPD10_30_5", "WPD10_30_10", "WPD20_40_0.5", "WPD20_40_1", "WPD20_40_1.5", "WPD20_40_2", "WPD20_40_5", "WPD20_40_10", "SDEdit_0.2", "SDEdit_0.4", "SDEdit_0.6"],
+    "mIoU": [32.61, 10.62, 17.47, 23.44, 27.01, 29.10, 18.50, 28.46, 29.18, 32.27, 32.21, 28.48, 26.35, 23.05, 21.07, 31.33, 31.08, 30.86, 30.92, 30.16, 29.72, 32.34, 27.36, 18.35],
+    "AS": [0.9791, 1.0641, 1.0472, 1.0319, 1.0202, 1.0105, 1.0560, 1.0387, 1.0225, 0.9964, 0.9965, 1.0165, 1.0198, 1.0278, 1.0373, 1.0014, 1.0036, 1.0047, 1.0057, 1.0106, 1.0155, 0.9808, 0.9820, 1.0065],
+    "SSIM": [0.9143, 0.7937, 0.8314, 0.8635, 0.8841, 0.8953, 0.8323, 0.8913, 0.8947, 0.9107, 0.9106, 0.8847, 0.8750, 0.8570, 0.8458, 0.9022, 0.9007, 0.8998, 0.8999, 0.8976, 0.8949, 0.9076, 0.8888, 0.8456]
 }
 for i in range(len(data["mIoU"])):
     data["mIoU"][i] = data["mIoU"][i] * 19 / 16 # Ignore 3 classes with 0 IoU (terrain, truck, train)
@@ -30,8 +30,10 @@ def plot_fig1():
     plt.figure(figsize=(6, 6))
     ppd = df[df['Method'].str.startswith('PPD')].sort_values('AS', ascending=False)
     wpd = df[df['Method'].str.match(r'^WPD\d+_\d+$')].sort_values('AS', ascending=False)
-    plt.plot(ppd['AS'], ppd['SSIM'], 'o-', color='#3498db', label='PPD (Global Fourier)', linewidth=2)
-    plt.plot(wpd['AS'], wpd['SSIM'], 's--', color='#27ae60', label='WPD (Local Wavelet)', linewidth=2)
+    sde = df[df['Method'].str.startswith('SDEdit')].sort_values('AS', ascending=False)
+    plt.plot(ppd['AS'], ppd['SSIM'], 's--', color='#3498db', label='PPD (Global Fourier)', linewidth=2)
+    plt.plot(wpd['AS'], wpd['SSIM'], 'o-', color='#27ae60', label='WPD (Local Wavelet)', linewidth=2)
+    plt.plot(sde['AS'], sde['SSIM'], '^-.', color="#e73cd9", label='SDEdit (Diffusion)', linewidth=2)
     plt.scatter(df.loc[0, 'AS'], df.loc[0, 'SSIM'], c='red', marker='*', s=250, label='Original (Benchmark)', zorder=5)
 
     # 仅标注端点半径，移除箭头
@@ -39,6 +41,8 @@ def plot_fig1():
     plt.text(1.0, 0.89, '$r=44$', color='#3498db', fontweight='bold', fontsize=10)
     plt.text(1.058, 0.83, '$r=10$', color='#27ae60', fontweight='bold', fontsize=10)
     plt.text(0.994, 0.902, '$r=44$', color='#27ae60', fontweight='bold', fontsize=10)
+    plt.text(0.982, 0.905, '$t_0=0.2$', color="#e73cd9", fontweight='bold', fontsize=10)
+    plt.text(1.008, 0.845, '$t_0=0.6$', color='#e73cd9', fontweight='bold', fontsize=10)
 
     plt.xlabel('AS (Realism)'); plt.ylabel('SSIM (Structure Alignment)')
     plt.title('Performance Trade-off Frontier')
@@ -49,8 +53,10 @@ def plot_fig1():
     plt.figure(figsize=(6, 6))
     ppd = df[df['Method'].str.startswith('PPD')].sort_values('AS', ascending=False)
     wpd = df[df['Method'].str.match(r'^WPD\d+_\d+$')].sort_values('AS', ascending=False)
-    plt.plot(ppd['AS'], ppd['mIoU'], 'o-', color='#3498db', label='PPD (Global Fourier)', linewidth=2)
-    plt.plot(wpd['AS'], wpd['mIoU'], 's--', color='#27ae60', label='WPD (Local Wavelet)', linewidth=2)
+    sde = df[df['Method'].str.startswith('SDEdit')].sort_values('AS', ascending=False)
+    plt.plot(ppd['AS'], ppd['mIoU'], 's--', color='#3498db', label='PPD (Global Fourier)', linewidth=2)
+    plt.plot(wpd['AS'], wpd['mIoU'], 'o-', color='#27ae60', label='WPD (Local Wavelet)', linewidth=2)
+    plt.plot(sde['AS'], sde['mIoU'], '^-.', color='#e73cd9', label='SDEdit (Diffusion)', linewidth=2)
     plt.scatter(df.loc[0, 'AS'], df.loc[0, 'mIoU'], c='red', marker='*', s=250, label='Original (Benchmark)', zorder=5)
 
     # 仅标注端点半径，移除箭头
@@ -58,6 +64,8 @@ def plot_fig1():
     plt.text(1.0, 34, '$r=44$', color='#3498db', fontweight='bold', fontsize=10)
     plt.text(1.058, 22, '$r=10$', color='#27ae60', fontweight='bold', fontsize=10)
     plt.text(0.994, 36.5, '$r=44$', color='#27ae60', fontweight='bold', fontsize=10)
+    plt.text(0.982, 38, '$t_0=0.2$', color='#e73cd9', fontweight='bold', fontsize=10)
+    plt.text(1.007, 22, '$t_0=0.6$', color='#e73cd9', fontweight='bold', fontsize=10)
 
     plt.xlabel('AS (Realism)'); plt.ylabel('mIoU (Semantic Consistency)')
     plt.title('Performance Trade-off Frontier')
