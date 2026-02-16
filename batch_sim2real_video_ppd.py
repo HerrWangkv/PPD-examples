@@ -15,6 +15,17 @@ from diffsynth.pipelines.wan_video_new import WanVideoPipeline, ModelConfig as W
 
 # Import Wavelet Noise logic
 from structured_noise import generate_structured_noise_batch_vectorized
+import torch.distributed as dist
+
+def init_distributed():
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+        dist.init_process_group(backend="nccl")
+        rank = dist.get_rank()
+        world = dist.get_world_size()
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        torch.cuda.set_device(local_rank)
+        return True, rank, world, local_rank
+    return False, 0, 1, 0
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Batch PPD Pipeline")
@@ -179,7 +190,9 @@ def process_video(args, rgb_video_path, output_video_path, flux_pipe, wan_pipe, 
 
 if __name__ == "__main__":
     args = parse_args()
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    is_ddp, rank, world, local_rank = init_distributed()
+    device = f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu"
+
     
     # Set seed
     torch.manual_seed(args.seed)
@@ -240,6 +253,9 @@ if __name__ == "__main__":
     video_files = glob.glob(os.path.join(rgb_dir, "*.mp4")) + glob.glob(os.path.join(rgb_dir, "*.avi"))
     
     print(f"Found {len(video_files)} videos in {rgb_dir}")
+    video_files = sorted(video_files)
+    video_files = video_files[rank::world]   # each rank gets every Nth video
+    print(f"[rank {rank}/{world}] Processing {len(video_files)} videos on {device}")
 
     for rgb_path in sorted(video_files):
         filename = os.path.basename(rgb_path)
