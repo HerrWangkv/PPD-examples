@@ -355,7 +355,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
             ref = C_z[l][0]
             H_l, W_l = ref.shape[-3], ref.shape[-2]
             
-            d_l = resize_tensor(control_map, H_l, W_l, mode='bilinear', use_maxpool=True)
+            d_l = resize_tensor(control_map, H_l, W_l, mode='bilinear')
 
             # C_img[l] and C_z[l] are lists of 6 tensors, each (N, C, H_l, W_l, 2)
             Cimg6 = torch.stack(C_img[l], dim=2)   # (N, C, 6, H, W, 2)
@@ -413,7 +413,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         lo_nz, hi_nz   = self.splitter.split_once(c_nz)
         
         H_sub, W_sub = lo_img.shape[-3], lo_img.shape[-2]
-        sub_depth = resize_tensor(depth_map, H_sub, W_sub, mode='bilinear', use_maxpool=True)
+        sub_depth = resize_tensor(depth_map, H_sub, W_sub, mode='bilinear')
         mid_freq = (f_start + f_end) / 2.0
         out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_depth, r_min, r_max, gamma, level + 1, max_level, eps)
         out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_depth, r_min, r_max, gamma, level + 1, max_level, eps)
