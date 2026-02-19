@@ -4,10 +4,10 @@ import numpy as np
 
 # --- 1. 数据准备 (基于 Results.md) ---
 data = {
-    "Method": ["Original", "PPD10", "PPD20", "PPD30", "PPD40", "PPD44", "WPD10_10", "WPD20_20", "WPD30_30", "WPD40_40", "WPD44_44", "WPD10_30_1", "WPD10_30_2", "WPD10_30_5", "WPD10_30_10", "WPD20_40_0.5", "WPD20_40_1", "WPD20_40_1.5", "WPD20_40_2", "WPD20_40_5", "WPD20_40_10", "SDEdit_0.2", "SDEdit_0.4", "SDEdit_0.6", "ControlNet_0.4", "ControlNet_0.6", "ControlNet_0.8"],
-    "mIoU": [32.61, 10.62, 17.47, 23.44, 27.01, 29.10, 18.50, 28.46, 29.18, 32.27, 32.21, 28.48, 26.35, 23.05, 21.07, 31.33, 31.08, 30.86, 30.92, 30.16, 29.72, 32.34, 27.36, 18.35, 9.90, 32.31, 31.00],
-    "AS": [0.9791, 1.0641, 1.0472, 1.0319, 1.0202, 1.0105, 1.0560, 1.0387, 1.0225, 0.9964, 0.9965, 1.0165, 1.0198, 1.0278, 1.0373, 1.0014, 1.0036, 1.0047, 1.0057, 1.0106, 1.0155, 0.9808, 0.9820, 1.0065, 1.0607, 0.9861, 0.9842],
-    "SSIM": [0.9143, 0.7937, 0.8314, 0.8635, 0.8841, 0.8953, 0.8323, 0.8913, 0.8947, 0.9107, 0.9106, 0.8847, 0.8750, 0.8570, 0.8458, 0.9022, 0.9007, 0.8998, 0.8999, 0.8976, 0.8949, 0.9076, 0.8888, 0.8456, 0.8001, 0.9121, 0.9145]
+    "Method": ["Original", "PPD10", "PPD20", "PPD30", "PPD40", "PPD44", "WPD10_10", "WPD20_20", "WPD30_30", "WPD40_40", "WPD44_44", "WPD10_30_1", "WPD10_30_2", "WPD10_30_5", "WPD10_30_10", "WPD20_40_0.5", "WPD20_40_1", "WPD20_40_1.5", "WPD20_40_2", "WPD20_40_5", "WPD20_40_10", "SDEdit_0.2", "SDEdit_0.4", "SDEdit_0.6", "SDEdit_0.8", "ControlNet_0.4", "ControlNet_0.6", "ControlNet_0.8"],
+    "mIoU": [32.61, 10.62, 17.47, 23.44, 27.01, 29.10, 18.50, 28.46, 29.18, 32.27, 32.21, 28.48, 26.35, 23.05, 21.07, 31.33, 31.08, 30.86, 30.92, 30.16, 29.72, 32.34, 27.36, 18.35, 9.04, 9.90, 32.31, 31.00],
+    "AS": [0.9791, 1.0641, 1.0472, 1.0319, 1.0202, 1.0105, 1.0560, 1.0387, 1.0225, 0.9964, 0.9965, 1.0165, 1.0198, 1.0278, 1.0373, 1.0014, 1.0036, 1.0047, 1.0057, 1.0106, 1.0155, 0.9808, 0.9820, 1.0065, 1.0757, 1.0607, 0.9861, 0.9842],
+    "SSIM": [0.9143, 0.7937, 0.8314, 0.8635, 0.8841, 0.8953, 0.8323, 0.8913, 0.8947, 0.9107, 0.9106, 0.8847, 0.8750, 0.8570, 0.8458, 0.9022, 0.9007, 0.8998, 0.8999, 0.8976, 0.8949, 0.9076, 0.8888, 0.8456, 0.7859, 0.8001, 0.9121, 0.9145]
 }
 for i in range(len(data["mIoU"])):
     data["mIoU"][i] = data["mIoU"][i] * 19 / 16 # Ignore 3 classes with 0 IoU (terrain, truck, train)
@@ -39,19 +39,19 @@ def plot_fig1():
     plt.scatter(df.loc[0, 'AS'], df.loc[0, 'SSIM'], c='red', marker='*', s=250, label='Original (Benchmark)', zorder=5)
 
     # 仅标注端点半径，移除箭头
-    plt.text(1.066, 0.79, '$r=10$', color='#3498db', fontweight='bold', fontsize=10)
+    plt.text(1.066, 0.795, '$r=10$', color='#3498db', fontweight='bold', fontsize=10)
     plt.text(1.0, 0.895, '$r=44$', color='#3498db', fontweight='bold', fontsize=10)
     plt.text(1.058, 0.83, '$r=10$', color='#27ae60', fontweight='bold', fontsize=10)
     plt.text(0.994, 0.913, '$r=44$', color='#27ae60', fontweight='bold', fontsize=10)
     plt.text(0.970, 0.902, '$t_0=0.2$', color="#e73cd9", fontweight='bold', fontsize=10)
-    plt.text(0.993, 0.843, '$t_0=0.6$', color='#e73cd9', fontweight='bold', fontsize=10)
+    plt.text(1.065, 0.78, '$t_0=0.8$', color='#e73cd9', fontweight='bold', fontsize=10)
     plt.text(0.983, 0.9167, '$w=0.8$', color='#f39c12', fontweight='bold', fontsize=10)
-    plt.text(1.048, 0.798, '$w=0.4$', color='#f39c12', fontweight='bold', fontsize=10)
+    plt.text(1.048, 0.795, '$w=0.4$', color='#f39c12', fontweight='bold', fontsize=10)
 
     plt.xlabel('AS (Realism)'); plt.ylabel('SSIM (Structure Alignment)')
     plt.title('Performance Trade-off Frontier')
     plt.grid(True, linestyle=':', alpha=0.6); plt.legend(loc='lower left')
-    plt.xlim(0.97, 1.075); plt.ylim(0.77, 0.92)
+    plt.xlim(0.97, 1.08); plt.ylim(0.77, 0.92)
     plt.tight_layout(); plt.savefig('ablation1a_tradeoff.pdf'); plt.savefig('ablation1a_tradeoff.jpg')
 
     plt.figure(figsize=(6, 6))
@@ -65,18 +65,18 @@ def plot_fig1():
     plt.scatter(df.loc[0, 'AS'], df.loc[0, 'mIoU'], c='red', marker='*', s=250, label='Original (Benchmark)', zorder=5)
 
     # 仅标注端点半径，移除箭头
-    plt.text(1.066, 12, '$r=10$', color='#3498db', fontweight='bold', fontsize=10)
+    plt.text(1.066, 12.4, '$r=10$', color='#3498db', fontweight='bold', fontsize=10)
     plt.text(1.0, 34.5, '$r=44$', color='#3498db', fontweight='bold', fontsize=10)
     plt.text(1.058, 22, '$r=10$', color='#27ae60', fontweight='bold', fontsize=10)
     plt.text(0.994, 38.6, '$r=44$', color='#27ae60', fontweight='bold', fontsize=10)
     plt.text(0.970, 37.5, '$t_0=0.2$', color='#e73cd9', fontweight='bold', fontsize=10)
-    plt.text(0.995, 21.5, '$t_0=0.6$', color='#e73cd9', fontweight='bold', fontsize=10)
-    plt.text(0.982, 35.5, '$w=0.8$', color='#f39c12', fontweight='bold', fontsize=10)
+    plt.text(1.062, 10.5, '$t_0=0.8$', color='#e73cd9', fontweight='bold', fontsize=10)
+    plt.text(0.9815, 35.5, '$w=0.8$', color='#f39c12', fontweight='bold', fontsize=10)
     plt.text(1.048, 11.5, '$w=0.4$', color='#f39c12', fontweight='bold', fontsize=10)
     plt.xlabel('AS (Realism)'); plt.ylabel('mIoU (Semantic Consistency)')
     plt.title('Performance Trade-off Frontier')
     plt.grid(True, linestyle=':', alpha=0.6); plt.legend(loc='lower left')
-    plt.xlim(0.97, 1.075); plt.ylim(10, 40)
+    plt.xlim(0.97, 1.08); plt.ylim(10, 40)
     plt.tight_layout(); plt.savefig('ablation1b_tradeoff.pdf'); plt.savefig('ablation1b_tradeoff.jpg')
 
 # --- Figure 2: Gamma Sensitivity Analysis ---
