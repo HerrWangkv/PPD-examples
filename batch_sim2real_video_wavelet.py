@@ -48,7 +48,6 @@ def parse_args():
     parser.add_argument("--wan_maximal_radius", type=int, default=40, help="Wan: Max Radius (usually > cutoff)")
     parser.add_argument("--wan_gamma", type=float, default=1)
     parser.add_argument("--n_frames", type=int, default=49)
-    parser.add_argument("--fps", type=int, default=10)
     
     # --- General ---
     parser.add_argument("--height", type=int, default=704)
@@ -58,10 +57,13 @@ def parse_args():
     return parser.parse_args()
 
 def load_frames(video_path, height, width, n_frames=None):
-    """Loads video frames as PIL images."""
+    """Loads video frames as PIL images and returns the original FPS."""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"Could not open video: {video_path}")
+    
+    # Get the input video's FPS
+    input_fps = cap.get(cv2.CAP_PROP_FPS)
     
     frames = []
     while True:
@@ -75,11 +77,10 @@ def load_frames(video_path, height, width, n_frames=None):
             break
     cap.release()
     
-    # Loop if too short
     if n_frames and len(frames) < n_frames and len(frames) > 0:
         frames = frames + [frames[-1]] * (n_frames - len(frames))
         
-    return frames
+    return frames, input_fps
 
 def load_depth_frames_as_tensor(video_path, height, width, n_frames, device):
     """
@@ -130,7 +131,7 @@ def process_video(args, rgb_video_path, depth_video_path, output_video_path, flu
     # Load Data
     print(f"Loading {rgb_video_path}...")
     try:
-        rgb_frames = load_frames(rgb_video_path, args.height, args.width, n_frames=None)
+        rgb_frames, input_fps = load_frames(rgb_video_path, args.height, args.width, n_frames=None)
         disparity_tensor = load_depth_frames_as_tensor(depth_video_path, args.height, args.width, n_frames=None, device=device)
     except Exception as e:
         print(f"Error loading files: {e}")
@@ -265,7 +266,7 @@ def process_video(args, rgb_video_path, depth_video_path, output_video_path, flu
         flush()
     
     final_video_frames = final_video_frames[:total_frames]
-    save_video(final_video_frames, output_video_path, fps=args.fps, quality=5)
+    save_video(final_video_frames, output_video_path, fps=input_fps, quality=5)
     print(f"Saved: {output_video_path}")
 
 

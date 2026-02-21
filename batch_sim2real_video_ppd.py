@@ -31,7 +31,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Batch PPD Pipeline")
     
     # --- Batch Input/Output ---
-    parser.add_argument("--input_dataset", type=str, required=True, help="Path to input dataset folder (must contain 'rgb' subfolder)")
+    parser.add_argument("--input_dataset", type=str, required=True, help="Path to input dataset folder")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output folder for re-rendered videos")
 
     # --- Flux Arguments ---
@@ -44,7 +44,6 @@ def parse_args():
     parser.add_argument("--wan_high_lora", type=str, default="models/ppd/wan2.2-14b-high-step-12400.safetensors")
     parser.add_argument("--wan_cutoff_radius", type=int, default=40, help="Wan: Radius for structured noise")
     parser.add_argument("--n_frames", type=int, default=49)
-    parser.add_argument("--fps", type=int, default=10)
     
     # --- General ---
     parser.add_argument("--height", type=int, default=704)
@@ -54,10 +53,13 @@ def parse_args():
     return parser.parse_args()
 
 def load_frames(video_path, height, width, n_frames=None):
-    """Loads video frames as PIL images."""
+    """Loads video frames as PIL images and returns the original FPS."""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"Could not open video: {video_path}")
+    
+    # Get the input video's FPS
+    input_fps = cap.get(cv2.CAP_PROP_FPS)
     
     frames = []
     while True:
@@ -71,11 +73,10 @@ def load_frames(video_path, height, width, n_frames=None):
             break
     cap.release()
     
-    # Loop if too short
     if n_frames and len(frames) < n_frames and len(frames) > 0:
         frames = frames + [frames[-1]] * (n_frames - len(frames))
         
-    return frames
+    return frames, input_fps
 
 def flush():
     gc.collect()
@@ -85,7 +86,7 @@ def process_video(args, rgb_video_path, output_video_path, flux_pipe, wan_pipe, 
     # Load Data
     print(f"Loading {rgb_video_path}...")
     try:
-        rgb_frames = load_frames(rgb_video_path, args.height, args.width, n_frames=None)
+        rgb_frames, input_fps = load_frames(rgb_video_path, args.height, args.width, n_frames=None)
     except Exception as e:
         print(f"Error loading {rgb_video_path}: {e}")
         return
@@ -184,7 +185,7 @@ def process_video(args, rgb_video_path, output_video_path, flux_pipe, wan_pipe, 
         flush()
     
     final_video_frames = final_video_frames[:total_frames]
-    save_video(final_video_frames, output_video_path, fps=args.fps, quality=5)
+    save_video(final_video_frames, output_video_path, fps=input_fps, quality=5)
     print(f"Saved: {output_video_path}")
 
 
@@ -249,8 +250,8 @@ if __name__ == "__main__":
     wan_pipe.enable_vram_management()
 
     # 2. Iterate Dataset
-    rgb_dir = os.path.join(args.input_dataset, "rgb")
-    video_files = glob.glob(os.path.join(rgb_dir, "*.mp4")) + glob.glob(os.path.join(rgb_dir, "*.avi"))
+    rgb_dir = args.input_dataset
+    video_files = glob.glob(os.path.join(rgb_dir, "*.mp4"))
     
     print(f"Found {len(video_files)} videos in {rgb_dir}")
     video_files = sorted(video_files)
