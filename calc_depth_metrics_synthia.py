@@ -170,7 +170,10 @@ def main():
     print("Calculating Depth Metrics...")
     for gen_path in tqdm(gen_paths):
         filename = os.path.basename(gen_path)
-        gt_path = os.path.join(args.gt_folder, filename)
+        if not filename.endswith(".png"):
+            gt_path = os.path.join(args.gt_folder, filename.rsplit(".", 1)[0] + ".png")
+        else:
+            gt_path = os.path.join(args.gt_folder, filename)
         
         # 1. Load GT Depth (Meters)
         gt_depth, valid_mask = load_gt_depth(gt_path, use_packed=args.synthia_packed)

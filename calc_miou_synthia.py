@@ -132,7 +132,7 @@ def main():
     elif os.path.exists(os.path.join(args.gt_folder, "GT/LABELS")): # 有些系统路径写法不同
          args.gt_folder = os.path.join(args.gt_folder, "GT/LABELS")
 
-    gen_files = sorted([f for f in os.listdir(args.gen_folder) if f.endswith('.png')])
+    gen_files = sorted([f for f in os.listdir(args.gen_folder) if (f.endswith('.png') or f.endswith('.jpg'))])
     
     print(f"Found {len(gen_files)} images to evaluate.")
     print(f"Reading generated images from: {args.gen_folder}")
@@ -144,7 +144,7 @@ def main():
     for gen_name in tqdm(gen_files):
         gen_path = os.path.join(args.gen_folder, gen_name)
         
-        gt_path = os.path.join(args.gt_folder, gen_name.replace(".png", "_labelTrainIds.png"))
+        gt_path = os.path.join(args.gt_folder, gen_name.replace(".png", "_labelTrainIds.png").replace(".jpg", "_labelTrainIds.png"))
         
         # 2. 读取生成图像 (RGB)
         image = Image.open(gen_path).convert("RGB")
