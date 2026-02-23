@@ -138,7 +138,7 @@ def process_video(args, rgb_video_path, output_video_path, flux_pipe, wan_pipe, 
     
     print(f"Processing {total_frames} frames in windows of {window_size} (stride {stride})...")
     
-    for start_idx in range(0, total_frames, stride):
+    for start_idx in range(0, total_frames-1, stride):
         end_idx = start_idx + window_size
         
         chunk_frames = rgb_frames[start_idx : end_idx]
@@ -251,6 +251,8 @@ if __name__ == "__main__":
 
     # 2. Iterate Dataset
     rgb_dir = args.input_dataset
+    if "rgb" in os.listdir(rgb_dir):
+        rgb_dir = os.path.join(rgb_dir, "rgb")
     video_files = glob.glob(os.path.join(rgb_dir, "*.mp4"))
     
     print(f"Found {len(video_files)} videos in {rgb_dir}")

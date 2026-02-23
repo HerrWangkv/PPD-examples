@@ -132,7 +132,10 @@ def process_video(args, rgb_video_path, depth_video_path, output_video_path, flu
     print(f"Loading {rgb_video_path}...")
     try:
         rgb_frames, input_fps = load_frames(rgb_video_path, args.height, args.width, n_frames=None)
-        disparity_tensor = load_depth_frames_as_tensor(depth_video_path, args.height, args.width, n_frames=None, device=device)
+        if depth_video_path is not None:
+            disparity_tensor = load_depth_frames_as_tensor(depth_video_path, args.height, args.width, n_frames=None, device=device)
+        else:
+            disparity_tensor = None
     except Exception as e:
         print(f"Error loading files: {e}")
         return
@@ -140,7 +143,10 @@ def process_video(args, rgb_video_path, depth_video_path, output_video_path, flu
     # 1. Flux Stage (First Frame)
     first_frame_pil = rgb_frames[0]
     # Use first frame of disparity
-    first_frame_disp = disparity_tensor[0].unsqueeze(0).to(device) # (1, 1, H, W)
+    if disparity_tensor is not None:
+        first_frame_disp = disparity_tensor[0].unsqueeze(0).to(device) # (1, 1, H, W)
+    else:
+        first_frame_disp = None
     generated_image = None
     
     print(f"--- Stage 1: Flux Re-rendering ---")
@@ -190,7 +196,7 @@ def process_video(args, rgb_video_path, depth_video_path, output_video_path, flu
     
     print(f"Processing {total_frames} frames in windows of {window_size} (stride {stride})...")
     
-    for start_idx in range(0, total_frames, stride):
+    for start_idx in range(0, total_frames-1, stride):
         end_idx = start_idx + window_size
         
         chunk_frames = rgb_frames[start_idx : end_idx]
@@ -199,15 +205,18 @@ def process_video(args, rgb_video_path, depth_video_path, output_video_path, flu
             chunk_frames = chunk_frames + [chunk_frames[-1]] * pad_count
             
         # Handle Disparity Slice
-        chunk_disparity = disparity_tensor[start_idx : end_idx]
-        if chunk_disparity.shape[0] < window_size:
-            pad_count_disp = window_size - chunk_disparity.shape[0]
-            last_frame = chunk_disparity[-1:] # (1, 1, H, W)
-            padding = last_frame.repeat(pad_count_disp, 1, 1, 1)
-            chunk_disparity = torch.cat([chunk_disparity, padding], dim=0)
+        if disparity_tensor is not None:
+            chunk_disparity = disparity_tensor[start_idx : end_idx]
+            if chunk_disparity.shape[0] < window_size:
+                pad_count_disp = window_size - chunk_disparity.shape[0]
+                last_frame = chunk_disparity[-1:] # (1, 1, H, W)
+                padding = last_frame.repeat(pad_count_disp, 1, 1, 1)
+                chunk_disparity = torch.cat([chunk_disparity, padding], dim=0)
 
-        # Move to GPU
-        chunk_disparity = chunk_disparity.to(device)
+            # Move to GPU
+            chunk_disparity = chunk_disparity.to(device)
+        else:
+            target_disparity = None
 
         with torch.no_grad():
             wan_pipe.load_models_to_device(["vae"])
@@ -215,19 +224,19 @@ def process_video(args, rgb_video_path, depth_video_path, output_video_path, flu
             input_latents = wan_pipe.vae.encode(pixel_values, device=device, tiled=True)
             
             _, C, T_lat, H_lat, W_lat = input_latents.shape
-            
-            target_disparity = chunk_disparity.permute(1, 0, 2, 3).unsqueeze(0).float()
-            target_disparity = F.interpolate(
-                target_disparity, 
-                size=(T_lat, H_lat, W_lat), 
-                mode="trilinear", 
-                align_corners=False
-            )
-            target_disparity = target_disparity.squeeze(0).permute(1, 0, 2, 3)
-            
-            sky_mask = (target_disparity < 0.01).bool()
-            if (~sky_mask).any():
-                target_disparity[sky_mask] = target_disparity[~sky_mask].mean()
+            if target_disparity is not None:
+                target_disparity = chunk_disparity.permute(1, 0, 2, 3).unsqueeze(0).float()
+                target_disparity = F.interpolate(
+                    target_disparity, 
+                    size=(T_lat, H_lat, W_lat), 
+                    mode="trilinear", 
+                    align_corners=False
+                )
+                target_disparity = target_disparity.squeeze(0).permute(1, 0, 2, 3)
+                
+                sky_mask = (target_disparity < 0.01).bool()
+                if (~sky_mask).any():
+                    target_disparity[sky_mask] = target_disparity[~sky_mask].mean()
 
             latents_for_noise = input_latents[0].transpose(0, 1).float()
             input_noise_random = torch.randn_like(latents_for_noise)
@@ -332,8 +341,13 @@ if __name__ == "__main__":
     wan_pipe.enable_vram_management()
 
     # 2. Iterate Dataset
-    rgb_dir = os.path.join(args.input_dataset, "rgb")
-    disparity_dir = os.path.join(args.input_dataset, "disparity") 
+    rgb_dir = args.input_dataset
+    if "rgb" in os.listdir(rgb_dir):
+        rgb_dir = os.path.join(rgb_dir, "rgb")
+    if "disparity" not in os.listdir(args.input_dataset):
+        depth_path = None
+    else:
+        disparity_dir = os.path.join(args.input_dataset, "disparity") 
     
     video_files = glob.glob(os.path.join(rgb_dir, "*.mp4")) + glob.glob(os.path.join(rgb_dir, "*.avi"))
     
@@ -347,10 +361,11 @@ if __name__ == "__main__":
         output_path = os.path.join(args.output_dir, filename)
         
         # Check Disparity exists
-        depth_path = os.path.join(disparity_dir, filename)
-        if not os.path.exists(depth_path):
-            print(f"Warning: Disparity video not found for {filename} at {depth_path}. Skipping.")
-            continue
+        if depth_path is not None:
+            depth_path = os.path.join(disparity_dir, filename)
+            if not os.path.exists(depth_path):
+                print(f"Warning: Disparity video not found for {filename} at {depth_path}. Skipping.")
+                continue
         
         if os.path.exists(output_path):
             print(f"Skipping {filename} (already exists)")
