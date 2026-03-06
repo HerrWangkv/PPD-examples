@@ -15,4 +15,4 @@ docker run -it --name generate_synthia_wavelet --rm --gpus all --ipc=host \
         --synthia_folder /workspace/data/synthia \
         --cutoff_radius 20 \
         --maximal_radius 40 \
-        --gamma 1"
+        --gamma 1 --output_folder data/synthia_wavelet_20_40_1"

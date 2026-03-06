@@ -7,11 +7,12 @@ docker run -it --rm --gpus all \
     -e HF_TOKEN=$HUGGING_FACE_TOKEN \
     wpd bash -c "
         cd /workspace && \
-        CUDA_VISIBLE_DEVICES=6 \
+        CUDA_VISIBLE_DEVICES=7 \
         PYTHONPATH=. python examples/flux/model_inference/FLUX.1-dev_wavelet.py \
-        --lora_checkpoint_path /workspace/models/ppd/flux1-dev_phipd_lora_302000.safetensors \
-        --all_keep 0.5 \
-        --mask_keep 0.8 \
-        --input_image /workspace/data/synthia/RGB/0000000.png \
-        --prompt \"\$(cat /workspace/data/synthia/RGB/0000000.txt)\" \
-        --output outputs/synthia/0000000/wavelet/0.5~0.8.png"
+        --lora_checkpoint_path flux.safetensors \
+        --cutoff_radius 20 \
+        --maximal_radius 44 \
+        --gamma 1 \
+        --input_image models/ppd/test1.jpg \
+        --prompt \"$(cat models/ppd/test1.txt)\" \
+        --output outputs/wavelet.png"

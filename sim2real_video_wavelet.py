@@ -44,6 +44,7 @@ def parse_args():
     parser.add_argument("--height", type=int, default=704)
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--debug", action="store_true", help="If set, only run the first window.")
     
     return parser.parse_args()
 
@@ -324,6 +325,9 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, disparity_video_tensor,
         
         del video_chunk
         flush()
+        if args.debug:
+            print("Debug mode: stopping after first window.")
+            break
     
     # Trim
     final_video_frames = final_video_frames[:total_frames]

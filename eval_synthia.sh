@@ -13,7 +13,7 @@ docker run -it --rm --gpus all --ipc=host \
     -e NCCL_P2P_DISABLE=1 \
     -w /workspace \
     wpd bash -c "
-        mkdir -p /workspace/data/cityscapes && \
-        CUDA_VISIBLE_DEVICES=2 python calc_miou_synthia.py --gen_folder \"$1\" && \
-        CUDA_VISIBLE_DEVICES=2 python calc_as_synthia.py --gen_folder \"$1\"
+        CUDA_VISIBLE_DEVICES=4 python calc_miou_synthia.py --gen_folder \"$1\" && \
+        CUDA_VISIBLE_DEVICES=4 python calc_as_synthia.py --gen_folder \"$1\" && \
+        CUDA_VISIBLE_DEVICES=4 python calc_depth_metrics_synthia.py --gen_folder \"$1\"
     "
