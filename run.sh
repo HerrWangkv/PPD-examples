@@ -10,9 +10,7 @@ docker run -it --rm --gpus all \
         CUDA_VISIBLE_DEVICES=7 \
         PYTHONPATH=. python examples/flux/model_inference/FLUX.1-dev_wavelet.py \
         --lora_checkpoint_path flux.safetensors \
-        --cutoff_radius 20 \
-        --maximal_radius 44 \
-        --gamma 1 \
+        --radius 20 \
         --input_image models/ppd/test1.jpg \
         --prompt \"$(cat models/ppd/test1.txt)\" \
         --output outputs/wavelet.png"

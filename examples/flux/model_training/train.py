@@ -19,41 +19,6 @@ from wavelet_noise import generate_wavelet_structured_noise_batch_vectorized
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
-# -------------------------
-# TorchHub file lock
-# -------------------------
-class FileLock:
-    def __init__(self, lock_path: str):
-        self.lock_path = Path(lock_path)
-
-    def __enter__(self):
-        while True:
-            try:
-                fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_RDWR)
-                os.close(fd)
-                break
-            except FileExistsError:
-                time.sleep(0.2)
-
-    def __exit__(self, exc_type, exc, tb):
-        try:
-            self.lock_path.unlink()
-        except FileNotFoundError:
-            pass
-
-
-def load_unidepth_locked():
-    os.makedirs("/root/.cache/torch/hub", exist_ok=True)
-    with FileLock("/root/.cache/torch/hub/unidepth_download.lock"):
-        return torch.hub.load(
-            "lpiccinelli-eth/UniDepth",
-            "UniDepth",
-            version="v2",
-            backbone="vitl14",
-            pretrained=True,
-            trust_repo=True,
-        )
-
 
 # -------------------------
 # Training module
@@ -86,11 +51,6 @@ class FluxTrainingModule(DiffusionTrainingModule):
         self.use_gradient_checkpointing = use_gradient_checkpointing
         self.use_gradient_checkpointing_offload = use_gradient_checkpointing_offload
         self.extra_inputs = extra_inputs.split(",") if extra_inputs is not None else []
-
-        # Load depth estimator
-        self.depth_estimator = load_unidepth_locked().to(self.pipe.device).eval()
-        for p in self.depth_estimator.parameters():
-            p.requires_grad_(False)
 
         # Accelerator will be injected after accelerator.prepare(...)
         self.accelerator: Accelerator | None = None
@@ -142,39 +102,18 @@ class FluxTrainingModule(DiffusionTrainingModule):
 
         models = {name: getattr(self.pipe, name) for name in self.pipe.in_iteration_models}
 
-        # RGB -> UniDepth
-        img = inputs["input_image"].convert("RGB")
-        rgb = torch.from_numpy(np.array(img)).permute(2, 0, 1).to(self.pipe.device).float() / 255.0
-
-        with torch.no_grad():
-            pred = self.depth_estimator.infer(rgb.unsqueeze(0))
-            depth_map = pred["depth"]  # (1,1,H,W)
-
-            # NOTE: placeholder sky logic (should be replaced later)
-            sky_mask = (depth_map > 200).bool()
-            if (~sky_mask).any():
-                depth_map[sky_mask] = depth_map[~sky_mask].mean()
-
         input_latents = inputs["input_latents"]
         h, w = input_latents.shape[-2:]
 
         # Sample params
-        cutoff_radius = np.random.exponential(scale=1 / 0.1) + 4
-        cutoff_radius = min(cutoff_radius, min(h, w) // 2)
-
-        k = np.random.uniform(2.0, 4.0)
-        maximal_radius = min(cutoff_radius * k, min(h, w) // 2)
-
-        gamma = float(np.exp(np.random.uniform(np.log(0.3), np.log(2.0))))
+        radius = np.random.exponential(scale=1 / 0.1)
+        radius = min(radius, min(h, w) // 2)
 
         input_noise = torch.randn_like(input_latents.float())
 
         structured_noise = generate_wavelet_structured_noise_batch_vectorized(
             input_latents.float(),
-            cutoff_radius=cutoff_radius,
-            maximal_radius=maximal_radius,
-            depth_map=depth_map,
-            gamma=gamma,
+            radius_map=radius,
             input_noise=input_noise,
         )
 
@@ -194,9 +133,7 @@ class FluxTrainingModule(DiffusionTrainingModule):
                         "noise/mean": stats[0].item(),
                         "noise/std": stats[1].item(),
                         "noise/max_abs": stats[2].item(),
-                        "noise/cutoff_radius": float(cutoff_radius),
-                        "noise/maximal_radius": float(maximal_radius),
-                        "noise/gamma": float(gamma),
+                        "noise/radius": float(radius),
                         "loss": stats[3].item(),
                     },
                     step=step,
