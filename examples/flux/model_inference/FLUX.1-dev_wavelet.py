@@ -27,14 +27,8 @@ def parse_args():
     parser.add_argument(
         "--input_image",
         type=str,
-        default="data/synthia/RGB/test1.png", # Changed default to hint at dataset structure
+        default="data/synthia/RGB/0000820.png", # Changed default to hint at dataset structure
         help="Input image filename. Script assumes standard SYNTHIA structure to find GT."
-    )
-    parser.add_argument(
-        "--input_disparity",
-        type=str,
-        default=None,
-        help="Input disparity filename. Otherwise, script assumes standard SYNTHIA structure to find GT."
     )
     parser.add_argument(
         "--output_name",
@@ -43,24 +37,14 @@ def parse_args():
         help="Output image filename"
     )
     parser.add_argument(
-        "--cutoff_radius", 
+        "--radius", 
         type=int, 
-        default=5, 
+        default=30, 
         help="Pixel radius for near degradation (heavy noise)")
-    parser.add_argument(
-        "--maximal_radius", 
-        type=int, 
-        default=256, 
-        help="Pixel radius for far protection (sharp)")
-    parser.add_argument(
-        "--gamma", 
-        type=float, 
-        default=0.5, 
-        help="Depth curve control")
     parser.add_argument(
         "--prompt",
         type=str,
-        default="A high quality scene from a movie captured by a professional camera. A woman stands in a rugged cave-like environment with stone walls and patches of snow. She has an adventurous appearance, wearing a sleeveless top, shorts, gloves, and a utility belt, exuding a determined and alert expression as if ready to explore or face a challenge"
+        default="A photorealistic driving scene in a European city. Natural lighting, detailed asphalt road, urban buildings, trees, cars on the street. High resolution, cinematic, realistic textures, automotive photography."
     )
     parser.add_argument(
         "--negative_prompt",
@@ -80,68 +64,9 @@ def parse_args():
     )
     return parser.parse_args()
 
-def get_related_paths(image_path):
-    """
-    Infers Depth and Mask paths from SYNTHIA structure.
-    RGB: data/synthia/RGB/0009330.png
-    Depth: data/synthia/Depth/Depth/0009330.png
-    Labels: data/synthia/GT/LABELS/0009330_labelTrainIds.png
-    """
-    base_name = os.path.basename(image_path)
-    root = image_path.split("/RGB/")[0]
-    
-    depth_path = os.path.join(root, "Depth", "Depth", base_name)
-    mask_path = os.path.join(root, "GT", "LABELS", base_name.replace(".png", "_labelTrainIds.png"))
-    
-    return depth_path, mask_path
-
-def load_and_preprocess_synthia_data(depth_path, mask_path, size, device, max_depth_limit=500.0):
-    """Loads depth and handles sky/outlier depth values."""
-    # Load 16-bit depth (cm)
-    depth_cv2 = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
-    if depth_cv2 is None: raise FileNotFoundError(f"Depth not found: {depth_path}")
-    
-    # Handle multi-channel encoding
-    if len(depth_cv2.shape) == 3:
-        depth_cv2 = np.max(depth_cv2, axis=2)
-    
-    # Convert to meters
-    depth_m = depth_cv2.astype(np.float32) / 100.0
-    
-    # --- Assert/Clamp Outliers ---
-    # Any depth significantly beyond realistic scene limits is treated as "Far" 
-    # and clamped to prevent normalization skewing.
-    depth_m = np.clip(depth_m, 1.0, max_depth_limit)
-    
-    # Load mask and move to tensor
-    depth_pt = torch.from_numpy(depth_m).to(device).view(1, 1, *depth_m.shape)
-    mask_cv2 = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
-    mask_pt = torch.from_numpy(mask_cv2.astype(np.int32)).to(device).view(1, 1, *mask_cv2.shape)
-    # --- Sky Depth Logic ---
-    sky_mask = (mask_pt == SKY_CLASS)
-    non_sky_mask = ~sky_mask
-    
-    if sky_mask.any():
-        # Compute average of valid non-sky areas
-        # This now benefits from the previous clamping of non-sky outliers
-        avg_non_sky_depth = depth_pt[non_sky_mask].mean()
-        depth_pt[sky_mask] = avg_non_sky_depth
-        
-    # Resize
-    depth_pt = F.interpolate(depth_pt, size=size, mode='bilinear')
-    mask_pt = F.interpolate(mask_pt.float(), size=size, mode='nearest').long()
-
-    return depth_pt
-
 if __name__ == "__main__":
     args = parse_args()
     device = "cuda"
-    if args.input_disparity is not None:
-        is_synthia = False
-        disparity_path = args.input_disparity
-    else:
-        is_synthia = True
-        depth_path, mask_path = get_related_paths(args.input_image)
     
     # 1. Download and Init Pipe
     download_models(["FLUX.1-dev"])
@@ -171,35 +96,7 @@ if __name__ == "__main__":
     
     image_in_pil = image_in_pil.resize((new_w, new_h), resample=Image.LANCZOS)
 
-    # 3. Load Depth Map 
-    if is_synthia:
-        depth_map = load_and_preprocess_synthia_data(depth_path, mask_path, (new_h, new_w), device=device)
-    else:
-        # Load disparity (grayscale)
-        disp_img = cv2.imread(disparity_path, cv2.IMREAD_UNCHANGED)
-        if disp_img is None:
-            raise ValueError(f"Read error: {disparity_path}")
-
-        # Handle potential 3-channel input (take first channel)
-        if len(disp_img.shape) == 3:
-            disp_img = disp_img[:, :, 0]
-
-        disp_img = cv2.resize(disp_img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-        # Normalize based on bit depth
-        if disp_img.dtype == np.uint8:
-            disp_float = disp_img.astype(np.float32) / 255.0
-        else:
-            disp_float = disp_img.astype(np.float32) / 65535.0
-            
-        # Shape: (1, 1, H, W)
-        sky_mask = (disp_float == 0.0)
-        non_sky_mask = ~sky_mask
-        if np.any(sky_mask):
-            avg_non_sky_disp = disp_float[non_sky_mask].mean()
-            disp_float[sky_mask] = avg_non_sky_disp
-        disparity_map = torch.from_numpy(disp_float).to(device=device).view(1, 1, new_h, new_w)
-
-    # 4. Diffusion Process
+    # 3. Diffusion Process
     prompt = args.prompt
     with torch.no_grad():
         image = pipe.preprocess_image(image_in_pil).to(device=pipe.device, dtype=pipe.torch_dtype)
@@ -207,24 +104,12 @@ if __name__ == "__main__":
 
         input_noise = torch.randn_like(input_latents)
         # Generate Structured Noise guided by Depth Control Map
-        if is_synthia:
-            noise = generate_wavelet_structured_noise_batch_vectorized(
-                image_batch=input_latents,
-                depth_map=depth_map, 
-                cutoff_radius=args.cutoff_radius,
-                maximal_radius=args.maximal_radius,
-                gamma=args.gamma,
-                noise_std=1.0
-            )
-        else:
-            noise = generate_wavelet_structured_noise_batch_vectorized(
-                image_batch=input_latents,
-                disparity_map=disparity_map,
-                cutoff_radius=args.cutoff_radius,
-                maximal_radius=args.maximal_radius,
-                gamma=args.gamma,
-                noise_std=1.0
-            )
+        noise = generate_wavelet_structured_noise_batch_vectorized(
+            image_batch=input_latents,
+            radius_map=args.radius,
+            noise_std=1.0
+        )
+        
         noise = noise.contiguous()
 
         negative_prompt = args.negative_prompt

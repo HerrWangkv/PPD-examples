@@ -301,21 +301,24 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
 
     def _process_band_recursive(self, c_img, c_nz, f_start, f_end, freq_map, level, max_level, eps):
         # freq_map: per-pixel cutoff frequency (Nyquist-normalized). Higher = more structure.
-
+        print(f"Processing level {level} band [{f_start:.4f}, {f_end:.4f}] with freq_map range [{freq_map.min().item():.4f}, {freq_map.max().item():.4f}]", end=".")
         # 1. All pixels preserve structure in this band
         if f_end <= freq_map.min().item() + 1e-9:
+            print(" Preserving entire band from image.")
             return fuse_subband_generic(c_img, c_nz, mask=1.0, eps=eps)
 
         # 2. All pixels use noise in this band
         if f_start >= freq_map.max().item() - 1e-9:
+            print(" Replacing entire band with noise.")
             return fuse_subband_generic(c_img, c_nz, mask=0.0, eps=eps)
 
         # 3. Mixed band: per-pixel decision
         mid = (f_start + f_end) / 2
         decision_map = (mid <= freq_map).float()
         if level >= max_level:
+            print(" Reaching maximum level. Using mixed decision.")
             return fuse_subband_generic(c_img, c_nz, mask=decision_map, eps=eps)
-
+        print(" Splitting band and processing recursively.")
         lo_img, hi_img = self.splitter.split_once(c_img)
         lo_nz, hi_nz   = self.splitter.split_once(c_nz)
 
