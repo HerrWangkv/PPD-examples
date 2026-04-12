@@ -33,20 +33,23 @@ def parse_args():
     parser.add_argument("--wan_high_lora", type=str, default="models/ppd/wan2.2-14b-high-step-12400.safetensors")
     parser.add_argument("--wan_cutoff_radius", type=int, default=40, help="Wan: Radius for structured noise")
     parser.add_argument("--n_frames", type=int, default=49)
-    parser.add_argument("--fps", type=int, default=10)
     
     # --- General ---
     parser.add_argument("--height", type=int, default=704)
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--debug", action="store_true", help="If set, runs in debug mode with fewer frames for quick iteration.")
     
     return parser.parse_args()
 
 def load_frames(video_path, height, width, n_frames=None):
-    """Loads video frames as PIL images."""
+    """Loads video frames as PIL images and returns the original FPS."""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"Could not open video: {video_path}")
+    
+    # Get the input video's FPS
+    input_fps = cap.get(cv2.CAP_PROP_FPS)
     
     frames = []
     while True:
@@ -60,11 +63,10 @@ def load_frames(video_path, height, width, n_frames=None):
             break
     cap.release()
     
-    # Loop if too short
     if n_frames and len(frames) < n_frames and len(frames) > 0:
         frames = frames + [frames[-1]] * (n_frames - len(frames))
         
-    return frames
+    return frames, input_fps
 
 def flush():
     gc.collect()
@@ -165,7 +167,7 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, device):
     
     print(f"Processing {total_frames} frames in windows of {window_size} (stride {stride})...")
     
-    for start_idx in range(0, total_frames, stride):
+    for start_idx in range(0, total_frames - 1, stride):
         end_idx = start_idx + window_size
         print(f"Generating window: {start_idx} to {end_idx}")
         
@@ -237,6 +239,8 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, device):
         # Cleanup
         del video_chunk
         flush()
+        if args.debug:
+            break
     
     # Trim to original length if we padded
     final_video_frames = final_video_frames[:total_frames]
@@ -254,7 +258,8 @@ if __name__ == "__main__":
     
     # Load Data
     print("Loading data...")
-    rgb_frames = load_frames(args.rgb_video, args.height, args.width, n_frames=None)
+    rgb_frames, input_fps = load_frames(args.rgb_video, args.height, args.width, n_frames=None)
+    args.fps = input_fps  # Update args.fps to match the input video's FPS
     
     # 1. Flux Stage (First Frame)
     first_frame_pil = rgb_frames[0]
