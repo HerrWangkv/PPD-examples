@@ -1,3 +1,7 @@
 models
 diffsynth
 data
+outputs
+my_sim2real*
+*.safetensors
+*.sif

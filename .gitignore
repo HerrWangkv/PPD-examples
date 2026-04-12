@@ -10,3 +10,5 @@ outputs/
 *.pdf
 logs/
 my_sim2real_*/
+*.log
+*.safetensors
