@@ -24,8 +24,25 @@ import torch.nn.functional as F
 
 
 def load_dino(model_name: str = "dinov2_vitl14_reg", device: str = "cuda") -> torch.nn.Module:
-    """Load DINOv2 ViT-L/14 with registers in float32, all params frozen."""
-    dino = torch.hub.load("facebookresearch/dinov2", model_name)
+    """Load DINOv2 ViT-L/14 with registers in float32, all params frozen.
+
+    Uses a file lock so that only one process downloads/extracts the hub repo
+    at a time, preventing the OSError: [Errno 39] Directory not empty race
+    condition that occurs when multiple GPU processes call torch.hub.load
+    simultaneously.
+    """
+    import fcntl
+    import os
+
+    hub_dir = torch.hub.get_dir()
+    os.makedirs(hub_dir, exist_ok=True)
+    lock_path = os.path.join(hub_dir, "dinov2_load.lock")
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            dino = torch.hub.load("facebookresearch/dinov2", model_name)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
     dino = dino.to(device).to(torch.float32).eval()
     for p in dino.parameters():
         p.requires_grad_(False)
@@ -36,6 +53,7 @@ def latent_to_dino(
     vae_decoder: torch.nn.Module,   # DiffSynth FluxVAEDecoder
     dino: torch.nn.Module,          # DINOv2
     z: torch.Tensor,                # (N, 16, H, W) DiffSynth-scaled latent, float32
+    max_dino_size: int = 518,       # cap at standard DINOv2 resolution to avoid OOM
 ) -> dict[str, torch.Tensor]:
     """
     Differentiable path: DiffSynth FLUX latent → DINOv2 features.
@@ -52,16 +70,18 @@ def latent_to_dino(
     # Decode via DiffSynth decoder — handles unscaling internally
     decoded = vae_decoder(z.to(vae_dtype), tiled=False).float()  # (N, 3, H, W) in ~[-1, 1]
 
-    # [-1, 1] → [0, 1], resize to DINOv2 patch-aligned size
+    # [-1, 1] → [0, 1], resize to DINOv2 patch-aligned size capped at max_dino_size
     img = (decoded + 1.0) / 2.0
     img = img.clamp(0.0, 1.0)
-    dino_size = dino.patch_size * (img.shape[-1] // dino.patch_size)  # keep aspect-ratio agnostic
+    raw_size = min(img.shape[-2], img.shape[-1], max_dino_size)
+    dino_size = dino.patch_size * (raw_size // dino.patch_size)
     img = F.interpolate(img, size=(dino_size, dino_size), mode="bilinear", align_corners=False)
 
-    out = dino.forward_features(img)
+    with torch.autocast("cuda", dtype=torch.bfloat16):
+        out = dino.forward_features(img)
     return {
-        "cls":     out["x_norm_clstoken"],     # (N, 1024)
-        "patches": out["x_norm_patchtokens"],  # (N, num_patches, 1024)
+        "cls":     out["x_norm_clstoken"].float(),     # (N, 1024)
+        "patches": out["x_norm_patchtokens"].float(),  # (N, num_patches, 1024)
     }
 
 
@@ -87,7 +107,7 @@ def find_dino_preserving_noise(
     Find z_t* = argmin_{z_t} dino_distance(z_t, z0) s.t. z_t initialized on the flow path.
 
     Concretely:
-      1. If z1 is None, sample z1 ~ N(0, std(z0)).
+      1. If z1 is None, sample z1 ~ N(0, 1).
       2. Initialize z_t = (1-t)*z0 + t*z1.
       3. Optimize z_t with Adam to minimise dino_distance(F(dec(z_t)), F(dec(z0))).
 
@@ -107,6 +127,11 @@ def find_dino_preserving_noise(
     """
     z0 = z0.float()
 
+    # Freeze VAE decoder params so gradients are not accumulated for them
+    # (DiffSynth only calls .eval(), not .requires_grad_(False))
+    vae_was_grad = [p.requires_grad for p in vae_decoder.parameters()]
+    vae_decoder.requires_grad_(False)
+
     # Compute DINOv2 target features once (no grad needed)
     with torch.no_grad():
         target = latent_to_dino(vae_decoder, dino, z0)
@@ -114,18 +139,24 @@ def find_dino_preserving_noise(
 
     # Initialise noise endpoint
     if z1 is None:
-        z1 = torch.randn_like(z0) * z0.std()
+        z1 = torch.randn_like(z0)
 
     # Start from the flow-interpolated point
     z_t = ((1.0 - t) * z0 + t * z1.float()).detach().requires_grad_(True)
 
     optimizer = torch.optim.Adam([z_t], lr=1e-2)
 
-    for _ in range(n_steps):
+    for step in range(n_steps):
         optimizer.zero_grad()
         feats = latent_to_dino(vae_decoder, dino, z_t)
         loss  = dino_distance(feats, target)
         loss.backward()
         optimizer.step()
+        if (step + 1) % 50 == 0:
+            print(f"  DINO opt step {step + 1}/{n_steps}  loss={loss.item():.4f}")
+
+    # Restore VAE grad state
+    for p, was_grad in zip(vae_decoder.parameters(), vae_was_grad):
+        p.requires_grad_(was_grad)
 
     return z_t.detach()
