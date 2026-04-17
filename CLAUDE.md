@@ -165,47 +165,26 @@ For each training sample (z0, t):
 **v2** (`models/train/FLUX.1-dev_lora_dino_pd_v2/`)
 - **Objective**: flow MSE + **auxiliary trajectory DINO loss** on the model's predicted clean image.
   ```
-  x0_hat   = z_t - t * v_pred                # model's estimate of z0 given current z_t
-  L_dino   = dino_distance(decode(x0_hat), decode(z0))  if sigma < 0.8 else 0
+  x0_hat   = z_t* - sigma * v_pred                        # predicted clean latent
+  L_dino   = dino_distance(decode(x0_hat), decode(z0))    if sigma < 0.8 else 0
   L_total  = L_flow + λ_dino * L_dino
   ```
-  VAE decoder params are frozen during L_dino computation, but gradients flow through decode→DINO→x0_hat→v_pred→LoRA, supervising the *trajectory endpoint* rather than just velocity direction.
-- **Config**: LR=5e-5 (halved), 1 epoch, 300 dino_opt_steps, λ_dino=1.0, dino_loss_t_threshold=0.8.
-- **Observed (3614 steps)**:
-  - flow loss 0.448 → 0.436 (Q1→Q4), dino_x0 loss 0.080 → 0.076 — both barely moving
-  - DINO term is only ~15% of total loss (0.076 vs 0.44 flow) — likely under-weighted
-  - z_t* optimization stable at ~0.048 distance (sanity check on find_dino_preserving_noise)
-- **Validation on step-3000 checkpoint** (`outputs/dino_validate_v2/`):
-  - Step 0 DINO dist = 0.051 → Final = 0.667 (max 0.716 at step 44)
-  - **Identical drift pattern to v1** — flat until sigma ≈ 0.8, explodes after that
-  - The aux DINO loss did not transfer to inference behavior
+  VAE decoder params are frozen during L_dino, but gradients flow through decode→DINO→x0_hat→v_pred→LoRA, supervising the *trajectory endpoint* rather than just velocity direction.
+- **Config**: LR=5e-5, 1 epoch, 300 dino_opt_steps, λ_dino=1.0, dino_loss_t_threshold=0.8.
+- **Training metrics (3614 steps)**: L_flow 0.448→0.436, L_dino 0.080→0.076. Both flat. L_dino is only ~15% of total loss.
+- **Validation on step-3000** (`outputs/dino_validate_v2/`): step-0 DINO dist = 0.051 → final = 0.667 (max 0.716 @ step 44). **Identical drift pattern to v1** — flat until sigma ≈ 0.8, explodes below it. The aux loss did not transfer to inference behavior.
 
-### Why v2 failed: training signal was trivial
+### Why v2 failed: the training signal was trivial
 
-During training we set `inputs["latents"] = z_t*` (already DINO-preserving by construction) and compute:
+At training time we set `inputs["latents"] = z_t*` which is *already DINO-preserving* by construction. Then:
 ```
 x0_hat = z_t* - sigma * v_pred
 ```
-With flow MSE well-fit (`v_pred ≈ z1* - z0`), x0_hat ≈ z0 automatically — so `L_dino(x0_hat, z0)` is near zero at the training point regardless of what the LoRA does. The gradient teaches the model nothing about drift correction.
+Once the flow MSE fits (`v_pred ≈ z1* - z0`), this gives `x0_hat ≈ z0` **automatically**, so `L_dino(x0_hat, z0)` is near-zero at the training point regardless of what the LoRA does. The gradient teaches the model nothing about drift correction.
 
-At inference, `z_t` comes from multi-step rollout and drifts off the z_t* manifold. The model never saw off-manifold inputs during training and has no learned response to pull them back. That's why DINO distance stays flat where the training signal was inactive (sigma > 0.8) *and* explodes where it was active (sigma < 0.8) — the loss was vacuously satisfied either way.
+At inference, `z_t` comes from multi-step rollout and drifts *off* the z_t* manifold. The model never saw off-manifold inputs during training and has no learned response to pull them back. This explains the validation plot: DINO distance stays flat where the loss was gated off (sigma > 0.8) **and** explodes where it was supposedly active (sigma < 0.8), because the loss was vacuously satisfied either way.
 
-**Root cause**: train-inference distribution shift in the DiT input `z_t`. Training sees perfectly-aligned `z_t*`, inference sees drifted z_t.
-
-### Proposed v3 fix
-
-Train with **deliberately-drifted inputs** so the model learns to correct rather than preserve:
-```
-z_t_perturbed = z_t* + ε      # ε ~ small Gaussian, or short rollout with current LoRA
-x0_hat        = z_t_perturbed - sigma * v_pred(z_t_perturbed, t)
-L_dino        = dino_distance(decode(x0_hat), decode(z0))
-```
-This gives the DINO loss real gradient: "given an off-manifold z_t, predict a velocity that brings x0_hat back to DINO-match z0."
-
-Design knobs:
-- Perturbation source: random Gaussian (cheap) vs. short rollout with current LoRA (more realistic but 2-3× slower).
-- Perturbation magnitude: fixed small σ, or scheduled to match observed drift at each sigma bucket.
-- Keep flow MSE on the clean z_t* path (so the "if z_t is on-manifold, stay on it" behavior is also learned).
+**Root cause**: train-inference distribution shift in the DiT input `z_t`. Training saw only perfectly-aligned `z_t*`.
 
 ### Why z1\* must stay in training (both v1 and v2)
 
