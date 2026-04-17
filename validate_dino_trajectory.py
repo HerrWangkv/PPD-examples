@@ -106,7 +106,7 @@ def main():
 
     # ── 4. DINO-preserving noise ──────────────────────────────────────────────
     print(f"Optimising DINO-preserving noise ({args.dino_opt_steps} steps)...")
-    z1_star = find_dino_preserving_noise(
+    z1_star, _ = find_dino_preserving_noise(
         z0=z0_f32,
         t=1.0,
         vae_decoder=pipe.vae_decoder,

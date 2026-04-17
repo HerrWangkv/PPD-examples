@@ -2,10 +2,10 @@ accelerate launch --multi_gpu --num_processes 8 examples/flux/model_training/tra
   --max_pixels 262144 \
   --dataset_repeat 1 \
   --model_id_with_origin_paths "black-forest-labs/FLUX.1-dev:flux1-dev.safetensors,black-forest-labs/FLUX.1-dev:text_encoder/model.safetensors,black-forest-labs/FLUX.1-dev:text_encoder_2/,black-forest-labs/FLUX.1-dev:ae.safetensors" \
-  --learning_rate 1e-5 \
-  --num_epochs 5 \
+  --learning_rate 5e-5 \
+  --num_epochs 1 \
   --remove_prefix_in_ckpt "pipe.dit." \
-  --output_path "./models/train/FLUX.1-dev_lora_dino_pd" \
+  --output_path "./models/train/FLUX.1-dev_lora_dino_pd_v2" \
   --lora_base_model "dit" \
   --lora_target_modules "a_to_qkv,b_to_qkv,ff_a.0,ff_a.2,ff_b.0,ff_b.2,a_to_out,b_to_out,proj_out,norm.linear,norm1_a.linear,norm1_b.linear,to_qkv_mlp" \
   --lora_rank 32 \
@@ -13,4 +13,6 @@ accelerate launch --multi_gpu --num_processes 8 examples/flux/model_training/tra
   --save_steps 1000 \
   --use_gradient_checkpointing \
   --dino_model_name "dinov2_vitl14_reg" \
-  --dino_opt_steps 300
+  --dino_opt_steps 300 \
+  --lambda_dino 1.0 \
+  --dino_loss_t_threshold 0.8

@@ -146,6 +146,7 @@ def find_dino_preserving_noise(
 
     optimizer = torch.optim.Adam([z_t], lr=1e-2)
 
+    final_dist = 0.0
     for step in range(n_steps):
         optimizer.zero_grad()
         feats = latent_to_dino(vae_decoder, dino, z_t)
@@ -154,9 +155,10 @@ def find_dino_preserving_noise(
         optimizer.step()
         if (step + 1) % 50 == 0:
             print(f"  DINO opt step {step + 1}/{n_steps}  loss={loss.item():.4f}")
+        final_dist = loss.item()
 
     # Restore VAE grad state
     for p, was_grad in zip(vae_decoder.parameters(), vae_was_grad):
         p.requires_grad_(was_grad)
 
-    return z_t.detach()
+    return z_t.detach(), final_dist

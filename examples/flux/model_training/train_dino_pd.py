@@ -1,4 +1,5 @@
 import os
+import random
 from datetime import datetime
 
 import numpy as np
@@ -13,7 +14,7 @@ from diffsynth.trainers.hf_url_dataset import HuggingFaceURLImageDataset
 from accelerate import Accelerator
 from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration
 
-from dino_noise import load_dino, find_dino_preserving_noise, latent_to_dino, dino_distance
+from dino_noise import load_dino, find_dino_preserving_noise
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -32,6 +33,8 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         extra_inputs=None,
         dino_model_name="dinov2_vitl14_reg",
         dino_opt_steps=300,
+        lambda_dino=1.0,
+        dino_loss_t_threshold=0.8,
     ):
         super().__init__()
 
@@ -50,6 +53,8 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.use_gradient_checkpointing_offload = use_gradient_checkpointing_offload
         self.extra_inputs = extra_inputs.split(",") if extra_inputs is not None else []
         self.dino_opt_steps = dino_opt_steps
+        self.lambda_dino = lambda_dino
+        self.dino_loss_t_threshold = dino_loss_t_threshold
 
         # Load DINOv2 on CPU; will be moved to the correct device in set_accelerator.
         # Stored outside nn.Module registry to keep DDP away from it.
@@ -112,7 +117,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
 
         # Find z_t* that preserves DINOv2 features of z0
         with torch.enable_grad():
-            z_t_star = find_dino_preserving_noise(
+            z_t_star, dino_dist_zt_star = find_dino_preserving_noise(
                 z0=z0,
                 t=sigma,
                 vae_decoder=self.pipe.vae_decoder,
@@ -136,17 +141,50 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
             inputs["input_latents"], inputs["noise"], timestep
         )
         noise_pred = self.pipe.model_fn(**models, **inputs, timestep=timestep)
-        loss = torch.nn.functional.mse_loss(noise_pred.float(), training_target.float())
-        loss = loss * self.pipe.scheduler.training_weight(timestep)
+        loss_flow = torch.nn.functional.mse_loss(noise_pred.float(), training_target.float())
+        loss_flow = loss_flow * self.pipe.scheduler.training_weight(timestep)
 
-        # Log stats
+        # ------------------------------------------------------------------
+        # Auxiliary DINO loss on the predicted clean latent:
+        #     x0_hat = z_t - t * v_pred
+        # Supervises the *trajectory* (not just the velocity direction) by
+        # forcing the model's clean-image estimate to match z0's DINO
+        # features at every sampled timestep. Gated at high t because x0_hat
+        # is dominated by noise there and DINO features become meaningless.
+        # ------------------------------------------------------------------
+        with torch.no_grad():
+            target_feats = latent_to_dino(self.pipe.vae_decoder, self._dino, z0)
+            target_feats = {k: v.detach() for k, v in target_feats.items()}
+
+        if sigma < self.dino_loss_t_threshold:
+            z_t_float = inputs["latents"].float()
+            x0_hat = z_t_float - sigma * noise_pred.float()
+
+            # Freeze VAE decoder params — gradients still flow through to
+            # noise_pred (and thus the LoRA) but VAE params are not updated.
+            vae_was_grad = [p.requires_grad for p in self.pipe.vae_decoder.parameters()]
+            self.pipe.vae_decoder.requires_grad_(False)
+            try:
+                x0_feats  = latent_to_dino(self.pipe.vae_decoder, self._dino, x0_hat)
+                loss_dino = dino_distance(x0_feats, target_feats)
+            finally:
+                for p, was_grad in zip(self.pipe.vae_decoder.parameters(), vae_was_grad):
+                    p.requires_grad_(was_grad)
+        else:
+            loss_dino = torch.zeros((), device=self.pipe.device, dtype=torch.float32)
+
+        loss = loss_flow + self.lambda_dino * loss_dino
+
+        # Log stats (reuse final distance from find_dino_preserving_noise)
         if self.accelerator is not None and step is not None:
             with torch.no_grad():
-                feat_z0    = latent_to_dino(self.pipe.vae_decoder, self._dino, z0)
-                feat_zt    = latent_to_dino(self.pipe.vae_decoder, self._dino, z_t_star)
-                dino_dist  = dino_distance(feat_z0, feat_zt)
                 stats = self.accelerator.gather(
-                    torch.stack([dino_dist.float(), loss.detach().float()])[None]
+                    torch.stack([
+                        torch.tensor(dino_dist_zt_star, device=self.pipe.device, dtype=torch.float32),
+                        loss.detach().float(),
+                        loss_flow.detach().float(),
+                        loss_dino.detach().float(),
+                    ])[None]
                 ).mean(dim=0)
 
             if self.accelerator.is_main_process:
@@ -155,6 +193,8 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                         "dino/distance_zt_star": stats[0].item(),
                         "dino/sigma":            float(sigma),
                         "loss":                  stats[1].item(),
+                        "loss/flow":             stats[2].item(),
+                        "loss/dino_x0":          stats[3].item(),
                     },
                     step=step,
                 )
@@ -233,6 +273,10 @@ if __name__ == "__main__":
                         help="DINOv2 model name (torch.hub facebookresearch/dinov2).")
     parser.add_argument("--dino_opt_steps", type=int, default=300,
                         help="Adam steps per training sample to find z_t*.")
+    parser.add_argument("--lambda_dino", type=float, default=1.0,
+                        help="Weight of the auxiliary DINO loss on x0_hat.")
+    parser.add_argument("--dino_loss_t_threshold", type=float, default=0.8,
+                        help="Only apply the DINO loss when sigma < threshold (x0_hat is meaningless near pure noise).")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum dataset samples (for debugging).")
     args = parser.parse_args()
@@ -265,6 +309,8 @@ if __name__ == "__main__":
         extra_inputs=args.extra_inputs,
         dino_model_name=args.dino_model_name,
         dino_opt_steps=args.dino_opt_steps,
+        lambda_dino=args.lambda_dino,
+        dino_loss_t_threshold=args.dino_loss_t_threshold,
     )
     model_logger = ModelLogger(
         args.output_path,
