@@ -218,7 +218,7 @@ loss                 = MSE(v_pred, training_target) * scheduler.training_weight(
 - Detached rollout → compute ≈ 2× per sample, memory ≈ baseline.
 - `dino_opt_steps=300` retained from v2.
 
-**Training metrics (717 steps, run 20260417_142627)**: loss 6.9 → 3.5 over first ~30%, then plateau ~3.5–3.8 (median 2.8, p90 ~7–9, max 127). Loss scale dominated by extreme-drift samples where the random sigma gap is large. `dino/distance_start` ≈ 0.047 flat (just confirms noise opt converges). Unlike v2's flat loss, training is moving.
+**Training metrics (2015 steps, run 20260417_142627)**: mean loss 6.1 → 3.5 in the first ~200 steps, **then plateau for the remaining ~1800 steps** (median wobbles 2.3–3.1 with no trend, mean 3.5–4.5, max 127). Loss scale dominated by extreme-drift samples where the random `(sigma_i - sigma_j)` gap is large. `dino/distance_start` ≈ 0.047 flat (just confirms noise opt converges).
 
 **Validation trajectory (final DINO distance to z0 on `models/ppd/test1.jpg`):**
 
@@ -233,4 +233,4 @@ loss                 = MSE(v_pred, training_target) * scheduler.training_weight(
 - v3 step-1000 is *worse* than v2 step-1000 — the extreme-drift outliers (loss max 127) dominate the gradient early and slow initial convergence. Once the model stabilizes past ~1.5k steps, v3's signal-per-step advantage takes over.
 - v3 also shows a small tail recovery (0.645 → 0.554) in the final few steps that v2 doesn't; the rectified target is doing late-stage correction but can't prevent the mid-sigma explosion.
 
-**Read**: v3 is the better direction, just slower to take off. Worth training further (3–5k steps) before judging. If the mid-sigma explosion persists at 5k steps, add L_dino back on top of v3's drifted input (v4a).
+**Read**: v3 is the better direction (beats v2 on validation), but **training loss is already plateaued** — more steps at the same setup will likely give diminishing returns. Validation improvement on flat training loss suggests either (a) the plateau is the outlier-gradient noise floor, or (b) training-set fit is genuinely stuck. Diagnostic: clamp the `(sigma_i - sigma_j)` gap (e.g. K_MAX ≈ 4 neighbouring timesteps) and watch median loss — should drop below 2 if (a). If median stays ~2.8 after clamping, pixel MSE alone can't reach the target and L_dino must be re-added (gated at sigma ∈ [0.3, 0.85], the explosion window) on top of v3's drifted input.
