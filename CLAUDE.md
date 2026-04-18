@@ -190,8 +190,47 @@ At inference, `z_t` comes from multi-step rollout and drifts *off* the z_t* mani
 
 The DiT never sees a DINO target as input at inference. Structure enters only through `z_t`. Training with plain Gaussian noise would create a train/inference mismatch — the model would never learn what structured noise "looks like" or how to decode it. `z1*` is the carrier that embeds input structure into the training distribution.
 
-### Next steps to try
+**v3** (`models/train/FLUX.1-dev_lora_dino_pd_v3/`) — *rollout-aware rectified flow matching, no L_dino*. Inspired by Self Forcing / Diffusion Forcing. Trains on a 1-step Euler-rolled-out latent instead of the clean z_t*, using a rectified velocity target that self-corrects drift.
 
-- **Bump `--lambda_dino`** to 3–5 so DINO contribution matches or exceeds flow MSE.
-- **Run validation script** on v2 checkpoint to see if trajectory drift actually improved at inference time — training metric is not the real test.
-- `--dino_opt_steps 300` is the current default (100 was tested but loss curves suggest converging well before 100 is possible; verify from optimizer printouts).
+```
+scheduler.set_timesteps(num_train_timesteps=1000, training=True)
+i = randint(0, N-1)                                  # timestep_id_start  (more noisy)
+j = randint(i+1, N)                                  # timestep_id_target (less noisy)
+sigma_i, sigma_j = scheduler.sigmas[i], scheduler.sigmas[j]
+
+z_t_star, _ = find_dino_preserving_noise(z0, t=sigma_i, ...)   # grad enabled, then detached
+
+with no_grad:                                        # 1-step Euler jump over (sigma_i → sigma_j)
+    v_start  = model_fn(latents=z_t_star, timestep=timestep_i, ...)
+    z_target = z_t_star + (sigma_j - sigma_i) * v_start
+
+# Rectified target via the noise reparameterisation
+# (algebraically identical to (z_target - z0) / sigma_j):
+z1_target            = (z_target - (1 - sigma_j) * z0) / sigma_j
+inputs["noise"]      = z1_target
+inputs["latents"]    = z_target
+training_target      = scheduler.training_target(z0, z1_target, timestep_j)
+v_pred               = model_fn(latents=z_target, timestep=timestep_j, ...)
+loss                 = MSE(v_pred, training_target) * scheduler.training_weight(timestep_j)
+```
+
+- No L_dino, no VAE/DINO forward in the hot loop — rectified target implies `x0_hat → z0`, which implies DINO match.
+- Detached rollout → compute ≈ 2× per sample, memory ≈ baseline.
+- `dino_opt_steps=300` retained from v2.
+
+**Training metrics (717 steps, run 20260417_142627)**: loss 6.9 → 3.5 over first ~30%, then plateau ~3.5–3.8 (median 2.8, p90 ~7–9, max 127). Loss scale dominated by extreme-drift samples where the random sigma gap is large. `dino/distance_start` ≈ 0.047 flat (just confirms noise opt converges). Unlike v2's flat loss, training is moving.
+
+**Validation trajectory (final DINO distance to z0 on `models/ppd/test1.jpg`):**
+
+| Run | step 1000 | step 2000 | step 3000 |
+|---|---|---|---|
+| v2 | 0.752 | 0.684 | 0.667 |
+| **v3** | 0.778 | **0.554** | — |
+
+- Both runs show the same qualitative shape: DINO distance flat until sigma ≈ 0.85, explodes through mid-trajectory (peak ≈ step 43–45), small tail recovery below sigma 0.2.
+- v2 *does* improve with training — previous "checkpoints are all equally bad" read was wrong; step1k→3k drops 0.085.
+- **v3 improves ~3× faster per step**: 0.22 drop in 1k steps (step1k→2k), vs v2's 0.07 in the same interval. v3 step-2000 already beats v2 step-3000 by 0.11.
+- v3 step-1000 is *worse* than v2 step-1000 — the extreme-drift outliers (loss max 127) dominate the gradient early and slow initial convergence. Once the model stabilizes past ~1.5k steps, v3's signal-per-step advantage takes over.
+- v3 also shows a small tail recovery (0.645 → 0.554) in the final few steps that v2 doesn't; the rectified target is doing late-stage correction but can't prevent the mid-sigma explosion.
+
+**Read**: v3 is the better direction, just slower to take off. Worth training further (3–5k steps) before judging. If the mid-sigma explosion persists at 5k steps, add L_dino back on top of v3's drifted input (v4a).

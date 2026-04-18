@@ -33,8 +33,6 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         extra_inputs=None,
         dino_model_name="dinov2_vitl14_reg",
         dino_opt_steps=300,
-        lambda_dino=1.0,
-        dino_loss_t_threshold=0.8,
     ):
         super().__init__()
 
@@ -53,8 +51,6 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.use_gradient_checkpointing_offload = use_gradient_checkpointing_offload
         self.extra_inputs = extra_inputs.split(",") if extra_inputs is not None else []
         self.dino_opt_steps = dino_opt_steps
-        self.lambda_dino = lambda_dino
-        self.dino_loss_t_threshold = dino_loss_t_threshold
 
         # Load DINOv2 on CPU; will be moved to the correct device in set_accelerator.
         # Stored outside nn.Module registry to keep DDP away from it.
@@ -97,104 +93,95 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         return {**inputs_shared, **inputs_posi}
 
     # ------------------------------------------------------------------
-    # Forward: replace noise with a DINO-preserving z_t*
+    # Forward: rollout-aware rectified flow matching.
+    #
+    # Per-sample algorithm:
+    #   1. Sample an initial timestep `timestep_id_start` (t_1) and $j > i$.
+    #   2. Compute DINO-preserving noise z_{t_1}*.
+    #   3. Do a 1-step offline rollout to the second timestep `timestep_id_target` (t_2).
+    #   4. Compute flow-matching loss with rectified target directed precisely to z0.
     # ------------------------------------------------------------------
     def forward(self, data, inputs=None, step: int | None = None):
         if inputs is None:
             inputs = self.forward_preprocess(data)
 
         models = {name: getattr(self.pipe, name) for name in self.pipe.in_iteration_models}
+        dtype, device = self.pipe.torch_dtype, self.pipe.device
 
         z0 = inputs["input_latents"].float()  # (1, 16, H, W)
 
-        # Sample a timestep from the scheduler (same distribution as training_loss)
-        timestep_id = torch.randint(0, self.pipe.scheduler.num_train_timesteps, (1,))
-        timestep    = self.pipe.scheduler.timesteps[timestep_id].to(
-            dtype=self.pipe.torch_dtype, device=self.pipe.device
-        )
-        # sigma = t in [0, 1] for FlowMatchScheduler
-        sigma = self.pipe.scheduler.sigmas[timestep_id].item()
+        self.pipe.scheduler.set_timesteps(self.pipe.scheduler.num_train_timesteps, training=True)
+        N = self.pipe.scheduler.num_train_timesteps
 
-        # Find z_t* that preserves DINOv2 features of z0
+        # Sample a timestep_id_start and a subsequent timestep_id_target
+        timestep_id_start = torch.randint(0, N - 1, (1,))
+        timestep_id_target = torch.randint(timestep_id_start.item() + 1, N, (1,))
+
+        timestep_start = self.pipe.scheduler.timesteps[timestep_id_start].to(dtype=dtype, device=device)
+        timestep_target = self.pipe.scheduler.timesteps[timestep_id_target].to(dtype=dtype, device=device)
+
+        # sigma = t in [0, 1] for FlowMatchScheduler
+        sigma_start = self.pipe.scheduler.sigmas[timestep_id_start].item()
+        sigma_target = self.pipe.scheduler.sigmas[timestep_id_target].item()
+
+        # Find z_t* that preserves DINOv2 features of z0 at t_start
         with torch.enable_grad():
-            z_t_star, dino_dist_zt_star = find_dino_preserving_noise(
+            z_t_star, dino_dist_start = find_dino_preserving_noise(
                 z0=z0,
-                t=sigma,
+                t=sigma_start,
                 vae_decoder=self.pipe.vae_decoder,
                 dino=self._dino,
                 n_steps=self.dino_opt_steps,
             )
 
-        # Recover DINO-preserving flow endpoint: z1* = (z_t* - (1-t)*z0) / t
-        # Clamp sigma away from zero to avoid division instability at t≈0
-        t_safe = max(sigma, 1e-4)
-        z1_star = (z_t_star - (1.0 - t_safe) * z0) / t_safe
+        z_t_star = z_t_star.detach()
+        t_safe_start = max(sigma_start, 1e-4)
 
-        # Inject as the noise endpoint; also pre-fill latents with z_t* so
-        # training_loss does not re-sample a different timestep from scratch.
-        inputs["noise"]          = z1_star.to(dtype=self.pipe.torch_dtype, device=self.pipe.device)
-        inputs["input_latents"]  = z0.to(dtype=self.pipe.torch_dtype, device=self.pipe.device)
+        # Temporary noise injection purely to condition the model_fn for the offline v_start prediction
+        z1_star = (z_t_star - (1.0 - t_safe_start) * z0) / t_safe_start
+        inputs["noise"] = z1_star.to(dtype=dtype, device=device)
+        inputs["input_latents"] = z0.to(dtype=dtype, device=device)
+
+        # 1-step detached jump simulation from t_start to t_target
+        with torch.no_grad():
+            inputs["latents"] = z_t_star.to(dtype=dtype, device=device)
+            v_start = self.pipe.model_fn(**models, **inputs, timestep=timestep_start)
+            # Euler step approximation along constant flow map
+            z_target = z_t_star + (sigma_target - sigma_start) * v_start
+
+        # Calculate the noise endpoint parameterization based on the target position
+        t_safe_target = max(sigma_target, 1e-4)
+        z1_target = (z_target.detach().float() - (1.0 - t_safe_target) * z0) / t_safe_target
+        inputs["noise"] = z1_target.to(dtype=dtype, device=device)
 
         # Compute flow-matching loss at the chosen timestep
-        inputs["latents"]        = z_t_star.to(dtype=self.pipe.torch_dtype, device=self.pipe.device)
+        inputs["latents"]        = z_target.to(dtype=self.pipe.torch_dtype, device=self.pipe.device)
         training_target          = self.pipe.scheduler.training_target(
-            inputs["input_latents"], inputs["noise"], timestep
+            inputs["input_latents"], inputs["noise"], timestep_target
         )
-        noise_pred = self.pipe.model_fn(**models, **inputs, timestep=timestep)
-        loss_flow = torch.nn.functional.mse_loss(noise_pred.float(), training_target.float())
-        loss_flow = loss_flow * self.pipe.scheduler.training_weight(timestep)
+        noise_pred = self.pipe.model_fn(**models, **inputs, timestep=timestep_target)
+        loss = torch.nn.functional.mse_loss(noise_pred.float(), training_target.float())
+        loss = loss * self.pipe.scheduler.training_weight(timestep_target)
 
-        # ------------------------------------------------------------------
-        # Auxiliary DINO loss on the predicted clean latent:
-        #     x0_hat = z_t - t * v_pred
-        # Supervises the *trajectory* (not just the velocity direction) by
-        # forcing the model's clean-image estimate to match z0's DINO
-        # features at every sampled timestep. Gated at high t because x0_hat
-        # is dominated by noise there and DINO features become meaningless.
-        # ------------------------------------------------------------------
-        with torch.no_grad():
-            target_feats = latent_to_dino(self.pipe.vae_decoder, self._dino, z0)
-            target_feats = {k: v.detach() for k, v in target_feats.items()}
-
-        if sigma < self.dino_loss_t_threshold:
-            z_t_float = inputs["latents"].float()
-            x0_hat = z_t_float - sigma * noise_pred.float()
-
-            # Freeze VAE decoder params — gradients still flow through to
-            # noise_pred (and thus the LoRA) but VAE params are not updated.
-            vae_was_grad = [p.requires_grad for p in self.pipe.vae_decoder.parameters()]
-            self.pipe.vae_decoder.requires_grad_(False)
-            try:
-                x0_feats  = latent_to_dino(self.pipe.vae_decoder, self._dino, x0_hat)
-                loss_dino = dino_distance(x0_feats, target_feats)
-            finally:
-                for p, was_grad in zip(self.pipe.vae_decoder.parameters(), vae_was_grad):
-                    p.requires_grad_(was_grad)
-        else:
-            loss_dino = torch.zeros((), device=self.pipe.device, dtype=torch.float32)
-
-        loss = loss_flow + self.lambda_dino * loss_dino
-
-        # Log stats (reuse final distance from find_dino_preserving_noise)
+        # --- Log stats ----------------------------------------------------
         if self.accelerator is not None and step is not None:
             with torch.no_grad():
                 stats = self.accelerator.gather(
                     torch.stack([
-                        torch.tensor(dino_dist_zt_star, device=self.pipe.device, dtype=torch.float32),
+                        torch.tensor(dino_dist_start, device=device, dtype=torch.float32),
                         loss.detach().float(),
-                        loss_flow.detach().float(),
-                        loss_dino.detach().float(),
+                        torch.tensor(float(sigma_start), device=device, dtype=torch.float32),
+                        torch.tensor(float(sigma_target), device=device, dtype=torch.float32),
                     ])[None]
                 ).mean(dim=0)
 
             if self.accelerator.is_main_process:
                 self.accelerator.log(
                     {
-                        "dino/distance_zt_star": stats[0].item(),
-                        "dino/sigma":            float(sigma),
-                        "loss":                  stats[1].item(),
-                        "loss/flow":             stats[2].item(),
-                        "loss/dino_x0":          stats[3].item(),
+                        "dino/distance_start": stats[0].item(),
+                        "loss":                stats[1].item(),
+                        "rollout/sigma_start": stats[2].item(),
+                        "rollout/sigma_target": stats[3].item(),
                     },
                     step=step,
                 )
@@ -273,10 +260,6 @@ if __name__ == "__main__":
                         help="DINOv2 model name (torch.hub facebookresearch/dinov2).")
     parser.add_argument("--dino_opt_steps", type=int, default=300,
                         help="Adam steps per training sample to find z_t*.")
-    parser.add_argument("--lambda_dino", type=float, default=1.0,
-                        help="Weight of the auxiliary DINO loss on x0_hat.")
-    parser.add_argument("--dino_loss_t_threshold", type=float, default=0.8,
-                        help="Only apply the DINO loss when sigma < threshold (x0_hat is meaningless near pure noise).")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum dataset samples (for debugging).")
     args = parser.parse_args()
@@ -309,8 +292,6 @@ if __name__ == "__main__":
         extra_inputs=args.extra_inputs,
         dino_model_name=args.dino_model_name,
         dino_opt_steps=args.dino_opt_steps,
-        lambda_dino=args.lambda_dino,
-        dino_loss_t_threshold=args.dino_loss_t_threshold,
     )
     model_logger = ModelLogger(
         args.output_path,
