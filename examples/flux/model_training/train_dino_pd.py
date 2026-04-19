@@ -33,6 +33,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         extra_inputs=None,
         dino_model_name="dinov2_vitl14_reg",
         dino_opt_steps=300,
+        max_sigma_gap=0.1,
     ):
         super().__init__()
 
@@ -51,6 +52,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.use_gradient_checkpointing_offload = use_gradient_checkpointing_offload
         self.extra_inputs = extra_inputs.split(",") if extra_inputs is not None else []
         self.dino_opt_steps = dino_opt_steps
+        self.max_sigma_gap = max_sigma_gap
 
         # Load DINOv2 on CPU; will be moved to the correct device in set_accelerator.
         # Stored outside nn.Module registry to keep DDP away from it.
@@ -112,10 +114,21 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
 
         self.pipe.scheduler.set_timesteps(self.pipe.scheduler.num_train_timesteps, training=True)
         N = self.pipe.scheduler.num_train_timesteps
+        sigmas = self.pipe.scheduler.sigmas  # monotonically decreasing in j
 
-        # Sample a timestep_id_start and a subsequent timestep_id_target
-        timestep_id_start = torch.randint(0, N - 1, (1,))
-        timestep_id_target = torch.randint(timestep_id_start.item() + 1, N, (1,))
+        # Sample timestep_id_start, then clamp the target so that
+        # (sigma_start - sigma_target) <= max_sigma_gap. This avoids
+        # rectified-target blow-up when the Euler jump is long.
+        timestep_id_start = torch.randint(0, N - 1, (1,)).item()
+        sigma_start_val = sigmas[timestep_id_start].item()
+        sigma_floor = sigma_start_val - self.max_sigma_gap
+        # largest j > i with sigmas[j] >= sigma_floor
+        max_target = timestep_id_start + 1
+        while max_target + 1 < N and sigmas[max_target + 1].item() >= sigma_floor:
+            max_target += 1
+        timestep_id_target = torch.randint(timestep_id_start + 1, max_target + 1, (1,)).item()
+        timestep_id_start = torch.tensor([timestep_id_start])
+        timestep_id_target = torch.tensor([timestep_id_target])
 
         timestep_start = self.pipe.scheduler.timesteps[timestep_id_start].to(dtype=dtype, device=device)
         timestep_target = self.pipe.scheduler.timesteps[timestep_id_target].to(dtype=dtype, device=device)
@@ -182,6 +195,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                         "loss":                stats[1].item(),
                         "rollout/sigma_start": stats[2].item(),
                         "rollout/sigma_target": stats[3].item(),
+                        "rollout/sigma_gap":    stats[2].item() - stats[3].item(),
                     },
                     step=step,
                 )
@@ -260,6 +274,8 @@ if __name__ == "__main__":
                         help="DINOv2 model name (torch.hub facebookresearch/dinov2).")
     parser.add_argument("--dino_opt_steps", type=int, default=300,
                         help="Adam steps per training sample to find z_t*.")
+    parser.add_argument("--max_sigma_gap", type=float, default=0.1,
+                        help="Max (sigma_start - sigma_target) for the 1-step Euler rollout.")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum dataset samples (for debugging).")
     args = parser.parse_args()
@@ -292,6 +308,7 @@ if __name__ == "__main__":
         extra_inputs=args.extra_inputs,
         dino_model_name=args.dino_model_name,
         dino_opt_steps=args.dino_opt_steps,
+        max_sigma_gap=args.max_sigma_gap,
     )
     model_logger = ModelLogger(
         args.output_path,

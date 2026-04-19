@@ -233,4 +233,42 @@ loss                 = MSE(v_pred, training_target) * scheduler.training_weight(
 - v3 step-1000 is *worse* than v2 step-1000 — the extreme-drift outliers (loss max 127) dominate the gradient early and slow initial convergence. Once the model stabilizes past ~1.5k steps, v3's signal-per-step advantage takes over.
 - v3 also shows a small tail recovery (0.645 → 0.554) in the final few steps that v2 doesn't; the rectified target is doing late-stage correction but can't prevent the mid-sigma explosion.
 
-**Read**: v3 is the better direction (beats v2 on validation), but **training loss is already plateaued** — more steps at the same setup will likely give diminishing returns. Validation improvement on flat training loss suggests either (a) the plateau is the outlier-gradient noise floor, or (b) training-set fit is genuinely stuck. Diagnostic: clamp the `(sigma_i - sigma_j)` gap (e.g. K_MAX ≈ 4 neighbouring timesteps) and watch median loss — should drop below 2 if (a). If median stays ~2.8 after clamping, pixel MSE alone can't reach the target and L_dino must be re-added (gated at sigma ∈ [0.3, 0.85], the explosion window) on top of v3's drifted input.
+**Read**: v3 is the better direction (beats v2 on validation), but **training loss is already plateaued** — more steps at the same setup will likely give diminishing returns. Validation improvement on flat training loss suggests either (a) the plateau is the outlier-gradient noise floor, or (b) training-set fit is genuinely stuck. v4 is the diagnostic.
+
+**v4** (`models/train/FLUX.1-dev_lora_dino_pd_v4/`) — v3 with **clamped rollout gap**. Same algorithm, but the sigma gap between `sigma_start` and `sigma_target` is capped so the 1-step Euler jump stays in a realistic drift regime.
+
+```
+# v3 sampled j ∈ (i, N] → gaps up to ~0.6, producing rectified-target magnitudes up to 127.
+# v4 caps the gap: largest j > i such that sigma_j >= sigma_i - MAX_SIGMA_GAP.
+j = randint(i+1, max_j(i, MAX_SIGMA_GAP))
+```
+
+Rationale:
+- Inference on a 50-step grid produces per-step drift ≈ 0.02 in sigma. v3's unconstrained gap was up to 30× that — the model was being trained on drift regimes it never encounters.
+- The huge `(z_target - z0)/sigma_j` targets dominated the mean loss (max 127 with median 2.8) — a signal-to-noise disaster that likely floored the plateau.
+
+Config: `--max_sigma_gap 0.1` (default), everything else identical to v3. Warm-started from v3 step-2000. Additional log: `rollout/sigma_gap`.
+
+**Training metrics (2178 steps, run 20260418_144739):** median loss **0.591**, max **1.542**, tail-500 median 0.585 (flat plateau). `rollout/sigma_gap` ≤ 0.086 (clamp working). Versus v3: median 2.3–3.1, max 127. Loss magnitude dropped ~5× and max dropped ~80× — clamp eliminated the outlier-dominated gradient noise floor. But loss is still plateaued, just at a lower floor.
+
+**Validation trajectory (final DINO distance to z0 on `models/ppd/test1.jpg`, prompt = `models/ppd/test1.txt`):**
+
+| Run | final | peak |
+|---|---|---|
+| v3 step-2000 (rerun) | 0.75 | 0.78 (step 45) |
+| **v4 step-1000** | **0.62** | **0.66** (step 45) |
+| v4 step-2000 | 0.65 | 0.68 (step 46) |
+
+**Important**: The earlier v2/v3 table above (v3 step-2000 = 0.554) was run with the **default generic prompt** (`"A photorealistic scene..."`), not `test1.txt`. Those numbers are not comparable to the v4 rows here. The rerun of v3 step-2000 with `test1.txt` gives 0.75 — prompt choice shifts the whole curve by ~0.2.
+
+**Reads:**
+- v4 meaningfully beats v3 on validation (~0.13 final drop at step 1000). Clamp was a real fix, not just a loss-scale cosmetic.
+- **Early overfitting**: v4 step-1000 beats step-2000 (0.62 vs 0.65). Warm-starting from v3 step-2000 likely drags the model back toward v3's overfit basin once training continues. Best v4 checkpoint is step-1000.
+- The mid-sigma explosion shape is **still present in all three runs** — flat until σ≈0.8, sharp rise through σ=0.4–0.7, partial tail recovery. Clamp attenuated the peak (0.78 → 0.66) but did not flatten the hump.
+
+**v5 direction — L_dino is probably not enough**. The explosion band (σ=0.4–0.7) is where compounding drift dominates after ~20 Euler steps. v4's 1-step rollout only simulates ~0.05 σ of drift per sample, so the model still never sees the multi-step-accumulated z_t it encounters at inference. Adding gated L_dino at σ∈[0.3, 0.85] on top of v4 *does* supervise off-manifold inputs (unlike v2), but still only 1-step-ahead.
+
+Candidates, in order of escalating commitment:
+- **v5a**: v4 + gated L_dino. Cheap, probably shaves the peak to ~0.4–0.5 but won't flatten.
+- **v5b**: multi-step (N=2–4) detached Euler rollout before computing the rectified target. True Self-Forcing / Diffusion Forcing. ~Nx compute per sample, addresses the actual failure mode.
+- Best v4 checkpoint for warm-starting either: **step-1000**, not step-2000.

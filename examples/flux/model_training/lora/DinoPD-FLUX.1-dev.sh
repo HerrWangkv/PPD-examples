@@ -5,7 +5,7 @@ accelerate launch --multi_gpu --num_processes 8 examples/flux/model_training/tra
   --learning_rate 5e-5 \
   --num_epochs 1 \
   --remove_prefix_in_ckpt "pipe.dit." \
-  --output_path "./models/train/FLUX.1-dev_lora_dino_pd_v3" \
+  --output_path "./models/train/FLUX.1-dev_lora_dino_pd_v4" \
   --lora_base_model "dit" \
   --lora_target_modules "a_to_qkv,b_to_qkv,ff_a.0,ff_a.2,ff_b.0,ff_b.2,a_to_out,b_to_out,proj_out,norm.linear,norm1_a.linear,norm1_b.linear,to_qkv_mlp" \
   --lora_rank 32 \
@@ -13,4 +13,6 @@ accelerate launch --multi_gpu --num_processes 8 examples/flux/model_training/tra
   --save_steps 1000 \
   --use_gradient_checkpointing \
   --dino_model_name "dinov2_vitl14_reg" \
-  --dino_opt_steps 300
+  --dino_opt_steps 300 \
+  --max_sigma_gap 0.1 \
+  --lora_checkpoint "./models/train/FLUX.1-dev_lora_dino_pd_v3/step-2000.safetensors"
