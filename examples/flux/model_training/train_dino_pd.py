@@ -1,5 +1,4 @@
 import os
-import random
 from datetime import datetime
 
 import numpy as np
@@ -34,6 +33,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         dino_model_name="dinov2_vitl14_reg",
         dino_opt_steps=300,
         max_sigma_gap=0.1,
+        rollout_steps=5,
     ):
         super().__init__()
 
@@ -53,6 +53,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.extra_inputs = extra_inputs.split(",") if extra_inputs is not None else []
         self.dino_opt_steps = dino_opt_steps
         self.max_sigma_gap = max_sigma_gap
+        self.rollout_steps = rollout_steps
 
         # Load DINOv2 on CPU; will be moved to the correct device in set_accelerator.
         # Stored outside nn.Module registry to keep DDP away from it.
@@ -95,13 +96,15 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         return {**inputs_shared, **inputs_posi}
 
     # ------------------------------------------------------------------
-    # Forward: rollout-aware rectified flow matching.
+    # Forward: rollout-aware rectified flow matching (v5 — K-step rollout).
     #
     # Per-sample algorithm:
-    #   1. Sample an initial timestep `timestep_id_start` (t_1) and $j > i$.
-    #   2. Compute DINO-preserving noise z_{t_1}*.
-    #   3. Do a 1-step offline rollout to the second timestep `timestep_id_target` (t_2).
-    #   4. Compute flow-matching loss with rectified target directed precisely to z0.
+    #   1. Sample start timestep_id_start (i) and target timestep_id_target (j > i)
+    #      with (sigma_i - sigma_j) <= max_sigma_gap.
+    #   2. Seed z at sigma_i using DINO-preserving noise z_{t_i}*.
+    #   3. Run K detached Euler steps along equally-spaced indices between i and j
+    #      to produce z_rolled at sigma_j. K=1 recovers v4's 1-step jump.
+    #   4. Compute flow-matching loss at timestep_j with rectified target to z0.
     # ------------------------------------------------------------------
     def forward(self, data, inputs=None, step: int | None = None):
         if inputs is None:
@@ -130,7 +133,6 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         timestep_id_start = torch.tensor([timestep_id_start])
         timestep_id_target = torch.tensor([timestep_id_target])
 
-        timestep_start = self.pipe.scheduler.timesteps[timestep_id_start].to(dtype=dtype, device=device)
         timestep_target = self.pipe.scheduler.timesteps[timestep_id_target].to(dtype=dtype, device=device)
 
         # sigma = t in [0, 1] for FlowMatchScheduler
@@ -150,24 +152,46 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         z_t_star = z_t_star.detach()
         t_safe_start = max(sigma_start, 1e-4)
 
-        # Temporary noise injection purely to condition the model_fn for the offline v_start prediction
+        # Temporary noise injection purely to condition model_fn for the offline rollout predictions
         z1_star = (z_t_star - (1.0 - t_safe_start) * z0) / t_safe_start
         inputs["noise"] = z1_star.to(dtype=dtype, device=device)
         inputs["input_latents"] = z0.to(dtype=dtype, device=device)
 
-        # 1-step detached jump simulation from t_start to t_target
-        with torch.no_grad():
-            inputs["latents"] = z_t_star.to(dtype=dtype, device=device)
-            v_start = self.pipe.model_fn(**models, **inputs, timestep=timestep_start)
-            # Euler step approximation along constant flow map
-            z_target = z_t_star + (sigma_target - sigma_start) * v_start
+        # K-step detached Euler rollout along equally-spaced indices from i to j.
+        # K=1 collapses to v4 (single jump from sigma_start directly to sigma_target).
+        K = max(1, int(self.rollout_steps))
+        span = timestep_id_target.item() - timestep_id_start.item()
+        K_eff = min(K, span)  # can't subdivide finer than 1 per native timestep
+        rollout_ids = np.linspace(
+            timestep_id_start.item(), timestep_id_target.item(), K_eff + 1
+        ).round().astype(int).tolist()
+        # dedupe while preserving order
+        seen = set(); rollout_ids = [x for x in rollout_ids if not (x in seen or seen.add(x))]
 
-        # Calculate the noise endpoint parameterization based on the target position
+        z_curr = z_t_star
+        with torch.no_grad():
+            for k in range(len(rollout_ids) - 1):
+                id_k = rollout_ids[k]
+                id_next = rollout_ids[k + 1]
+                sigma_k = self.pipe.scheduler.sigmas[id_k].item()
+                sigma_next = self.pipe.scheduler.sigmas[id_next].item()
+                timestep_k = self.pipe.scheduler.timesteps[torch.tensor([id_k])].to(dtype=dtype, device=device)
+                # refresh noise field to match current z (keeps model_fn conditioning consistent)
+                t_safe_k = max(sigma_k, 1e-4)
+                z1_k = (z_curr.float() - (1.0 - t_safe_k) * z0) / t_safe_k
+                inputs["noise"] = z1_k.to(dtype=dtype, device=device)
+                inputs["latents"] = z_curr.to(dtype=dtype, device=device)
+                v_k = self.pipe.model_fn(**models, **inputs, timestep=timestep_k)
+                z_curr = z_curr + (sigma_next - sigma_k) * v_k
+
+        z_target = z_curr  # at sigma_target after K detached Euler steps
+
+        # Rectified target at sigma_target pointing precisely to z0
         t_safe_target = max(sigma_target, 1e-4)
         z1_target = (z_target.detach().float() - (1.0 - t_safe_target) * z0) / t_safe_target
         inputs["noise"] = z1_target.to(dtype=dtype, device=device)
 
-        # Compute flow-matching loss at the chosen timestep
+        # Compute flow-matching loss at the chosen timestep (grad step)
         inputs["latents"]        = z_target.to(dtype=self.pipe.torch_dtype, device=self.pipe.device)
         training_target          = self.pipe.scheduler.training_target(
             inputs["input_latents"], inputs["noise"], timestep_target
@@ -185,6 +209,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                         loss.detach().float(),
                         torch.tensor(float(sigma_start), device=device, dtype=torch.float32),
                         torch.tensor(float(sigma_target), device=device, dtype=torch.float32),
+                        torch.tensor(float(len(rollout_ids) - 1), device=device, dtype=torch.float32),
                     ])[None]
                 ).mean(dim=0)
 
@@ -196,6 +221,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                         "rollout/sigma_start": stats[2].item(),
                         "rollout/sigma_target": stats[3].item(),
                         "rollout/sigma_gap":    stats[2].item() - stats[3].item(),
+                        "rollout/num_steps":    stats[4].item(),
                     },
                     step=step,
                 )
@@ -275,7 +301,9 @@ if __name__ == "__main__":
     parser.add_argument("--dino_opt_steps", type=int, default=300,
                         help="Adam steps per training sample to find z_t*.")
     parser.add_argument("--max_sigma_gap", type=float, default=0.1,
-                        help="Max (sigma_start - sigma_target) for the 1-step Euler rollout.")
+                        help="Max (sigma_start - sigma_target) for the detached Euler rollout.")
+    parser.add_argument("--rollout_steps", type=int, default=5,
+                        help="Number of detached Euler steps between sigma_start and sigma_target. K=1 = v4 behavior.")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum dataset samples (for debugging).")
     args = parser.parse_args()
@@ -309,6 +337,7 @@ if __name__ == "__main__":
         dino_model_name=args.dino_model_name,
         dino_opt_steps=args.dino_opt_steps,
         max_sigma_gap=args.max_sigma_gap,
+        rollout_steps=args.rollout_steps,
     )
     model_logger = ModelLogger(
         args.output_path,
