@@ -14,6 +14,8 @@ accelerate launch --multi_gpu --num_processes 8 examples/flux/model_training/tra
   --use_gradient_checkpointing \
   --dino_model_name "dinov2_vitl14_reg" \
   --dino_opt_steps 300 \
-  --max_sigma_gap 0.1 \
-  --rollout_steps 5 \
+  --max_sigma_gap_min 0.05 \
+  --max_sigma_gap_max 0.3 \
+  --rollout_steps_min 1 \
+  --rollout_steps_max 15 \
   --lora_checkpoint "./models/train/FLUX.1-dev_lora_dino_pd_v4/step-1000.safetensors"

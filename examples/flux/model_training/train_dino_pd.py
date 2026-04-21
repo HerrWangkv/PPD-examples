@@ -32,8 +32,10 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         extra_inputs=None,
         dino_model_name="dinov2_vitl14_reg",
         dino_opt_steps=300,
-        max_sigma_gap=0.1,
-        rollout_steps=5,
+        max_sigma_gap_min=0.05,
+        max_sigma_gap_max=0.3,
+        rollout_steps_min=1,
+        rollout_steps_max=15,
     ):
         super().__init__()
 
@@ -52,8 +54,12 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.use_gradient_checkpointing_offload = use_gradient_checkpointing_offload
         self.extra_inputs = extra_inputs.split(",") if extra_inputs is not None else []
         self.dino_opt_steps = dino_opt_steps
-        self.max_sigma_gap = max_sigma_gap
-        self.rollout_steps = rollout_steps
+        self.max_sigma_gap_min = float(max_sigma_gap_min)
+        self.max_sigma_gap_max = float(max_sigma_gap_max)
+        self.rollout_steps_min = int(rollout_steps_min)
+        self.rollout_steps_max = int(rollout_steps_max)
+        assert self.max_sigma_gap_max >= self.max_sigma_gap_min > 0
+        assert self.rollout_steps_max >= self.rollout_steps_min >= 1
 
         # Load DINOv2 on CPU; will be moved to the correct device in set_accelerator.
         # Stored outside nn.Module registry to keep DDP away from it.
@@ -119,12 +125,25 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         N = self.pipe.scheduler.num_train_timesteps
         sigmas = self.pipe.scheduler.sigmas  # monotonically decreasing in j
 
+        # Per-step: sample max_sigma_gap ~ Uniform(min, max) and
+        # rollout_steps ~ randint(min, max) independently. Exposes the
+        # model to a range of drift magnitudes and substep granularities.
+        if self.max_sigma_gap_max == self.max_sigma_gap_min:
+            sampled_max_gap = self.max_sigma_gap_min
+        else:
+            sampled_max_gap = float(
+                np.random.uniform(self.max_sigma_gap_min, self.max_sigma_gap_max)
+            )
+        sampled_rollout_steps = int(
+            np.random.randint(self.rollout_steps_min, self.rollout_steps_max + 1)
+        )
+
         # Sample timestep_id_start, then clamp the target so that
-        # (sigma_start - sigma_target) <= max_sigma_gap. This avoids
-        # rectified-target blow-up when the Euler jump is long.
+        # (sigma_start - sigma_target) <= sampled_max_gap. This bounds
+        # rectified-target magnitude per sample.
         timestep_id_start = torch.randint(0, N - 1, (1,)).item()
         sigma_start_val = sigmas[timestep_id_start].item()
-        sigma_floor = sigma_start_val - self.max_sigma_gap
+        sigma_floor = sigma_start_val - sampled_max_gap
         # largest j > i with sigmas[j] >= sigma_floor
         max_target = timestep_id_start + 1
         while max_target + 1 < N and sigmas[max_target + 1].item() >= sigma_floor:
@@ -159,7 +178,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
 
         # K-step detached Euler rollout along equally-spaced indices from i to j.
         # K=1 collapses to v4 (single jump from sigma_start directly to sigma_target).
-        K = max(1, int(self.rollout_steps))
+        K = max(1, sampled_rollout_steps)
         span = timestep_id_target.item() - timestep_id_start.item()
         K_eff = min(K, span)  # can't subdivide finer than 1 per native timestep
         rollout_ids = np.linspace(
@@ -300,10 +319,14 @@ if __name__ == "__main__":
                         help="DINOv2 model name (torch.hub facebookresearch/dinov2).")
     parser.add_argument("--dino_opt_steps", type=int, default=300,
                         help="Adam steps per training sample to find z_t*.")
-    parser.add_argument("--max_sigma_gap", type=float, default=0.1,
-                        help="Max (sigma_start - sigma_target) for the detached Euler rollout.")
-    parser.add_argument("--rollout_steps", type=int, default=5,
-                        help="Number of detached Euler steps between sigma_start and sigma_target. K=1 = v4 behavior.")
+    parser.add_argument("--max_sigma_gap_min", type=float, default=0.05,
+                        help="Lower bound for per-step sampled max_sigma_gap ~ U(min, max).")
+    parser.add_argument("--max_sigma_gap_max", type=float, default=0.3,
+                        help="Upper bound for per-step sampled max_sigma_gap ~ U(min, max).")
+    parser.add_argument("--rollout_steps_min", type=int, default=1,
+                        help="Lower bound for per-step sampled rollout_steps ~ randint(min, max+1).")
+    parser.add_argument("--rollout_steps_max", type=int, default=15,
+                        help="Upper bound for per-step sampled rollout_steps ~ randint(min, max+1).")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum dataset samples (for debugging).")
     args = parser.parse_args()
@@ -336,8 +359,10 @@ if __name__ == "__main__":
         extra_inputs=args.extra_inputs,
         dino_model_name=args.dino_model_name,
         dino_opt_steps=args.dino_opt_steps,
-        max_sigma_gap=args.max_sigma_gap,
-        rollout_steps=args.rollout_steps,
+        max_sigma_gap_min=args.max_sigma_gap_min,
+        max_sigma_gap_max=args.max_sigma_gap_max,
+        rollout_steps_min=args.rollout_steps_min,
+        rollout_steps_max=args.rollout_steps_max,
     )
     model_logger = ModelLogger(
         args.output_path,

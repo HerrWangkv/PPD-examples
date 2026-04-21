@@ -266,9 +266,30 @@ Config: `--max_sigma_gap 0.1` (default), everything else identical to v3. Warm-s
 - **Early overfitting**: v4 step-1000 beats step-2000 (0.62 vs 0.65). Warm-starting from v3 step-2000 likely drags the model back toward v3's overfit basin once training continues. Best v4 checkpoint is step-1000.
 - The mid-sigma explosion shape is **still present in all three runs** — flat until σ≈0.8, sharp rise through σ=0.4–0.7, partial tail recovery. Clamp attenuated the peak (0.78 → 0.66) but did not flatten the hump.
 
-**v5 direction — L_dino is probably not enough**. The explosion band (σ=0.4–0.7) is where compounding drift dominates after ~20 Euler steps. v4's 1-step rollout only simulates ~0.05 σ of drift per sample, so the model still never sees the multi-step-accumulated z_t it encounters at inference. Adding gated L_dino at σ∈[0.3, 0.85] on top of v4 *does* supervise off-manifold inputs (unlike v2), but still only 1-step-ahead.
+**v5 motivation**. The σ=0.4–0.7 explosion band is where compounding drift dominates after ~20 Euler steps. v4's 1-step 0.1 σ jump never exposes the model to the accumulated multi-step drift that inference produces at mid-σ. v5 addresses this by **randomizing both the rollout gap and substep count per sample** — the model sees drift magnitudes from v4-like (≈0.05 σ, clean) up to near-inference-band (≈0.3 σ, coarsely integrated) within one training run.
 
-Candidates, in order of escalating commitment:
-- **v5a**: v4 + gated L_dino. Cheap, probably shaves the peak to ~0.4–0.5 but won't flatten.
-- **v5b**: multi-step (N=2–4) detached Euler rollout before computing the rectified target. True Self-Forcing / Diffusion Forcing. ~Nx compute per sample, addresses the actual failure mode.
-- Best v4 checkpoint for warm-starting either: **step-1000**, not step-2000.
+**v5** (`models/train/FLUX.1-dev_lora_dino_pd_v5/`) — *randomized K-step detached Euler rollout*. Same algorithm as v4 but per-sample sampling of:
+
+```
+sampled_max_gap       ~ Uniform(max_sigma_gap_min, max_sigma_gap_max)   # default [0.05, 0.3]
+sampled_rollout_steps ~ randint(rollout_steps_min, rollout_steps_max+1) # default [1, 15]
+
+# then: clamp timestep_id_target so (sigma_start - sigma_target) <= sampled_max_gap
+#       run K = sampled_rollout_steps detached Euler substeps at equally-spaced
+#       indices between timestep_id_start and timestep_id_target
+#       compute rectified flow-matching loss at sigma_target (same as v4)
+```
+
+Independent sampling of gap and K means substep granularity spans from very fine (gap=0.05, K=15 → ≈0.003 σ/substep) to very coarse (gap=0.3, K=1 → 0.3 σ in one jump). Coverage tradeoff: fine substeps test velocity accuracy, coarse substeps test robustness to badly-integrated trajectories.
+
+**No CFG in training, no L_dino** — kept out of the hot loop. Rectified target implies `x0_hat → z0` automatically.
+
+Config: `--max_sigma_gap_min 0.05 --max_sigma_gap_max 0.3 --rollout_steps_min 1 --rollout_steps_max 15`. Warm-started from **v4 step-1000** (step-2000 showed overfitting). Everything else matches v4. TB logs `rollout/sigma_gap` and `rollout/num_steps` show the realized per-step distributions.
+
+**Watchpoints:**
+- Loss max: v3 blew up to 127 with unclamped gaps. The 0.3 ceiling in v5 is 3× v4's — if max loss stays >20 regularly, lower `max_sigma_gap_max` to 0.2.
+- Still only 1 rollout segment per sample — does not simulate the full σ=1 → σ_target inference trajectory. Fixing *starting distribution* (pure-Gaussian rollout from σ=1 instead of z_t* seed) remains an unexplored lever, intentionally deferred to preserve the "structure enters through z_t*" paradigm.
+
+**Rejected alternatives for v5:**
+- *CFG in rollout*: would better match inference drift direction but doubles rollout compute; skipped.
+- *Gated L_dino on top of v4*: v2 showed L_dino is vacuous when `z_t = z_t*`; with randomized rollout giving off-manifold `z_target`, L_dino *could* provide signal, but the rectified target already carries the structure-preservation gradient through the endpoint. Not worth the VAE+DINO forward per step.
