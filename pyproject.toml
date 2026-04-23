@@ -1,0 +1,44 @@
+[project]
+name = "ppd-examples"
+version = "1.1.9"
+description = "Phase-Preserving Diffusion — structure-aligned image/video generation"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision",
+    "transformers",
+    "imageio",
+    "imageio[ffmpeg]",
+    "safetensors",
+    "einops",
+    "sentencepiece",
+    "protobuf",
+    "modelscope",
+    "ftfy",
+    "pynvml",
+    "pandas",
+    "accelerate",
+    "peft",
+    "numpy",
+    "opencv-python-headless",
+    "pillow",
+    "scikit-image",
+    "scipy",
+    "structured-noise @ git+https://github.com/zengxianyu/structured-noise",
+    "pytorch-wavelets @ git+https://github.com/fbcotter/pytorch_wavelets",
+]
+
+[tool.uv.sources]
+structured-noise = { git = "https://github.com/zengxianyu/structured-noise" }
+pytorch-wavelets = { git = "https://github.com/fbcotter/pytorch_wavelets" }
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.backends.legacy:build"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["diffsynth*"]
+
+[tool.setuptools.package-data]
+diffsynth = ["tokenizer_configs/**/**/*.*"]
