@@ -26,6 +26,7 @@ dependencies = [
     "scipy",
     "structured-noise @ git+https://github.com/zengxianyu/structured-noise",
     "pytorch-wavelets @ git+https://github.com/fbcotter/pytorch_wavelets",
+    "tensorboard>=2.20.0",
 ]
 
 [tool.uv.sources]
@@ -34,7 +35,7 @@ pytorch-wavelets = { git = "https://github.com/fbcotter/pytorch_wavelets" }
 
 [build-system]
 requires = ["setuptools>=61"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
