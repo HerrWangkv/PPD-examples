@@ -1,0 +1,6 @@
+{
+  "topic": "DinoPD: Learned structure-preserving diffusion via DINOv2 features",
+  "goal": "Replace hand-designed frequency-domain noise structure (PPD/WPD) with a learned DINO-feature-preserving training objective that yields structure-aligned generation under multi-step inference drift, applied to sim-to-real video.",
+  "currentStage": "experiment",
+  "successThreshold": "Final-step DINO distance to input on validation (test1.jpg) < 0.35 without mid-sigma (0.4-0.7) explosion, while maintaining FLUX baseline image quality. Stretch: matches or beats WPD on Synthia mIoU/AS/depth metrics."
+}
