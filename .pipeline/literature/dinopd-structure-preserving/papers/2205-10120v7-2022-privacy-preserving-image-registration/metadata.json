@@ -1,0 +1,23 @@
+{
+  "source": "arxiv",
+  "title": "Privacy Preserving Image Registration",
+  "authors": [
+    "Riccardo Taiello",
+    "Melek Önen",
+    "Francesco Capano",
+    "Olivier Humbert",
+    "Marco Lorenzi"
+  ],
+  "abstract": "Image registration is a key task in medical imaging applications, allowing to represent medical images in a common spatial reference frame. Current approaches to image registration are generally based on the assumption that the content of the images is usually accessible in clear form, from which the spatial transformation is subsequently estimated. This common assumption may not be met in practical applications, since the sensitive nature of medical images may ultimately require their analysis under privacy constraints, preventing to openly share the image content.In this work, we formulate the problem of image registration under a privacy preserving regime, where images are assumed to be confidential and cannot be disclosed in clear. We derive our privacy preserving image registration framework by extending classical registration paradigms to account for advanced cryptographic tools, such as secure multi-party computation and homomorphic encryption, that enable the execution of operations without leaking the underlying data. To overcome the problem of performance and scalability of cryptographic tools in high dimensions, we propose several techniques to optimize the image registration operations by using gradient approximations, and by revisiting the use of homomorphic encryption trough packing, to allow the efficient encryption and multiplication of large matrices. We demonstrate our privacy preserving framework in linear and non-linear registration problems, evaluating its accuracy and scalability with respect to standard, non-private counterparts. Our results show that privacy preserving image registration is feasible and can be adopted in sensitive medical imaging applications.",
+  "year": 2022,
+  "published": "2022-05-17T14:00:58Z",
+  "landing_page": "https://arxiv.org/abs/2205.10120v7",
+  "pdf_url": "https://arxiv.org/pdf/2205.10120v7.pdf",
+  "doi": "10.1007/978-3-031-16446-0_13",
+  "arxiv_id": "2205.10120v7",
+  "venue": "arXiv",
+  "rank": 5,
+  "paper_slug": "2205-10120v7-2022-privacy-preserving-image-registration",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2205-10120v7-2022-privacy-preserving-image-registration/paper.pdf",
+  "pdf_status": "downloaded"
+}

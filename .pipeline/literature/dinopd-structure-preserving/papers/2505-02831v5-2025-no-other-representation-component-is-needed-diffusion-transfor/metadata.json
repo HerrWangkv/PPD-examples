@@ -1,0 +1,27 @@
+{
+  "source": "arxiv",
+  "title": "No Other Representation Component Is Needed: Diffusion Transformers Can Provide Representation Guidance by Themselves",
+  "authors": [
+    "Dengyang Jiang",
+    "Mengmeng Wang",
+    "Liuzhuozheng Li",
+    "Lei Zhang",
+    "Haoyu Wang",
+    "Wei Wei",
+    "Guang Dai",
+    "Yanning Zhang",
+    "Jingdong Wang"
+  ],
+  "abstract": "Recent studies have demonstrated that learning a meaningful internal representation can accelerate generative training. However, existing approaches necessitate to either introduce an off-the-shelf external representation task or rely on a large-scale, pre-trained external representation encoder to provide representation guidance during the training process. In this study, we posit that the unique discriminative process inherent to diffusion transformers enables them to offer such guidance without requiring external representation components. We propose SelfRepresentation Alignment (SRA), a simple yet effective method that obtains representation guidance using the internal representations of learned diffusion transformer. SRA aligns the latent representation of the diffusion transformer in the earlier layer conditioned on higher noise to that in the later layer conditioned on lower noise to progressively enhance the overall representation learning during only the training process. Experimental results indicate that applying SRA to DiTs and SiTs yields consistent performance improvements, and largely outperforms approaches relying on auxiliary representation task. Our approach achieves performance comparable to methods that are dependent on an external pre-trained representation encoder, which demonstrates the feasibility of acceleration with representation alignment in diffusion transformers themselves.",
+  "year": 2025,
+  "published": "2025-05-05T17:58:05Z",
+  "landing_page": "https://arxiv.org/abs/2505.02831v5",
+  "pdf_url": "https://arxiv.org/pdf/2505.02831v5.pdf",
+  "doi": null,
+  "arxiv_id": "2505.02831v5",
+  "venue": "arXiv",
+  "rank": 1,
+  "paper_slug": "2505-02831v5-2025-no-other-representation-component-is-needed-diffusion-transfor",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2505-02831v5-2025-no-other-representation-component-is-needed-diffusion-transfor/paper.pdf",
+  "pdf_status": "downloaded"
+}

@@ -1,0 +1,24 @@
+{
+  "source": "arxiv",
+  "title": "Relax Forcing: Relaxed KV-Memory for Consistent Long Video Generation",
+  "authors": [
+    "Zengqun Zhao",
+    "Yanzuo Lu",
+    "Ziquan Liu",
+    "Jifei Song",
+    "Jiankang Deng",
+    "Ioannis Patras"
+  ],
+  "abstract": "Autoregressive (AR) video diffusion has recently emerged as a promising paradigm for long video generation, enabling causal synthesis beyond the limits of bidirectional models. To address training-inference mismatch, a series of self-forcing strategies have been proposed to improve rollout stability by conditioning the model on its own predictions during training. While these approaches substantially mitigate exposure bias, extending generation to minute-scale horizons remains challenging due to progressive temporal degradation. In this work, we show that this limitation is not primarily caused by insufficient memory, but by how temporal memory is utilised during inference. Through empirical analysis, we find that increasing memory does not consistently improve long-horizon generation, and that the temporal placement of historical context significantly influences motion dynamics while leaving visual quality largely unchanged. These findings suggest that temporal memory should not be treated as a homogeneous buffer. Motivated by this insight, we introduce Relax Forcing, a structured temporal memory mechanism for AR diffusion. Instead of attending to the dense generated history, Relax Forcing decomposes temporal context into three functional roles: Sink for global stability, Tail for short-term continuity, and dynamically selected History for structural motion guidance, and selectively incorporates only the most relevant past information. This design mitigates error accumulation during extrapolation while preserving motion evolution. Experiments on VBench-Long demonstrate that Relax Forcing improves motion dynamics and overall temporal consistency while reducing attention overhead. Our results suggest that structured temporal memory is essential for scalable long video generation, complementing existing forcing-based training strategies.",
+  "year": 2026,
+  "published": "2026-03-22T18:59:24Z",
+  "landing_page": "https://arxiv.org/abs/2603.21366v1",
+  "pdf_url": "https://arxiv.org/pdf/2603.21366v1.pdf",
+  "doi": null,
+  "arxiv_id": "2603.21366v1",
+  "venue": "arXiv",
+  "rank": 1,
+  "paper_slug": "2603-21366v1-2026-relax-forcing-relaxed-kv-memory-for-consistent-long-video-gene",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2603-21366v1-2026-relax-forcing-relaxed-kv-memory-for-consistent-long-video-gene/paper.pdf",
+  "pdf_status": "downloaded"
+}

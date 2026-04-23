@@ -1,0 +1,17 @@
+{
+  "converted_files": 1,
+  "items": [
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2502-09616v1-2025-variational-rectified-flow-matching/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2502-09616v1-2025-variational-rectified-flow-matching/ocr/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2502-09616v1-2025-variational-rectified-flow-matching/ocr/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    }
+  ]
+}

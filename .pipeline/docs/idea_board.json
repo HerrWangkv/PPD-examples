@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "generated": "2026-04-23",
+  "grounding": ["gap_matrix.md G1/G2/G4/G5", "v5 evaluation (see project_truth)"],
+  "ideas": [
+    {
+      "id": "v6a-full-rollout-repa",
+      "title": "Full-trajectory σ=1 rollout + REPA-style intermediate-feature alignment",
+      "summary": "Replace v5's bounded-window rollout (σ-gap ≤ 0.3 from z_t* seed) with a full pure-Gaussian σ=1 → σ_target rollout. Add a REPA-style auxiliary loss aligning DiT intermediate features at σ_target with DINOv2 patch features of the input image z0. No decode-through-VAE loss; alignment is in feature space only.",
+      "breaks": [
+        {"arxiv": "2506.08009", "limitation": "Self-Forcing uses full AR rollout but assumes plain Gaussian noise; no structure-preservation objective"},
+        {"arxiv": "2503.18414", "limitation": "U-REPA aligns diffusion features with ViT features to speed unconditional FID/IS convergence; never used for per-input structure preservation"},
+        {"arxiv": "2505.02831", "limitation": "DiT-REPA same: alignment target is generic ViT features, not the conditioning image's features"},
+        {"version": "v5", "limitation": "bounded-window rollout leaves mid-σ (0.4–0.7) inference regime unseen by training"}
+      ],
+      "cost": "rollout ≈ 10–20 model calls per sample (vs v5's 1–15); REPA adds one DINO forward on z0 (cheap, no grad) + one linear projection loss. No VAE decode in hot loop.",
+      "risk": "Full rollout is ~10× more compute per step than v5. May need post-training / few-step distilled backbone like Self-Forcing to be tractable."
+    },
+    {
+      "id": "v6b-non-vacuous-ldino",
+      "title": "Revived L_dino on off-manifold z_target",
+      "summary": "v2's L_dino failed because z_t = z_t* made x0_hat ≈ z0 automatic. In v5, z_target is off the z_t* manifold by construction (the rollout drifts it). So compute x0_hat = z_target - σ_target·v_pred, decode, and penalize DINO distance to z0 — the signal is no longer vacuous. Gate on σ < 0.8.",
+      "breaks": [
+        {"version": "v2", "limitation": "L_dino was vacuous because training input was itself DINO-preserving; v5's rollout breaks this by construction"},
+        {"version": "v5", "limitation": "no direct DINO supervision; the only DINO signal is embedded in z_t* seed which is detached from gradients"}
+      ],
+      "cost": "VAE decode + DINO forward per step with gradients = ~2–3× v5 compute per step.",
+      "risk": "VAE decode gradient flow is expensive and unstable at low σ. 1/σ_target amplification in the rectified target could still dominate the L_flow component."
+    },
+    {
+      "id": "v6c-pca-dino",
+      "title": "Subspace-filtered DINO distance (PCA-of-sim features)",
+      "summary": "DwD's ablation shows raw DINO features 'bake in' synthetic artifacts from high-frequency channels; Principal Subspace Projection of DINO onto a learned low-rank subspace fixes it. Apply the same logic to DinoPD's `find_dino_preserving_noise`: fit a PCA basis on DINO features from a held-out sim (CARLA) set, project both z0 and z_t* DINO features onto the top-K components before computing cosine distance.",
+      "breaks": [
+        {"arxiv": "2602.06159", "limitation": "DwD's PCA projection is used only at conditioning time, not inside a structure-preserving training objective"},
+        {"version": "v1–v5", "limitation": "all use raw CLS+patch cosine; no frequency/subspace filtering of DINO signal — may over-penalize stylistic drift the target domain allows"}
+      ],
+      "cost": "one-time PCA fit on sim features (~1h on a GPU). Zero added cost per training step.",
+      "risk": "Lower K throws away structure; higher K keeps noise. Need ablation on K. May matter little if DinoPD mostly fails on structure not style."
+    },
+    {
+      "id": "v6d-learned-phase",
+      "title": "Learned phase-preserving prior (hybrid ϕ-PD × DinoPD)",
+      "summary": "Keep ϕ-PD's FSS phase-preserving corruption as the noise process, but *learn* the per-frequency cutoff radius from the DINO distance objective instead of picking it by hand. At each training step, sample a radius r and minimize DINO-distance-of-sampled-output over r via REINFORCE / Gumbel. Collapses to ϕ-PD when the learned radius converges to a constant; becomes DinoPD-like when it varies per input.",
+      "breaks": [
+        {"arxiv": "2512.05106", "limitation": "ϕ-PD's frequency cutoff is a manual hyperparameter; no adaptation per input or task"},
+        {"version": "v1–v5", "limitation": "DinoPD throws away the structural inductive bias of phase preservation — learns from scratch, slow convergence"}
+      ],
+      "cost": "same as v5 + radius sampler (lightweight). Reuses ϕ-PD machinery entirely.",
+      "risk": "REINFORCE variance on a scalar hyperparameter may not justify the complexity vs ϕ-PD's grid search."
+    },
+    {
+      "id": "v6e-post-training-self-forcing",
+      "title": "DinoPD as post-training on a few-step distilled backbone (Self-Forcing style)",
+      "summary": "Self-Forcing shows unrolled training is tractable only as post-training on a few-step distilled model. Apply this to DinoPD: take a 4–8-step InstaFlow-style distilled FLUX, then post-train for ~500 steps with full-trajectory rollout + DINO-distance loss on the final decoded image. This matches the inference budget DinoPD actually needs (sim2real video at scale, not 50-step FLUX).",
+      "breaks": [
+        {"arxiv": "2506.08009", "limitation": "Self-Forcing is for video AR, not structure-preserving image generation"},
+        {"arxiv": "2309.06380", "limitation": "InstaFlow is unconditional one-step; no structure preservation"},
+        {"version": "v1–v5", "limitation": "trains from scratch at 50-step FLUX scale — sim2real video inference is economically unattractive"}
+      ],
+      "cost": "requires a distilled backbone as starting point (either off-the-shelf InstaFlow or one-time distillation step). Post-training itself is ~500 steps.",
+      "risk": "distilled few-step model may have too narrow a conditional distribution to learn structure preservation from."
+    }
+  ]
+}

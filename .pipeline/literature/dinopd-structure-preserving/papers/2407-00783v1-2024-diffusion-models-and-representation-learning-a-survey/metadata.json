@@ -1,0 +1,24 @@
+{
+  "source": "arxiv",
+  "title": "Diffusion Models and Representation Learning: A Survey",
+  "authors": [
+    "Michael Fuest",
+    "Pingchuan Ma",
+    "Ming Gui",
+    "Johannes Schusterbauer",
+    "Vincent Tao Hu",
+    "Bjorn Ommer"
+  ],
+  "abstract": "Diffusion Models are popular generative modeling methods in various vision tasks, attracting significant attention. They can be considered a unique instance of self-supervised learning methods due to their independence from label annotation. This survey explores the interplay between diffusion models and representation learning. It provides an overview of diffusion models' essential aspects, including mathematical foundations, popular denoising network architectures, and guidance methods. Various approaches related to diffusion models and representation learning are detailed. These include frameworks that leverage representations learned from pre-trained diffusion models for subsequent recognition tasks and methods that utilize advancements in representation and self-supervised learning to enhance diffusion models. This survey aims to offer a comprehensive overview of the taxonomy between diffusion models and representation learning, identifying key areas of existing concerns and potential exploration. Github link: https://github.com/dongzhuoyao/Diffusion-Representation-Learning-Survey-Taxonomy",
+  "year": 2024,
+  "published": "2024-06-30T17:59:58Z",
+  "landing_page": "https://arxiv.org/abs/2407.00783v1",
+  "pdf_url": "https://arxiv.org/pdf/2407.00783v1.pdf",
+  "doi": null,
+  "arxiv_id": "2407.00783v1",
+  "venue": "arXiv",
+  "rank": 6,
+  "paper_slug": "2407-00783v1-2024-diffusion-models-and-representation-learning-a-survey",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2407-00783v1-2024-diffusion-models-and-representation-learning-a-survey/paper.pdf",
+  "pdf_status": "downloaded"
+}

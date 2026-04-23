@@ -1,0 +1,24 @@
+{
+  "source": "arxiv",
+  "title": "NeuralRemaster: Phase-Preserving Diffusion for Structure-Aligned Generation",
+  "authors": [
+    "Yu Zeng",
+    "Charles Ochoa",
+    "Mingyuan Zhou",
+    "Vishal M. Patel",
+    "Vitor Guizilini",
+    "Rowan McAllister"
+  ],
+  "abstract": "Standard diffusion corrupts data using Gaussian noise whose Fourier coefficients have random magnitudes and random phases. While effective for unconditional or text-to-image generation, corrupting phase components destroys spatial structure, making it ill-suited for tasks requiring geometric consistency, such as re-rendering, simulation enhancement, and image-to-image translation. We introduce Phase-Preserving Diffusion (φ-PD), a model-agnostic reformulation of the diffusion process that preserves input phase while randomizing magnitude, enabling structure-aligned generation without architectural changes or additional parameters. We further propose Frequency-Selective Structured (FSS) noise, which provides continuous control over structural rigidity via a single frequency-cutoff parameter. φ-PD adds no inference-time cost and is compatible with any diffusion model for images or videos. Across photorealistic and stylized re-rendering, as well as sim-to-real enhancement for driving planners, φ-PD produces controllable, spatially aligned results. When applied to the CARLA simulator, φ-PD significantly improves sim-to-real planner transfer performance. The method is complementary to existing conditioning approaches and broadly applicable to image-to-image and video-to-video generation. Videos, additional examples, and code are available on our \\href{https://yuzeng-at-tri.github.io/ppd-page/}{project page}.",
+  "year": 2025,
+  "published": "2025-12-04T18:59:18Z",
+  "landing_page": "https://arxiv.org/abs/2512.05106v3",
+  "pdf_url": "https://arxiv.org/pdf/2512.05106v3.pdf",
+  "doi": null,
+  "arxiv_id": "2512.05106v3",
+  "venue": "arXiv",
+  "rank": 2,
+  "paper_slug": "2512-05106v3-2025-neuralremaster-phase-preserving-diffusion-for-structure-aligne",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2512-05106v3-2025-neuralremaster-phase-preserving-diffusion-for-structure-aligne/paper.pdf",
+  "pdf_status": "downloaded"
+}

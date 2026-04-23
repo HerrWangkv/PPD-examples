@@ -1,0 +1,20 @@
+{
+  "source": "arxiv",
+  "title": "Variational Rectified Flow Matching",
+  "authors": [
+    "Pengsheng Guo",
+    "Alexander G. Schwing"
+  ],
+  "abstract": "We study Variational Rectified Flow Matching, a framework that enhances classic rectified flow matching by modeling multi-modal velocity vector-fields. At inference time, classic rectified flow matching 'moves' samples from a source distribution to the target distribution by solving an ordinary differential equation via integration along a velocity vector-field. At training time, the velocity vector-field is learnt by linearly interpolating between coupled samples one drawn from the source and one drawn from the target distribution randomly. This leads to ''ground-truth'' velocity vector-fields that point in different directions at the same location, i.e., the velocity vector-fields are multi-modal/ambiguous. However, since training uses a standard mean-squared-error loss, the learnt velocity vector-field averages ''ground-truth'' directions and isn't multi-modal. In contrast, variational rectified flow matching learns and samples from multi-modal flow directions. We show on synthetic data, MNIST, CIFAR-10, and ImageNet that variational rectified flow matching leads to compelling results.",
+  "year": 2025,
+  "published": "2025-02-13T18:59:15Z",
+  "landing_page": "https://arxiv.org/abs/2502.09616v1",
+  "pdf_url": "https://arxiv.org/pdf/2502.09616v1.pdf",
+  "doi": null,
+  "arxiv_id": "2502.09616v1",
+  "venue": "arXiv",
+  "rank": 5,
+  "paper_slug": "2502-09616v1-2025-variational-rectified-flow-matching",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2502-09616v1-2025-variational-rectified-flow-matching/paper.pdf",
+  "pdf_status": "downloaded"
+}

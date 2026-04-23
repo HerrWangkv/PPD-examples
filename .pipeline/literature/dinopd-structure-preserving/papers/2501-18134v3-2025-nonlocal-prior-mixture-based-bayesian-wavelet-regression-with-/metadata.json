@@ -1,0 +1,19 @@
+{
+  "source": "arxiv",
+  "title": "Nonlocal Prior Mixture-Based Bayesian Wavelet Regression with Application to Noisy Imaging and Audio Data",
+  "authors": [
+    "Nilotpal Sanyal"
+  ],
+  "abstract": "We propose a novel Bayesian wavelet regression approach using a three-component spike-and-slab prior for wavelet coefficients, combining a point mass at zero, a moment (MOM) prior, and an inverse moment (IMOM) prior. This flexible prior supports small and large coefficients differently, offering advantages for highly dispersed data where wavelet coefficients span multiple scales. The IMOM prior's heavy tails capture large coefficients, while the MOM prior is better suited for smaller non-zero coefficients. Further, our method introduces innovative hyperparameter specifications for mixture probabilities and scale parameters, including generalized logit, hyperbolic secant, and generalized normal decay for probabilities, and double exponential decay for scaling. Hyperparameters are estimated via an empirical Bayes approach, enabling posterior inference tailored to the data. Extensive simulations demonstrate significant performance gains over two-component wavelet methods. Applications to electroencephalography and noisy audio data illustrate the method's utility in capturing complex signal characteristics. We implement our method in an R package, NLPwavelet (>= 1.1).",
+  "year": 2025,
+  "published": "2025-01-30T04:54:59Z",
+  "landing_page": "https://arxiv.org/abs/2501.18134v3",
+  "pdf_url": "https://arxiv.org/pdf/2501.18134v3.pdf",
+  "doi": "10.3390/math13162642",
+  "arxiv_id": "2501.18134v3",
+  "venue": "arXiv",
+  "rank": 3,
+  "paper_slug": "2501-18134v3-2025-nonlocal-prior-mixture-based-bayesian-wavelet-regression-with-",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2501-18134v3-2025-nonlocal-prior-mixture-based-bayesian-wavelet-regression-with-/paper.pdf",
+  "pdf_status": "downloaded"
+}

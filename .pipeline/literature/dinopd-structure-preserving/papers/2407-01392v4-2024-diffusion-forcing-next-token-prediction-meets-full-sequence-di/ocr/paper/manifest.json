@@ -1,0 +1,12 @@
+{
+  "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2407-01392v4-2024-diffusion-forcing-next-token-prediction-meets-full-sequence-di/paper.pdf",
+  "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2407-01392v4-2024-diffusion-forcing-next-token-prediction-meets-full-sequence-di/ocr/paper",
+  "backend": "pdfminer",
+  "documents": [
+    {
+      "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2407-01392v4-2024-diffusion-forcing-next-token-prediction-meets-full-sequence-di/ocr/paper/doc_0.md",
+      "markdown_image_paths": [],
+      "output_image_paths": []
+    }
+  ]
+}

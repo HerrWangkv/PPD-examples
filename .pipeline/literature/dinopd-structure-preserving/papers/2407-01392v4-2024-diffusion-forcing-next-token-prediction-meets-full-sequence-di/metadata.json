@@ -1,0 +1,24 @@
+{
+  "source": "arxiv",
+  "title": "Diffusion Forcing: Next-token Prediction Meets Full-Sequence Diffusion",
+  "authors": [
+    "Boyuan Chen",
+    "Diego Marti Monso",
+    "Yilun Du",
+    "Max Simchowitz",
+    "Russ Tedrake",
+    "Vincent Sitzmann"
+  ],
+  "abstract": "This paper presents Diffusion Forcing, a new training paradigm where a diffusion model is trained to denoise a set of tokens with independent per-token noise levels. We apply Diffusion Forcing to sequence generative modeling by training a causal next-token prediction model to generate one or several future tokens without fully diffusing past ones. Our approach is shown to combine the strengths of next-token prediction models, such as variable-length generation, with the strengths of full-sequence diffusion models, such as the ability to guide sampling to desirable trajectories. Our method offers a range of additional capabilities, such as (1) rolling-out sequences of continuous tokens, such as video, with lengths past the training horizon, where baselines diverge and (2) new sampling and guiding schemes that uniquely profit from Diffusion Forcing's variable-horizon and causal architecture, and which lead to marked performance gains in decision-making and planning tasks. In addition to its empirical success, our method is proven to optimize a variational lower bound on the likelihoods of all subsequences of tokens drawn from the true joint distribution. Project website: https://boyuan.space/diffusion-forcing",
+  "year": 2024,
+  "published": "2024-07-01T15:43:25Z",
+  "landing_page": "https://arxiv.org/abs/2407.01392v4",
+  "pdf_url": "https://arxiv.org/pdf/2407.01392v4.pdf",
+  "doi": null,
+  "arxiv_id": "2407.01392v4",
+  "venue": "arXiv",
+  "rank": 2,
+  "paper_slug": "2407-01392v4-2024-diffusion-forcing-next-token-prediction-meets-full-sequence-di",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2407-01392v4-2024-diffusion-forcing-next-token-prediction-meets-full-sequence-di/paper.pdf",
+  "pdf_status": "downloaded"
+}

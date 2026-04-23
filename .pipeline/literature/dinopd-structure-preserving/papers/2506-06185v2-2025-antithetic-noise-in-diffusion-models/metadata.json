@@ -1,0 +1,24 @@
+{
+  "source": "arxiv",
+  "title": "Antithetic Noise in Diffusion Models",
+  "authors": [
+    "Jing Jia",
+    "Sifan Liu",
+    "Bowen Song",
+    "Wei Yuan",
+    "Liyue Shen",
+    "Guanyang Wang"
+  ],
+  "abstract": "We systematically study antithetic initial noise in diffusion models, discovering that pairing each noise sample with its negation consistently produces strong negative correlation. This universal phenomenon holds across datasets, model architectures, conditional and unconditional sampling, and even other generative models such as VAEs and Normalizing Flows. To explain it, we combine experiments and theory and propose a \\textit{symmetry conjecture} that the learned score function is approximately affine antisymmetric (odd symmetry up to a constant shift), supported by empirical evidence. This negative correlation leads to substantially more reliable uncertainty quantification with up to $90\\%$ narrower confidence intervals. We demonstrate these gains on tasks including estimating pixel-wise statistics and evaluating diffusion inverse solvers. We also provide extensions with randomized quasi-Monte Carlo noise designs for uncertainty quantification, and explore additional applications of the antithetic noise design to improve image editing and generation diversity. Our framework is training-free, model-agnostic, and adds no runtime overhead. Code is available at https://github.com/jjia131/Antithetic-Noise-in-Diffusion-Models-page.",
+  "year": 2025,
+  "published": "2025-06-06T15:46:26Z",
+  "landing_page": "https://arxiv.org/abs/2506.06185v2",
+  "pdf_url": "https://arxiv.org/pdf/2506.06185v2.pdf",
+  "doi": null,
+  "arxiv_id": "2506.06185v2",
+  "venue": "arXiv",
+  "rank": 2,
+  "paper_slug": "2506-06185v2-2025-antithetic-noise-in-diffusion-models",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2506-06185v2-2025-antithetic-noise-in-diffusion-models/paper.pdf",
+  "pdf_status": "downloaded"
+}

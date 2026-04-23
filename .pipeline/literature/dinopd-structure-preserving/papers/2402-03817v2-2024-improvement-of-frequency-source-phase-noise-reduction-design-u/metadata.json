@@ -1,0 +1,26 @@
+{
+  "source": "arxiv",
+  "title": "Improvement of Frequency Source Phase Noise Reduction Design under Vibration Condition",
+  "authors": [
+    "Liwei Yin",
+    "Yongjiang Shu",
+    "Heng Zhang",
+    "Yuefei Dai",
+    "Xiaopeng Lu",
+    "Yunlong Lian",
+    "Zhonghua Wang",
+    "Yong Ding"
+  ],
+  "abstract": "Reasonable vibration reduction design is an important way to achieve low phase noise index of airborne frequency source output signal. Aiming at the problem of phase noise deterioration of an airborne frequency source under random condition, this paper proposes to improve the vibration reduction mode crystal oscillator and reduce the distance between the barycenter of frequency source and crystal oscillator vibration based on the analysis of the relationship between the frequency source and the phase noise of output signal. Experimental results show that the active noise control system achieves 62dB phase noise compensation under the random vibration of 0.04-0.1g*g/Hz amplitude range and 5-2000 Hz frequency range.",
+  "year": 2024,
+  "published": "2024-02-06T09:05:26Z",
+  "landing_page": "https://arxiv.org/abs/2402.03817v2",
+  "pdf_url": "https://arxiv.org/pdf/2402.03817v2.pdf",
+  "doi": null,
+  "arxiv_id": "2402.03817v2",
+  "venue": "arXiv",
+  "rank": 1,
+  "paper_slug": "2402-03817v2-2024-improvement-of-frequency-source-phase-noise-reduction-design-u",
+  "local_pdf_path": null,
+  "pdf_status": "failed: 404 Client Error: Not Found for url: https://arxiv.org/pdf/2402.03817v2"
+}

@@ -1,0 +1,31 @@
+{
+  "source": "arxiv",
+  "title": "Driving with DINO: Vision Foundation Features as a Unified Bridge for Sim-to-Real Generation in Autonomous Driving",
+  "authors": [
+    "Xuyang Chen",
+    "Conglang Zhang",
+    "Chuanheng Fu",
+    "Zihao Yang",
+    "Kaixuan Zhou",
+    "Yizhi Zhang",
+    "Jianan He",
+    "Yanfeng Zhang",
+    "Mingwei Sun",
+    "Zengmao Wang",
+    "Zhen Dong",
+    "Xiaoxiao Long",
+    "Liqiu Meng"
+  ],
+  "abstract": "Driven by the emergence of Controllable Video Diffusion, existing Sim2Real methods for autonomous driving video generation typically rely on explicit intermediate representations to bridge the domain gap. However, these modalities face a fundamental Consistency-Realism Dilemma. Low-level signals (e.g., edges, blurred images) ensure precise control but compromise realism by \"baking in\" synthetic artifacts, whereas high-level priors (e.g., depth, semantics, HDMaps) facilitate photorealism but lack the structural detail required for consistent guidance. In this work, we present Driving with DINO (DwD), a novel framework that leverages Vision Foundation Module (VFM) features as a unified bridge between the simulation and real-world domains. We first identify that these features encode a spectrum of information, from high-level semantics to fine-grained structure. To effectively utilize this, we employ Principal Subspace Projection to discard the high-frequency elements responsible for \"texture baking,\" while concurrently introducing Random Channel Tail Drop to mitigate the structural loss inherent in rigid dimensionality reduction, thereby reconciling realism with control consistency. Furthermore, to fully leverage DINOv3's high-resolution capabilities for enhancing control precision, we introduce a learnable Spatial Alignment Module that adapts these high-resolution features to the diffusion backbone. Finally, we propose a Causal Temporal Aggregator employing causal convolutions to explicitly preserve historical motion context when integrating frame-wise DINO features, which effectively mitigates motion blur and guarantees temporal stability. Project page: https://albertchen98.github.io/DwD-project/",
+  "year": 2026,
+  "published": "2026-02-05T19:55:22Z",
+  "landing_page": "https://arxiv.org/abs/2602.06159v2",
+  "pdf_url": "https://arxiv.org/pdf/2602.06159v2.pdf",
+  "doi": null,
+  "arxiv_id": "2602.06159v2",
+  "venue": "arXiv",
+  "rank": 1,
+  "paper_slug": "2602-06159v2-2026-driving-with-dino-vision-foundation-features-as-a-unified-brid",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2602-06159v2-2026-driving-with-dino-vision-foundation-features-as-a-unified-brid/paper.pdf",
+  "pdf_status": "downloaded"
+}

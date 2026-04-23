@@ -1,0 +1,12 @@
+{
+  "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2512-15702v1-2025-end-to-end-training-for-autoregressive-video-diffusion-via-sel/paper.pdf",
+  "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2512-15702v1-2025-end-to-end-training-for-autoregressive-video-diffusion-via-sel/ocr/paper",
+  "backend": "pdfminer",
+  "documents": [
+    {
+      "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2512-15702v1-2025-end-to-end-training-for-autoregressive-video-diffusion-via-sel/ocr/paper/doc_0.md",
+      "markdown_image_paths": [],
+      "output_image_paths": []
+    }
+  ]
+}

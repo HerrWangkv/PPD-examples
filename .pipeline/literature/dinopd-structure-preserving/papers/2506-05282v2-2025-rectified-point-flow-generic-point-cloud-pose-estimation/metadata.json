@@ -1,0 +1,23 @@
+{
+  "source": "arxiv",
+  "title": "Rectified Point Flow: Generic Point Cloud Pose Estimation",
+  "authors": [
+    "Tao Sun",
+    "Liyuan Zhu",
+    "Shengyu Huang",
+    "Shuran Song",
+    "Iro Armeni"
+  ],
+  "abstract": "We introduce Rectified Point Flow, a unified parameterization that formulates pairwise point cloud registration and multi-part shape assembly as a single conditional generative problem. Given unposed point clouds, our method learns a continuous point-wise velocity field that transports noisy points toward their target positions, from which part poses are recovered. In contrast to prior work that regresses part-wise poses with ad-hoc symmetry handling, our method intrinsically learns assembly symmetries without symmetry labels. Together with a self-supervised encoder focused on overlapping points, our method achieves a new state-of-the-art performance on six benchmarks spanning pairwise registration and shape assembly. Notably, our unified formulation enables effective joint training on diverse datasets, facilitating the learning of shared geometric priors and consequently boosting accuracy. Project page: https://rectified-pointflow.github.io/.",
+  "year": 2025,
+  "published": "2025-06-05T17:36:03Z",
+  "landing_page": "https://arxiv.org/abs/2506.05282v2",
+  "pdf_url": "https://arxiv.org/pdf/2506.05282v2.pdf",
+  "doi": null,
+  "arxiv_id": "2506.05282v2",
+  "venue": "arXiv",
+  "rank": 6,
+  "paper_slug": "2506-05282v2-2025-rectified-point-flow-generic-point-cloud-pose-estimation",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2506-05282v2-2025-rectified-point-flow-generic-point-cloud-pose-estimation/paper.pdf",
+  "pdf_status": "downloaded"
+}

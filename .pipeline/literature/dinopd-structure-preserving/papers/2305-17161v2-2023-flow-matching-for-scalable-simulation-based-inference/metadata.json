@@ -1,0 +1,24 @@
+{
+  "source": "arxiv",
+  "title": "Flow Matching for Scalable Simulation-Based Inference",
+  "authors": [
+    "Maximilian Dax",
+    "Jonas Wildberger",
+    "Simon Buchholz",
+    "Stephen R. Green",
+    "Jakob H. Macke",
+    "Bernhard Schölkopf"
+  ],
+  "abstract": "Neural posterior estimation methods based on discrete normalizing flows have become established tools for simulation-based inference (SBI), but scaling them to high-dimensional problems can be challenging. Building on recent advances in generative modeling, we here present flow matching posterior estimation (FMPE), a technique for SBI using continuous normalizing flows. Like diffusion models, and in contrast to discrete flows, flow matching allows for unconstrained architectures, providing enhanced flexibility for complex data modalities. Flow matching, therefore, enables exact density evaluation, fast training, and seamless scalability to large architectures--making it ideal for SBI. We show that FMPE achieves competitive performance on an established SBI benchmark, and then demonstrate its improved scalability on a challenging scientific problem: for gravitational-wave inference, FMPE outperforms methods based on comparable discrete flows, reducing training time by 30% with substantially improved accuracy. Our work underscores the potential of FMPE to enhance performance in challenging inference scenarios, thereby paving the way for more advanced applications to scientific problems.",
+  "year": 2023,
+  "published": "2023-05-26T18:00:01Z",
+  "landing_page": "https://arxiv.org/abs/2305.17161v2",
+  "pdf_url": "https://arxiv.org/pdf/2305.17161v2.pdf",
+  "doi": null,
+  "arxiv_id": "2305.17161v2",
+  "venue": "arXiv",
+  "rank": 3,
+  "paper_slug": "2305-17161v2-2023-flow-matching-for-scalable-simulation-based-inference",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2305-17161v2-2023-flow-matching-for-scalable-simulation-based-inference/paper.pdf",
+  "pdf_status": "downloaded"
+}

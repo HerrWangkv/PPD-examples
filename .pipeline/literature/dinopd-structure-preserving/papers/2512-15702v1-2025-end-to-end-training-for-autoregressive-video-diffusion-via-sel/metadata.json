@@ -1,0 +1,26 @@
+{
+  "source": "arxiv",
+  "title": "End-to-End Training for Autoregressive Video Diffusion via Self-Resampling",
+  "authors": [
+    "Yuwei Guo",
+    "Ceyuan Yang",
+    "Hao He",
+    "Yang Zhao",
+    "Meng Wei",
+    "Zhenheng Yang",
+    "Weilin Huang",
+    "Dahua Lin"
+  ],
+  "abstract": "Autoregressive video diffusion models hold promise for world simulation but are vulnerable to exposure bias arising from the train-test mismatch. While recent works address this via post-training, they typically rely on a bidirectional teacher model or online discriminator. To achieve an end-to-end solution, we introduce Resampling Forcing, a teacher-free framework that enables training autoregressive video models from scratch and at scale. Central to our approach is a self-resampling scheme that simulates inference-time model errors on history frames during training. Conditioned on these degraded histories, a sparse causal mask enforces temporal causality while enabling parallel training with frame-level diffusion loss. To facilitate efficient long-horizon generation, we further introduce history routing, a parameter-free mechanism that dynamically retrieves the top-k most relevant history frames for each query. Experiments demonstrate that our approach achieves performance comparable to distillation-based baselines while exhibiting superior temporal consistency on longer videos owing to native-length training.",
+  "year": 2025,
+  "published": "2025-12-17T18:53:29Z",
+  "landing_page": "https://arxiv.org/abs/2512.15702v1",
+  "pdf_url": "https://arxiv.org/pdf/2512.15702v1.pdf",
+  "doi": null,
+  "arxiv_id": "2512.15702v1",
+  "venue": "arXiv",
+  "rank": 5,
+  "paper_slug": "2512-15702v1-2025-end-to-end-training-for-autoregressive-video-diffusion-via-sel",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2512-15702v1-2025-end-to-end-training-for-autoregressive-video-diffusion-via-sel/paper.pdf",
+  "pdf_status": "downloaded"
+}

@@ -1,0 +1,24 @@
+{
+  "source": "arxiv",
+  "title": "U-REPA: Aligning Diffusion U-Nets to ViTs",
+  "authors": [
+    "Yuchuan Tian",
+    "Hanting Chen",
+    "Mengyu Zheng",
+    "Yuchen Liang",
+    "Chao Xu",
+    "Yunhe Wang"
+  ],
+  "abstract": "Representation Alignment (REPA) that aligns Diffusion Transformer (DiT) hidden-states with ViT visual encoders has proven highly effective in DiT training, demonstrating superior convergence properties, but it has not been validated on the canonical diffusion U-Net architecture that shows faster convergence compared to DiTs. However, adapting REPA to U-Net architectures presents unique challenges: (1) different block functionalities necessitate revised alignment strategies; (2) spatial-dimension inconsistencies emerge from U-Net's spatial downsampling operations; (3) space gaps between U-Net and ViT hinder the effectiveness of tokenwise alignment. To encounter these challenges, we propose \\textbf{U-REPA}, a representation alignment paradigm that bridges U-Net hidden states and ViT features as follows: Firstly, we propose via observation that due to skip connection, the middle stage of U-Net is the best alignment option. Secondly, we propose upsampling of U-Net features after passing them through MLPs. Thirdly, we observe difficulty when performing tokenwise similarity alignment, and further introduces a manifold loss that regularizes the relative similarity between samples. Experiments indicate that the resulting U-REPA could achieve excellent generation quality and greatly accelerates the convergence speed. With CFG guidance interval, U-REPA could reach $FID<1.5$ in 200 epochs or 1M iterations on ImageNet 256 $\\times$ 256, and needs only half the total epochs to perform better than REPA under sd-vae-ft-ema. Codes: https://github.com/YuchuanTian/U-REPA",
+  "year": 2025,
+  "published": "2025-03-24T07:46:00Z",
+  "landing_page": "https://arxiv.org/abs/2503.18414v3",
+  "pdf_url": "https://arxiv.org/pdf/2503.18414v3.pdf",
+  "doi": null,
+  "arxiv_id": "2503.18414v3",
+  "venue": "arXiv",
+  "rank": 4,
+  "paper_slug": "2503-18414v3-2025-u-repa-aligning-diffusion-u-nets-to-vits",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2503-18414v3-2025-u-repa-aligning-diffusion-u-nets-to-vits/paper.pdf",
+  "pdf_status": "downloaded"
+}

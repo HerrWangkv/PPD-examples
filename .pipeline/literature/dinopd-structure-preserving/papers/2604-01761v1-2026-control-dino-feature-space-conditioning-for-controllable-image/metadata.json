@@ -1,0 +1,22 @@
+{
+  "source": "arxiv",
+  "title": "Control-DINO: Feature Space Conditioning for Controllable Image-to-Video Diffusion",
+  "authors": [
+    "Edoardo A. Dominici",
+    "Thomas Deixelberger",
+    "Konstantinos Vardis",
+    "Markus Steinberger"
+  ],
+  "abstract": "Video models have recently been applied with success to problems in content generation, novel view synthesis, and, more broadly, world simulation. Many applications in generation and transfer rely on conditioning these models, typically through perceptual, geometric, or simple semantic signals, fundamentally using them as generative renderers. At the same time, high-dimensional features obtained from large-scale self-supervised learning on images or point clouds are increasingly used as a general-purpose interface for vision models. The connection between the two has been explored for subject specific editing, aligning and training video diffusion models, but not in the role of a more general conditioning signal for pretrained video diffusion models. Features obtained through self-supervised learning like DINO, contain a lot of entangled information about style, lighting and semantics of the scene. This makes them great at reconstruction tasks but limits their generative capabilities. In this paper, we show how we can use the features for tasks such as video domain transfer and video-from-3D generation. We introduce a lightweight architecture and training strategy that decouples appearance from other features that we wish to preserve, enabling robust control for appearance changes such as stylization and relighting. Furthermore, we show that low spatial resolution can be compensated by higher feature dimensionality, improving controllability in generative rendering from explicit spatial representations.",
+  "year": 2026,
+  "published": "2026-04-02T08:27:48Z",
+  "landing_page": "https://arxiv.org/abs/2604.01761v1",
+  "pdf_url": "https://arxiv.org/pdf/2604.01761v1.pdf",
+  "doi": null,
+  "arxiv_id": "2604.01761v1",
+  "venue": "arXiv",
+  "rank": 1,
+  "paper_slug": "2604-01761v1-2026-control-dino-feature-space-conditioning-for-controllable-image",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2604-01761v1-2026-control-dino-feature-space-conditioning-for-controllable-image/paper.pdf",
+  "pdf_status": "downloaded"
+}

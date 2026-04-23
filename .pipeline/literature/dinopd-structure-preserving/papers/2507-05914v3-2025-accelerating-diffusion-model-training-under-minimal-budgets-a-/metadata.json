@@ -1,0 +1,27 @@
+{
+  "source": "arxiv",
+  "title": "Accelerating Diffusion Model Training under Minimal Budgets: A Condensation-Based Perspective",
+  "authors": [
+    "Rui Huang",
+    "Shitong Shao",
+    "Zikai Zhou",
+    "Pukun Zhao",
+    "Hangyu Guo",
+    "Tian Ye",
+    "Lichen Bai",
+    "Shuo Yang",
+    "Zeke Xie"
+  ],
+  "abstract": "Diffusion models have achieved remarkable performance on a wide range of generative tasks, yet training them from scratch is notoriously resource-intensive, typically requiring millions of training images and many GPU days. Motivated by a data-centric view of this bottleneck, we adopt a condensation-based perspective: given a large training set, the goal is to construct a much smaller condensed dataset that still supports training strong diffusion models under minimal data and compute budgets. To operationalize this perspective, we introduce Diffusion Dataset Condensation (D2C), a two-phase framework comprising Select and Attach. In the Select phase, a diffusion difficulty score combined with interval sampling is used to identify a compact, informative training subset from the original data. Building on this subset, the Attach phase further strengthens the conditional signals by augmenting each selected image with rich semantic and visual representations. To our knowledge, D2C is the first framework that systematically investigates dataset condensation for diffusion models, whereas prior condensation methods have mainly targeted discriminative architectures. Extensive experiments across data budgets (0.8%-8% of ImageNet), model architectures, and image resolutions demonstrate that D2C dramatically accelerates diffusion model training while preserving high generative quality. On ImageNet 256x256 with SiT-XL/2, D2C attains an FID of 4.3 in just 40k steps using only 0.8% of the training images, corresponding to about 233x and 100x faster training than vanilla SiT-XL/2 and SiT-XL/2 + REPA, respectively.",
+  "year": 2025,
+  "published": "2025-07-08T12:00:04Z",
+  "landing_page": "https://arxiv.org/abs/2507.05914v3",
+  "pdf_url": "https://arxiv.org/pdf/2507.05914v3.pdf",
+  "doi": null,
+  "arxiv_id": "2507.05914v3",
+  "venue": "arXiv",
+  "rank": 6,
+  "paper_slug": "2507-05914v3-2025-accelerating-diffusion-model-training-under-minimal-budgets-a-",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2507-05914v3-2025-accelerating-diffusion-model-training-under-minimal-budgets-a-/paper.pdf",
+  "pdf_status": "downloaded"
+}

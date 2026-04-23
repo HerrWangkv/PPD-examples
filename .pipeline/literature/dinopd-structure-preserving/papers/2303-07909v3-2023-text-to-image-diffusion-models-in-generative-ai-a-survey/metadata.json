@@ -1,0 +1,23 @@
+{
+  "source": "arxiv",
+  "title": "Text-to-image Diffusion Models in Generative AI: A Survey",
+  "authors": [
+    "Chenshuang Zhang",
+    "Chaoning Zhang",
+    "Mengchun Zhang",
+    "In So Kweon",
+    "Junmo Kim"
+  ],
+  "abstract": "This survey reviews the progress of diffusion models in generating images from text, ~\\textit{i.e.} text-to-image diffusion models. As a self-contained work, this survey starts with a brief introduction of how diffusion models work for image synthesis, followed by the background for text-conditioned image synthesis. Based on that, we present an organized review of pioneering methods and their improvements on text-to-image generation. We further summarize applications beyond image generation, such as text-guided generation for various modalities like videos, and text-guided image editing. Beyond the progress made so far, we discuss existing challenges and promising future directions.",
+  "year": 2023,
+  "published": "2023-03-14T13:49:54Z",
+  "landing_page": "https://arxiv.org/abs/2303.07909v3",
+  "pdf_url": "https://arxiv.org/pdf/2303.07909v3.pdf",
+  "doi": null,
+  "arxiv_id": "2303.07909v3",
+  "venue": "arXiv",
+  "rank": 3,
+  "paper_slug": "2303-07909v3-2023-text-to-image-diffusion-models-in-generative-ai-a-survey",
+  "local_pdf_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/dinopd-structure-preserving/papers/2303-07909v3-2023-text-to-image-diffusion-models-in-generative-ai-a-survey/paper.pdf",
+  "pdf_status": "downloaded"
+}
