@@ -18,4 +18,6 @@ accelerate launch --multi_gpu --num_processes 8 examples/flux/model_training/tra
   --max_sigma_gap_max 0.3 \
   --rollout_steps_min 1 \
   --rollout_steps_max 15 \
+  --sigma_target_min 0.1 \
+  --min_substep_sigma 0.02 \
   --lora_checkpoint "./models/train/FLUX.1-dev_lora_dino_pd_v4/step-1000.safetensors"

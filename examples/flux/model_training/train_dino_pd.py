@@ -36,6 +36,8 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         max_sigma_gap_max=0.3,
         rollout_steps_min=1,
         rollout_steps_max=15,
+        sigma_target_min=0.1,
+        min_substep_sigma=0.02,
     ):
         super().__init__()
 
@@ -58,8 +60,12 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.max_sigma_gap_max = float(max_sigma_gap_max)
         self.rollout_steps_min = int(rollout_steps_min)
         self.rollout_steps_max = int(rollout_steps_max)
+        self.sigma_target_min = float(sigma_target_min)
+        self.min_substep_sigma = float(min_substep_sigma)
         assert self.max_sigma_gap_max >= self.max_sigma_gap_min > 0
         assert self.rollout_steps_max >= self.rollout_steps_min >= 1
+        assert 0.0 <= self.sigma_target_min < 1.0
+        assert self.min_substep_sigma > 0
 
         # Load DINOv2 on CPU; will be moved to the correct device in set_accelerator.
         # Stored outside nn.Module registry to keep DDP away from it.
@@ -139,11 +145,19 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         )
 
         # Sample timestep_id_start, then clamp the target so that
-        # (sigma_start - sigma_target) <= sampled_max_gap. This bounds
-        # rectified-target magnitude per sample.
-        timestep_id_start = torch.randint(0, N - 1, (1,)).item()
+        # (sigma_start - sigma_target) <= sampled_max_gap AND
+        # sigma_target >= sigma_target_min. The lower bound prevents
+        # rectified-target blow-up: v_target = (z_target - z0)/sigma_j
+        # amplifies drift by 1/sigma_j, so small sigma_j explodes the loss.
+        # Restrict start range so at least one valid j > i exists with
+        # sigmas[j] >= sigma_target_min.
+        valid_upper = N - 1
+        while valid_upper > 0 and sigmas[valid_upper].item() < self.sigma_target_min:
+            valid_upper -= 1
+        start_upper = max(1, valid_upper)  # i in [0, start_upper) so i+1 <= valid_upper
+        timestep_id_start = torch.randint(0, start_upper, (1,)).item()
         sigma_start_val = sigmas[timestep_id_start].item()
-        sigma_floor = sigma_start_val - sampled_max_gap
+        sigma_floor = max(sigma_start_val - sampled_max_gap, self.sigma_target_min)
         # largest j > i with sigmas[j] >= sigma_floor
         max_target = timestep_id_start + 1
         while max_target + 1 < N and sigmas[max_target + 1].item() >= sigma_floor:
@@ -157,6 +171,14 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         # sigma = t in [0, 1] for FlowMatchScheduler
         sigma_start = self.pipe.scheduler.sigmas[timestep_id_start].item()
         sigma_target = self.pipe.scheduler.sigmas[timestep_id_target].item()
+
+        # Cap K by the REALIZED gap (sigma_start - sigma_target), not the
+        # sampled upper bound. per-substep sigma-gap >= min_substep_sigma
+        # avoids integration finer than inference granularity
+        # (FLUX 50-step inference has ~0.02 sigma/step in the mid-sigma band).
+        realized_gap = sigma_start - sigma_target
+        max_K_by_gap = max(1, int(realized_gap / self.min_substep_sigma))
+        sampled_rollout_steps = min(sampled_rollout_steps, max_K_by_gap)
 
         # Find z_t* that preserves DINOv2 features of z0 at t_start
         with torch.enable_grad():
@@ -327,6 +349,10 @@ if __name__ == "__main__":
                         help="Lower bound for per-step sampled rollout_steps ~ randint(min, max+1).")
     parser.add_argument("--rollout_steps_max", type=int, default=15,
                         help="Upper bound for per-step sampled rollout_steps ~ randint(min, max+1).")
+    parser.add_argument("--sigma_target_min", type=float, default=0.1,
+                        help="Floor on sigma_target to avoid 1/sigma blow-up of the rectified v-target when drift is amplified at small sigma.")
+    parser.add_argument("--min_substep_sigma", type=float, default=0.02,
+                        help="Minimum per-substep sigma-gap. Caps K so integration is no finer than inference granularity (~0.02 for 50-step FLUX mid-sigma).")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum dataset samples (for debugging).")
     args = parser.parse_args()
@@ -363,6 +389,8 @@ if __name__ == "__main__":
         max_sigma_gap_max=args.max_sigma_gap_max,
         rollout_steps_min=args.rollout_steps_min,
         rollout_steps_max=args.rollout_steps_max,
+        sigma_target_min=args.sigma_target_min,
+        min_substep_sigma=args.min_substep_sigma,
     )
     model_logger = ModelLogger(
         args.output_path,

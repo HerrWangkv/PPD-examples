@@ -14,7 +14,7 @@ DinoPD — Learned structure-preserving diffusion via DINOv2 features. Replaces 
 
 ## v5 implementation details (from `train_dino_pd.py`)
 - **Two independent safety floors** beyond the clamped gap (both are v5-new, not in v4):
-  - `sigma_target_min=0.05` — floor on `σ_target`. Rectified target `v = (z_target - z0)/σ_target` amplifies drift by `1/σ_target`; small `σ_target` would explode the loss.
+  - `sigma_target_min=0.1` (default raised from 0.05 on 2026-04-23 before first v5 launch) — floor on `σ_target`. Rectified target `v = (z_target - z0)/σ_target` amplifies drift by `1/σ_target`; at 0.05 the gain is 20×, at 0.1 it's 10× — cuts outlier-gradient mass roughly in half without losing meaningful signal.
   - `min_substep_sigma=0.02` — caps `K` by realized gap so substep granularity never exceeds FLUX-50 inference (~0.02 σ/step mid-sigma). `K_eff = min(K_sampled, realized_gap/0.02, span_in_native_timesteps)`.
 - **Noise field refreshed every substep**: during the detached K-step Euler rollout, `inputs["noise"]` is recomputed as `(z_curr - (1-σ_k)·z0)/σ_k` before each model_fn call. The `noise` field is conditioning for model_fn, not just a seed — stale noise would feed the DiT an inconsistent view of "what the endpoint looks like at this σ".
 - **DINO model**: `dinov2_vitl14_reg` (ViT-L/14 with registers) by default. Loaded once, moved to accelerator device in `set_accelerator`, kept out of the `nn.Module` registry (`object.__setattr__`) to prevent DDP from touching it.
