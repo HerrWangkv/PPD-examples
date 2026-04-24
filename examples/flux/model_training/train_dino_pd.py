@@ -1,8 +1,13 @@
 import os
 from datetime import datetime
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn.functional as F
+from PIL import Image
 from tqdm import tqdm
 
 from diffsynth.pipelines.flux_image_new import FluxImagePipeline
@@ -13,7 +18,7 @@ from diffsynth.trainers.hf_url_dataset import HuggingFaceURLImageDataset
 from accelerate import Accelerator
 from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration
 
-from dino_noise import load_dino, find_dino_preserving_noise
+from dino_noise import load_dino, find_dino_preserving_noise, latent_to_dino
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -268,9 +273,125 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                 )
         return loss
 
+    @torch.no_grad()
+    def run_validation(
+        self,
+        step: int,
+        output_dir: str,
+        val_image_path: str = "models/ppd/test1.jpg",
+        val_prompt: str = "A photorealistic scene. High resolution, realistic textures.",
+        height: int = 704,
+        width: int = 1280,
+        cfg_scale: float = 2.0,
+        num_inference_steps: int = 50,
+        dino_opt_steps: int | None = None,
+        save_frames_at=(0, 10, 20, 30, 40, 49),
+    ):
+        """Inline validation: mirrors validate_dino_trajectory.py but reuses pipe+DINO.
+        Call on main process only. Returns a dict of scalars."""
+        os.makedirs(output_dir, exist_ok=True)
+        device = self.pipe.device
+        was_training = self.pipe.dit.training
+        self.pipe.dit.eval()
+        # Snapshot scheduler state so pipe(...) call below doesn't corrupt training mode
+        sched = self.pipe.scheduler
+        prev_sched_state = {
+            "sigmas": sched.sigmas.clone() if hasattr(sched, "sigmas") else None,
+            "timesteps": sched.timesteps.clone() if hasattr(sched, "timesteps") else None,
+            "training": getattr(sched, "training", False),
+            "linear_timesteps_weights": getattr(sched, "linear_timesteps_weights", None),
+        }
+        try:
+            img_pil = Image.open(val_image_path).convert("RGB").resize((width, height), resample=Image.LANCZOS)
+            img_pil.save(os.path.join(output_dir, "input.png"))
+
+            img_t = self.pipe.preprocess_image(img_pil).to(device=device, dtype=self.pipe.torch_dtype)
+            z0 = self.pipe.vae_encoder(img_t, tiled=False)
+            z0_f32 = z0.float()
+            target_feats = latent_to_dino(self.pipe.vae_decoder, self._dino, z0_f32)
+            target_feats = {k: v.detach() for k, v in target_feats.items()}
+
+            with torch.enable_grad():
+                z1_star, _ = find_dino_preserving_noise(
+                    z0=z0_f32, t=1.0,
+                    vae_decoder=self.pipe.vae_decoder, dino=self._dino,
+                    n_steps=dino_opt_steps if dino_opt_steps is not None else self.dino_opt_steps,
+                )
+            noise = z1_star.to(dtype=self.pipe.torch_dtype).contiguous()
+
+            step_indices, dino_distances, sigma_vals = [], [], []
+            save_steps_set = set(save_frames_at)
+            original_step = self.pipe.scheduler.step
+            step_counter = [0]
+
+            def step_hook(model_output, timestep, sample, **kwargs):
+                new_latents = original_step(model_output, timestep, sample, **kwargs)
+                idx = step_counter[0]; step_counter[0] += 1
+                sigma = (timestep.cpu().item() / self.pipe.scheduler.num_train_timesteps)
+                cur_feats = latent_to_dino(self.pipe.vae_decoder, self._dino, new_latents.float())
+                cls_d   = (1.0 - F.cosine_similarity(cur_feats["cls"],     target_feats["cls"],     dim=-1).mean()).item()
+                patch_d = (1.0 - F.cosine_similarity(cur_feats["patches"], target_feats["patches"], dim=-1).mean()).item()
+                total_d = 0.5 * cls_d + 0.5 * patch_d
+                step_indices.append(idx); dino_distances.append(total_d); sigma_vals.append(sigma)
+                if idx in save_steps_set:
+                    img = self.pipe.vae_decoder(new_latents.to(self.pipe.torch_dtype), tiled=False).float()
+                    img = (img.clamp(-1, 1) + 1) / 2
+                    img = img.squeeze(0).permute(1, 2, 0)
+                    Image.fromarray((img * 255).byte().cpu().numpy()).save(
+                        os.path.join(output_dir, f"step_{idx:03d}_sigma{sigma:.3f}.png"))
+                return new_latents
+
+            self.pipe.scheduler.step = step_hook
+            try:
+                out = self.pipe(
+                    prompt=val_prompt, height=height, width=width,
+                    cfg_scale=cfg_scale, num_inference_steps=num_inference_steps,
+                    noise=noise,
+                )
+            finally:
+                self.pipe.scheduler.step = original_step
+
+            out.save(os.path.join(output_dir, "output_final.png"))
+
+            final_d = dino_distances[-1]; peak_d = max(dino_distances); min_d = min(dino_distances)
+            peak_step = step_indices[dino_distances.index(peak_d)]
+
+            fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+            axes[0].plot(step_indices, dino_distances, marker=".", linewidth=1.5)
+            axes[0].set_xlabel("Denoising step"); axes[0].set_ylabel("DINO distance to z0")
+            axes[0].set_title(f"step {step} — final={final_d:.3f} peak={peak_d:.3f}@{peak_step}")
+            axes[0].grid(True, alpha=0.3)
+            axes[1].plot(sigma_vals, dino_distances, marker=".", linewidth=1.5, color="tab:orange")
+            axes[1].invert_xaxis(); axes[1].set_xlabel("sigma  (1→0)")
+            axes[1].set_ylabel("DINO distance to z0"); axes[1].grid(True, alpha=0.3)
+            plt.tight_layout()
+            plt.savefig(os.path.join(output_dir, "dino_trajectory.png"), dpi=120)
+            plt.close(fig)
+
+            metrics = {
+                "val/dino_final": final_d, "val/dino_peak": peak_d, "val/dino_min": min_d,
+                "val/dino_peak_step": float(peak_step),
+            }
+            for i in save_frames_at:
+                if i < len(dino_distances):
+                    metrics[f"val/dino_step_{i:02d}"] = dino_distances[i]
+            return metrics
+        finally:
+            if was_training:
+                self.pipe.dit.train()
+            # Restore scheduler to training mode so next training step's
+            # forward_preprocess sees scheduler.training=True (otherwise
+            # FluxImageUnit_InputImageEmbedder returns input_latents=None).
+            if prev_sched_state["sigmas"] is not None:
+                sched.sigmas = prev_sched_state["sigmas"]
+                sched.timesteps = prev_sched_state["timesteps"]
+            sched.training = prev_sched_state["training"]
+            if prev_sched_state["linear_timesteps_weights"] is not None:
+                sched.linear_timesteps_weights = prev_sched_state["linear_timesteps_weights"]
+
 
 # -------------------------
-# Training loop  (identical structure to train.py)
+# Training loop
 # -------------------------
 def launch_training_task(
     dataset, model, model_logger,
@@ -323,6 +444,30 @@ def launch_training_task(
                 accelerator.backward(loss)
                 optimizer.step()
                 model_logger.on_step_end(accelerator, model, save_steps)
+                # Inline validation after each checkpoint save
+                if (save_steps is not None
+                        and model_logger.num_steps % save_steps == 0
+                        and getattr(args, "val_enabled", False)):
+                    accelerator.wait_for_everyone()
+                    if accelerator.is_main_process:
+                        with open(args.val_prompt_file) as f:
+                            val_prompt = f.read().strip()
+                        val_dir = os.path.join(args.output_path, "val", f"step-{model_logger.num_steps}")
+                        metrics = raw_model.run_validation(
+                            step=model_logger.num_steps,
+                            output_dir=val_dir,
+                            val_image_path=args.val_image,
+                            val_prompt=val_prompt,
+                            height=args.val_height,
+                            width=args.val_width,
+                            cfg_scale=args.val_cfg_scale,
+                            num_inference_steps=args.val_num_inference_steps,
+                            dino_opt_steps=args.val_dino_opt_steps,
+                        )
+                        accelerator.log(metrics, step=model_logger.num_steps)
+                        print(f"[val step-{model_logger.num_steps}] " +
+                              " ".join(f"{k}={v:.4f}" for k, v in metrics.items()))
+                    accelerator.wait_for_everyone()
                 scheduler.step()
                 global_step += 1
 
@@ -355,6 +500,16 @@ if __name__ == "__main__":
                         help="Minimum per-substep sigma-gap. Caps K so integration is no finer than inference granularity (~0.02 for 50-step FLUX mid-sigma).")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum dataset samples (for debugging).")
+    parser.add_argument("--val_enabled", type=lambda s: s.lower() not in ("0","false","no"), default=True,
+                        help="Run inline validation after each checkpoint save (default: True).")
+    parser.add_argument("--val_image", type=str, default="models/ppd/test1.jpg")
+    parser.add_argument("--val_prompt_file", type=str, default="models/ppd/test1.txt",
+                        help="Text file whose contents are used as the validation prompt.")
+    parser.add_argument("--val_height", type=int, default=704)
+    parser.add_argument("--val_width", type=int, default=1280)
+    parser.add_argument("--val_cfg_scale", type=float, default=2.0)
+    parser.add_argument("--val_num_inference_steps", type=int, default=50)
+    parser.add_argument("--val_dino_opt_steps", type=int, default=300)
     args = parser.parse_args()
 
     dataset = HuggingFaceURLImageDataset(
