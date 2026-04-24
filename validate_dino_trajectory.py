@@ -43,7 +43,8 @@ def parse_args():
     parser.add_argument("--height", type=int, default=704)
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--num_inference_steps", type=int, default=50)
-    parser.add_argument("--cfg_scale", type=float, default=2.0)
+    parser.add_argument("--cfg_scale", type=float, default=1.0,
+                        help="v7-α default: cfg=1 matches training (no CFG at inference). Use --cfg_scale 2.0 for legacy v6-A4-style eval.")
     parser.add_argument("--embedded_guidance", type=float, default=3.5,
                         help="FLUX-dev distilled guidance scalar (fed as a token). Training default is 1.0; inference default is 3.5.")
     parser.add_argument("--dino_opt_steps", type=int, default=300)

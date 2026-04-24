@@ -92,7 +92,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
             "height":      data["image"].size[1],
             "width":       data["image"].size[0],
             "cfg_scale":   1,
-            "embedded_guidance": 1,
+            "embedded_guidance": 3.5,  # v7-α: match FLUX-dev inference default (was 1 in v1-v6 — source of embed train/infer mismatch)
             "t5_sequence_length": 512,
             "tiled":       False,
             "rand_device": self.pipe.device,
@@ -253,7 +253,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         val_prompt: str = "A photorealistic scene. High resolution, realistic textures.",
         height: int = 704,
         width: int = 1280,
-        cfg_scale: float = 2.0,
+        cfg_scale: float = 1.0,  # v7-α: cfg=1 matches training (no CFG at inference)
         num_inference_steps: int = 50,
         dino_opt_steps: int | None = None,
         save_frames_at=(0, 10, 20, 30, 40, 49),
@@ -481,7 +481,8 @@ if __name__ == "__main__":
                         help="Text file whose contents are used as the validation prompt.")
     parser.add_argument("--val_height", type=int, default=704)
     parser.add_argument("--val_width", type=int, default=1280)
-    parser.add_argument("--val_cfg_scale", type=float, default=2.0)
+    parser.add_argument("--val_cfg_scale", type=float, default=1.0,
+                        help="v7-α default: cfg=1 matches training (no CFG at inference).")
     parser.add_argument("--val_num_inference_steps", type=int, default=50)
     parser.add_argument("--val_dino_opt_steps", type=int, default=300)
     args = parser.parse_args()
