@@ -44,6 +44,8 @@ def parse_args():
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--num_inference_steps", type=int, default=50)
     parser.add_argument("--cfg_scale", type=float, default=2.0)
+    parser.add_argument("--embedded_guidance", type=float, default=3.5,
+                        help="FLUX-dev distilled guidance scalar (fed as a token). Training default is 1.0; inference default is 3.5.")
     parser.add_argument("--dino_opt_steps", type=int, default=300)
     parser.add_argument("--dino_model_name", type=str, default="dinov2_vitl14_reg")
     parser.add_argument(
@@ -137,9 +139,10 @@ def main():
 
         with torch.no_grad():
             cur_feats = latent_to_dino(_vae_decoder, _dino, new_latents.float())
-            cls_d   = (1.0 - F.cosine_similarity(cur_feats["cls"],     target_feats["cls"],     dim=-1).mean()).item()
             patch_d = (1.0 - F.cosine_similarity(cur_feats["patches"], target_feats["patches"], dim=-1).mean()).item()
-            total_d = 0.5 * cls_d + 0.5 * patch_d
+            cls_d   = (1.0 - F.cosine_similarity(cur_feats["cls"],     target_feats["cls"],     dim=-1).mean()).item()
+            # VGGT consumes x_norm_patchtokens only — headline metric is patch distance.
+            total_d = patch_d
 
         step_indices.append(idx)
         dino_distances.append(total_d)
@@ -165,6 +168,7 @@ def main():
         height=args.height,
         width=args.width,
         cfg_scale=args.cfg_scale,
+        embedded_guidance=args.embedded_guidance,
         num_inference_steps=args.num_inference_steps,
         noise=noise,
     )

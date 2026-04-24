@@ -37,12 +37,10 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         extra_inputs=None,
         dino_model_name="dinov2_vitl14_reg",
         dino_opt_steps=300,
-        max_sigma_gap_min=0.05,
-        max_sigma_gap_max=0.3,
-        rollout_steps_min=1,
+        rollout_steps_min=5,
         rollout_steps_max=15,
         sigma_target_min=0.1,
-        min_substep_sigma=0.02,
+        **kwargs,  # swallow deprecated v5 args: max_sigma_gap_min/max, min_substep_sigma
     ):
         super().__init__()
 
@@ -61,16 +59,15 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.use_gradient_checkpointing_offload = use_gradient_checkpointing_offload
         self.extra_inputs = extra_inputs.split(",") if extra_inputs is not None else []
         self.dino_opt_steps = dino_opt_steps
-        self.max_sigma_gap_min = float(max_sigma_gap_min)
-        self.max_sigma_gap_max = float(max_sigma_gap_max)
         self.rollout_steps_min = int(rollout_steps_min)
         self.rollout_steps_max = int(rollout_steps_max)
         self.sigma_target_min = float(sigma_target_min)
-        self.min_substep_sigma = float(min_substep_sigma)
-        assert self.max_sigma_gap_max >= self.max_sigma_gap_min > 0
         assert self.rollout_steps_max >= self.rollout_steps_min >= 1
         assert 0.0 <= self.sigma_target_min < 1.0
-        assert self.min_substep_sigma > 0
+
+        for k in ["max_sigma_gap_min", "max_sigma_gap_max", "min_substep_sigma"]:
+            if k in kwargs:
+                print(f"[v6 warning] Argument --{k} is deprecated and will be ignored.")
 
         # Load DINOv2 on CPU; will be moved to the correct device in set_accelerator.
         # Stored outside nn.Module registry to keep DDP away from it.
@@ -113,15 +110,22 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         return {**inputs_shared, **inputs_posi}
 
     # ------------------------------------------------------------------
-    # Forward: rollout-aware rectified flow matching (v5 — K-step rollout).
+    # Forward: rollout-aware rectified flow matching (v6 — fixed sigma=1.0 start).
+    #
+    # v6 Rationale:
+    # v5 sampled sigma_start and seeded with fresh Adam-optimized z_t*. However,
+    # at inference, any latent at sigma < 1.0 is reached via an Euler rollout
+    # from sigma=1.0. These drifted latents have a different distribution than
+    # the fresh z_t* seeds. v6 fixes sigma_start=1.0 to ensure the training
+    # starting distribution matches inference, following the same path to sigma_target.
     #
     # Per-sample algorithm:
-    #   1. Sample start timestep_id_start (i) and target timestep_id_target (j > i)
-    #      with (sigma_i - sigma_j) <= max_sigma_gap.
-    #   2. Seed z at sigma_i using DINO-preserving noise z_{t_i}*.
-    #   3. Run K detached Euler steps along equally-spaced indices between i and j
-    #      to produce z_rolled at sigma_j. K=1 recovers v4's 1-step jump.
-    #   4. Compute flow-matching loss at timestep_j with rectified target to z0.
+    #   1. Fix start timestep_id_start = 0 (sigma = 1.0).
+    #   2. Sample target timestep_id_target (j > 0) with sigma_j >= sigma_target_min.
+    #   3. Seed z at sigma=1.0 using DINO-preserving noise z1*.
+    #   4. Sample K ~ randint(rollout_steps_min, rollout_steps_max + 1).
+    #   5. Run K detached Euler steps from 0 to j to produce z_rolled at sigma_j.
+    #   6. Compute flow-matching loss at timestep_j with rectified target to z0.
     # ------------------------------------------------------------------
     def forward(self, data, inputs=None, step: int | None = None):
         if inputs is None:
@@ -136,85 +140,51 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         N = self.pipe.scheduler.num_train_timesteps
         sigmas = self.pipe.scheduler.sigmas  # monotonically decreasing in j
 
-        # Per-step: sample max_sigma_gap ~ Uniform(min, max) and
-        # rollout_steps ~ randint(min, max) independently. Exposes the
-        # model to a range of drift magnitudes and substep granularities.
-        if self.max_sigma_gap_max == self.max_sigma_gap_min:
-            sampled_max_gap = self.max_sigma_gap_min
-        else:
-            sampled_max_gap = float(
-                np.random.uniform(self.max_sigma_gap_min, self.max_sigma_gap_max)
-            )
-        sampled_rollout_steps = int(
-            np.random.randint(self.rollout_steps_min, self.rollout_steps_max + 1)
-        )
+        # v6: fixed start at sigma=1.0 (timestep_id=0)
+        timestep_id_start = 0
+        sigma_start = sigmas[timestep_id_start].item()
 
-        # Sample timestep_id_start, then clamp the target so that
-        # (sigma_start - sigma_target) <= sampled_max_gap AND
-        # sigma_target >= sigma_target_min. The lower bound prevents
-        # rectified-target blow-up: v_target = (z_target - z0)/sigma_j
-        # amplifies drift by 1/sigma_j, so small sigma_j explodes the loss.
-        # Restrict start range so at least one valid j > i exists with
-        # sigmas[j] >= sigma_target_min.
+        # Sample target timestep_id_target (j > 0) such that sigmas[j] >= sigma_target_min.
+        # sigma_target_min=0.1 is usually near j=900 for N=1000.
         valid_upper = N - 1
         while valid_upper > 0 and sigmas[valid_upper].item() < self.sigma_target_min:
             valid_upper -= 1
-        start_upper = max(1, valid_upper)  # i in [0, start_upper) so i+1 <= valid_upper
-        timestep_id_start = torch.randint(0, start_upper, (1,)).item()
-        sigma_start_val = sigmas[timestep_id_start].item()
-        sigma_floor = max(sigma_start_val - sampled_max_gap, self.sigma_target_min)
-        # largest j > i with sigmas[j] >= sigma_floor
-        max_target = timestep_id_start + 1
-        while max_target + 1 < N and sigmas[max_target + 1].item() >= sigma_floor:
-            max_target += 1
-        timestep_id_target = torch.randint(timestep_id_start + 1, max_target + 1, (1,)).item()
-        timestep_id_start = torch.tensor([timestep_id_start])
-        timestep_id_target = torch.tensor([timestep_id_target])
+        
+        timestep_id_target = torch.randint(1, valid_upper + 1, (1,)).item()
+        
+        # Sample K steps for the detached rollout
+        K = int(np.random.randint(self.rollout_steps_min, self.rollout_steps_max + 1))
+        # can't subdivide finer than 1 per native timestep
+        K_eff = min(K, timestep_id_target - timestep_id_start)
 
-        timestep_target = self.pipe.scheduler.timesteps[timestep_id_target].to(dtype=dtype, device=device)
-
-        # sigma = t in [0, 1] for FlowMatchScheduler
-        sigma_start = self.pipe.scheduler.sigmas[timestep_id_start].item()
+        timestep_target = self.pipe.scheduler.timesteps[torch.tensor([timestep_id_target])].to(dtype=dtype, device=device)
         sigma_target = self.pipe.scheduler.sigmas[timestep_id_target].item()
 
-        # Cap K by the REALIZED gap (sigma_start - sigma_target), not the
-        # sampled upper bound. per-substep sigma-gap >= min_substep_sigma
-        # avoids integration finer than inference granularity
-        # (FLUX 50-step inference has ~0.02 sigma/step in the mid-sigma band).
-        realized_gap = sigma_start - sigma_target
-        max_K_by_gap = max(1, int(realized_gap / self.min_substep_sigma))
-        sampled_rollout_steps = min(sampled_rollout_steps, max_K_by_gap)
-
-        # Find z_t* that preserves DINOv2 features of z0 at t_start
+        # Find z_1* that preserves DINOv2 features of z0 at t=1.0
         with torch.enable_grad():
-            z_t_star, dino_dist_start = find_dino_preserving_noise(
+            z1_star, dino_dist_start = find_dino_preserving_noise(
                 z0=z0,
-                t=sigma_start,
+                t=1.0,
                 vae_decoder=self.pipe.vae_decoder,
                 dino=self._dino,
                 n_steps=self.dino_opt_steps,
             )
 
-        z_t_star = z_t_star.detach()
-        t_safe_start = max(sigma_start, 1e-4)
+        z1_star = z1_star.detach()
+        # v6: start is always sigma=1.0, so z_start = z1_star
+        z_curr = z1_star
 
         # Temporary noise injection purely to condition model_fn for the offline rollout predictions
-        z1_star = (z_t_star - (1.0 - t_safe_start) * z0) / t_safe_start
         inputs["noise"] = z1_star.to(dtype=dtype, device=device)
         inputs["input_latents"] = z0.to(dtype=dtype, device=device)
 
-        # K-step detached Euler rollout along equally-spaced indices from i to j.
-        # K=1 collapses to v4 (single jump from sigma_start directly to sigma_target).
-        K = max(1, sampled_rollout_steps)
-        span = timestep_id_target.item() - timestep_id_start.item()
-        K_eff = min(K, span)  # can't subdivide finer than 1 per native timestep
+        # K_eff-step detached Euler rollout along equally-spaced indices from 0 to timestep_id_target.
         rollout_ids = np.linspace(
-            timestep_id_start.item(), timestep_id_target.item(), K_eff + 1
+            timestep_id_start, timestep_id_target, K_eff + 1
         ).round().astype(int).tolist()
         # dedupe while preserving order
         seen = set(); rollout_ids = [x for x in rollout_ids if not (x in seen or seen.add(x))]
 
-        z_curr = z_t_star
         with torch.no_grad():
             for k in range(len(rollout_ids) - 1):
                 id_k = rollout_ids[k]
@@ -222,6 +192,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                 sigma_k = self.pipe.scheduler.sigmas[id_k].item()
                 sigma_next = self.pipe.scheduler.sigmas[id_next].item()
                 timestep_k = self.pipe.scheduler.timesteps[torch.tensor([id_k])].to(dtype=dtype, device=device)
+                
                 # refresh noise field to match current z (keeps model_fn conditioning consistent)
                 t_safe_k = max(sigma_k, 1e-4)
                 z1_k = (z_curr.float() - (1.0 - t_safe_k) * z0) / t_safe_k
@@ -230,7 +201,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                 v_k = self.pipe.model_fn(**models, **inputs, timestep=timestep_k)
                 z_curr = z_curr + (sigma_next - sigma_k) * v_k
 
-        z_target = z_curr  # at sigma_target after K detached Euler steps
+        z_target = z_curr  # at sigma_target after K_eff detached Euler steps
 
         # Rectified target at sigma_target pointing precisely to z0
         t_safe_target = max(sigma_target, 1e-4)
@@ -319,7 +290,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                 )
             noise = z1_star.to(dtype=self.pipe.torch_dtype).contiguous()
 
-            step_indices, dino_distances, sigma_vals = [], [], []
+            step_indices, dino_distances, cls_distances, sigma_vals = [], [], [], []
             save_steps_set = set(save_frames_at)
             original_step = self.pipe.scheduler.step
             step_counter = [0]
@@ -329,10 +300,12 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                 idx = step_counter[0]; step_counter[0] += 1
                 sigma = (timestep.cpu().item() / self.pipe.scheduler.num_train_timesteps)
                 cur_feats = latent_to_dino(self.pipe.vae_decoder, self._dino, new_latents.float())
-                cls_d   = (1.0 - F.cosine_similarity(cur_feats["cls"],     target_feats["cls"],     dim=-1).mean()).item()
                 patch_d = (1.0 - F.cosine_similarity(cur_feats["patches"], target_feats["patches"], dim=-1).mean()).item()
-                total_d = 0.5 * cls_d + 0.5 * patch_d
-                step_indices.append(idx); dino_distances.append(total_d); sigma_vals.append(sigma)
+                cls_d   = (1.0 - F.cosine_similarity(cur_feats["cls"],     target_feats["cls"],     dim=-1).mean()).item()
+                # VGGT consumes x_norm_patchtokens only — headline metric is patch distance.
+                total_d = patch_d
+                step_indices.append(idx); dino_distances.append(total_d)
+                cls_distances.append(cls_d); sigma_vals.append(sigma)
                 if idx in save_steps_set:
                     img = self.pipe.vae_decoder(new_latents.to(self.pipe.torch_dtype), tiled=False).float()
                     img = (img.clamp(-1, 1) + 1) / 2
@@ -371,6 +344,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
             metrics = {
                 "val/dino_final": final_d, "val/dino_peak": peak_d, "val/dino_min": min_d,
                 "val/dino_peak_step": float(peak_step),
+                "val/cls_final": cls_distances[-1], "val/cls_peak": max(cls_distances),
             }
             for i in save_frames_at:
                 if i < len(dino_distances):
@@ -486,18 +460,18 @@ if __name__ == "__main__":
                         help="DINOv2 model name (torch.hub facebookresearch/dinov2).")
     parser.add_argument("--dino_opt_steps", type=int, default=300,
                         help="Adam steps per training sample to find z_t*.")
-    parser.add_argument("--max_sigma_gap_min", type=float, default=0.05,
-                        help="Lower bound for per-step sampled max_sigma_gap ~ U(min, max).")
-    parser.add_argument("--max_sigma_gap_max", type=float, default=0.3,
-                        help="Upper bound for per-step sampled max_sigma_gap ~ U(min, max).")
-    parser.add_argument("--rollout_steps_min", type=int, default=1,
-                        help="Lower bound for per-step sampled rollout_steps ~ randint(min, max+1).")
+    parser.add_argument("--rollout_steps_min", type=int, default=5,
+                        help="Lower bound for per-step sampled rollout_steps ~ randint(min, max+1). Default 5 for v6.")
     parser.add_argument("--rollout_steps_max", type=int, default=15,
-                        help="Upper bound for per-step sampled rollout_steps ~ randint(min, max+1).")
+                        help="Upper bound for per-step sampled rollout_steps ~ randint(min, max+1). Default 15 for v6.")
     parser.add_argument("--sigma_target_min", type=float, default=0.1,
                         help="Floor on sigma_target to avoid 1/sigma blow-up of the rectified v-target when drift is amplified at small sigma.")
-    parser.add_argument("--min_substep_sigma", type=float, default=0.02,
-                        help="Minimum per-substep sigma-gap. Caps K so integration is no finer than inference granularity (~0.02 for 50-step FLUX mid-sigma).")
+    
+    # Deprecated v5 arguments (ignored in v6)
+    parser.add_argument("--max_sigma_gap_min", type=float, default=0.0, help="[v6 ignored]")
+    parser.add_argument("--max_sigma_gap_max", type=float, default=0.0, help="[v6 ignored]")
+    parser.add_argument("--min_substep_sigma", type=float, default=0.0, help="[v6 ignored]")
+
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum dataset samples (for debugging).")
     parser.add_argument("--val_enabled", type=lambda s: s.lower() not in ("0","false","no"), default=True,
@@ -540,11 +514,12 @@ if __name__ == "__main__":
         extra_inputs=args.extra_inputs,
         dino_model_name=args.dino_model_name,
         dino_opt_steps=args.dino_opt_steps,
-        max_sigma_gap_min=args.max_sigma_gap_min,
-        max_sigma_gap_max=args.max_sigma_gap_max,
         rollout_steps_min=args.rollout_steps_min,
         rollout_steps_max=args.rollout_steps_max,
         sigma_target_min=args.sigma_target_min,
+        # Pass deprecated args to trigger warning
+        max_sigma_gap_min=args.max_sigma_gap_min,
+        max_sigma_gap_max=args.max_sigma_gap_max,
         min_substep_sigma=args.min_substep_sigma,
     )
     model_logger = ModelLogger(

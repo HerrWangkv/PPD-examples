@@ -1,7 +1,13 @@
 {
-  "version": 1,
+  "version": 2,
   "generated": "2026-04-23",
-  "grounding": ["gap_matrix.md G1/G2/G4/G5", "v5 evaluation (see project_truth)"],
+  "rescored": "2026-04-24 after v5 step-1000 validation (final DINO 0.656 vs v4's 0.62; mid-σ explosion unchanged)",
+  "grounding": ["gap_matrix.md G1/G2/G4/G5", "v5 step-1000 failure (see project_truth)"],
+  "v5_diagnosis_informing_scores": [
+    "mid-σ (0.4–0.7) drift explosion survived both v4's gap clamp AND v5's randomized K-step substeps → failure mode is dynamical, not training-granularity-related",
+    "v5 realized σ_gap never reached its 0.3 ceiling (max 0.16) because timestep-grid spacing near σ≈0.7 is the binding constraint → v5's 'coarse-drift' mechanism didn't actually fire",
+    "inference mid-σ inputs come from accumulated 20+ Euler steps from σ=1, NOT from any v5-style local rollout segment → fixing starting distribution (full σ=1 rollout) is the one lever not yet tried"
+  ],
   "ideas": [
     {
       "id": "v6a-full-rollout-repa",
@@ -14,7 +20,9 @@
         {"version": "v5", "limitation": "bounded-window rollout leaves mid-σ (0.4–0.7) inference regime unseen by training"}
       ],
       "cost": "rollout ≈ 10–20 model calls per sample (vs v5's 1–15); REPA adds one DINO forward on z0 (cheap, no grad) + one linear projection loss. No VAE decode in hot loop.",
-      "risk": "Full rollout is ~10× more compute per step than v5. May need post-training / few-step distilled backbone like Self-Forcing to be tractable."
+      "risk": "Full rollout is ~10× more compute per step than v5. May need post-training / few-step distilled backbone like Self-Forcing to be tractable.",
+      "scores": {"novelty": 5, "feasibility": 2, "impact": 5, "total": 12},
+      "verdict": "Highest impact. Directly addresses v5's failure mode — the one mechanism not yet tried (full σ=1 → σ_target rollout instead of bounded segment from z_t* seed). REPA alignment is insurance for the inner-layer drift. Feasibility is the bottleneck: ~10× v5 compute. Natural candidate for post-training (combines with v6e)."
     },
     {
       "id": "v6b-non-vacuous-ldino",
@@ -25,7 +33,9 @@
         {"version": "v5", "limitation": "no direct DINO supervision; the only DINO signal is embedded in z_t* seed which is detached from gradients"}
       ],
       "cost": "VAE decode + DINO forward per step with gradients = ~2–3× v5 compute per step.",
-      "risk": "VAE decode gradient flow is expensive and unstable at low σ. 1/σ_target amplification in the rectified target could still dominate the L_flow component."
+      "risk": "VAE decode gradient flow is expensive and unstable at low σ. 1/σ_target amplification in the rectified target could still dominate the L_flow component.",
+      "scores": {"novelty": 3, "feasibility": 4, "impact": 3, "total": 10},
+      "verdict": "Cheap retry of v2. But v5 diagnosis weakens it: v5's σ_target median 0.62 is NOT the mid-σ (0.4–0.7) failure band — it's adjacent but the failure inputs at inference come from a σ=1 start, not from rolling σ=0.7→0.6. L_dino on z_target would push x0_hat→z0 at a regime that's not the actual failure. Sensible as a cheap null-result sanity check, not as the main bet."
     },
     {
       "id": "v6c-pca-dino",
@@ -36,7 +46,9 @@
         {"version": "v1–v5", "limitation": "all use raw CLS+patch cosine; no frequency/subspace filtering of DINO signal — may over-penalize stylistic drift the target domain allows"}
       ],
       "cost": "one-time PCA fit on sim features (~1h on a GPU). Zero added cost per training step.",
-      "risk": "Lower K throws away structure; higher K keeps noise. Need ablation on K. May matter little if DinoPD mostly fails on structure not style."
+      "risk": "Lower K throws away structure; higher K keeps noise. Need ablation on K. May matter little if DinoPD mostly fails on structure not style.",
+      "scores": {"novelty": 3, "feasibility": 5, "impact": 2, "total": 10},
+      "verdict": "Cheapest. But v5's failure is dynamical (DINO distance grows monotonically σ=0.85→0.17 during inference), not a measurement artifact — projecting features onto low-rank subspace might shift the validation number ~0.05 but won't flatten the mid-σ hump. Measurement tweak, not mechanism fix. Useful as an orthogonal ablation if the main v6 direction works."
     },
     {
       "id": "v6d-learned-phase",
@@ -47,7 +59,9 @@
         {"version": "v1–v5", "limitation": "DinoPD throws away the structural inductive bias of phase preservation — learns from scratch, slow convergence"}
       ],
       "cost": "same as v5 + radius sampler (lightweight). Reuses ϕ-PD machinery entirely.",
-      "risk": "REINFORCE variance on a scalar hyperparameter may not justify the complexity vs ϕ-PD's grid search."
+      "risk": "REINFORCE variance on a scalar hyperparameter may not justify the complexity vs ϕ-PD's grid search.",
+      "scores": {"novelty": 4, "feasibility": 3, "impact": 3, "total": 10},
+      "verdict": "Pivot idea — concedes that pure-learned structure preservation is hard, reintroduces ϕ-PD's inductive bias with a learnable knob. If v1–v5 thesis is failing, this is the 'graceful retreat' paper that still moves beyond ϕ-PD. But it reframes the contribution from 'learned replaces hand-designed' to 'learned refines hand-designed' — weaker story."
     },
     {
       "id": "v6e-post-training-self-forcing",
@@ -59,7 +73,9 @@
         {"version": "v1–v5", "limitation": "trains from scratch at 50-step FLUX scale — sim2real video inference is economically unattractive"}
       ],
       "cost": "requires a distilled backbone as starting point (either off-the-shelf InstaFlow or one-time distillation step). Post-training itself is ~500 steps.",
-      "risk": "distilled few-step model may have too narrow a conditional distribution to learn structure preservation from."
+      "risk": "distilled few-step model may have too narrow a conditional distribution to learn structure preservation from.",
+      "scores": {"novelty": 4, "feasibility": 2, "impact": 4, "total": 10},
+      "verdict": "Orthogonal to v5's failure mode — doesn't fix mid-σ drift, but makes full-rollout (v6a) tractable. Best as enabling infrastructure for v6a, not standalone. Ecosystem dependency (distilled FLUX) is a hard prerequisite. Addresses the sim2real video economic story."
     }
   ]
 }

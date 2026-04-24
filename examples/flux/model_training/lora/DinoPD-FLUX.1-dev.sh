@@ -5,19 +5,16 @@ accelerate launch --multi_gpu --num_processes 8 examples/flux/model_training/tra
   --learning_rate 5e-5 \
   --num_epochs 1 \
   --remove_prefix_in_ckpt "pipe.dit." \
-  --output_path "./models/train/FLUX.1-dev_lora_dino_pd_v5" \
+  --output_path "./models/train/FLUX.1-dev_lora_dino_pd_v6" \
   --lora_base_model "dit" \
   --lora_target_modules "a_to_qkv,b_to_qkv,ff_a.0,ff_a.2,ff_b.0,ff_b.2,a_to_out,b_to_out,proj_out,norm.linear,norm1_a.linear,norm1_b.linear,to_qkv_mlp" \
   --lora_rank 32 \
   --align_to_opensource_format \
-  --save_steps 1000 \
+  --save_steps 100 \
   --use_gradient_checkpointing \
   --dino_model_name "dinov2_vitl14_reg" \
   --dino_opt_steps 300 \
-  --max_sigma_gap_min 0.05 \
-  --max_sigma_gap_max 0.3 \
-  --rollout_steps_min 1 \
+  --rollout_steps_min 5 \
   --rollout_steps_max 15 \
   --sigma_target_min 0.1 \
-  --min_substep_sigma 0.02 \
   --lora_checkpoint "./models/train/FLUX.1-dev_lora_dino_pd_v4/step-1000.safetensors"

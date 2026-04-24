@@ -87,12 +87,11 @@ def latent_to_dino(
 
 def dino_distance(feat_a: dict, feat_b: dict) -> torch.Tensor:
     """
-    Symmetric cosine distance: 0.5 * (1 - cos_cls) + 0.5 * (1 - mean_patch_cos).
-    Range [0, 1]; 0 = identical, 1 = orthogonal.
+    Cosine distance over DINOv2 x_norm_patchtokens (CLS dropped).
+    VGGT consumes only x_norm_patchtokens, so the training signal is aligned with
+    the downstream consumer. Range [0, 1]; 0 = identical, 1 = orthogonal.
     """
-    cls_dist   = 1.0 - F.cosine_similarity(feat_a["cls"],     feat_b["cls"],     dim=-1).mean()
-    patch_dist = 1.0 - F.cosine_similarity(feat_a["patches"], feat_b["patches"], dim=-1).mean()
-    return 0.5 * cls_dist + 0.5 * patch_dist
+    return 1.0 - F.cosine_similarity(feat_a["patches"], feat_b["patches"], dim=-1).mean()
 
 
 def find_dino_preserving_noise(
