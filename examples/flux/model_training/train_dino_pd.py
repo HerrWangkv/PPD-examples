@@ -40,6 +40,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         rollout_steps_min=5,
         rollout_steps_max=15,
         sigma_target_min=0.1,
+        sigma_sampling="id_uniform",  # v7b: "sigma_uniform" samples uniform in sigma-space (inverse-CDF) to fix shift=3 skew
         **kwargs,  # swallow deprecated v5 args: max_sigma_gap_min/max, min_substep_sigma
     ):
         super().__init__()
@@ -62,8 +63,10 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.rollout_steps_min = int(rollout_steps_min)
         self.rollout_steps_max = int(rollout_steps_max)
         self.sigma_target_min = float(sigma_target_min)
+        self.sigma_sampling = str(sigma_sampling)
         assert self.rollout_steps_max >= self.rollout_steps_min >= 1
         assert 0.0 <= self.sigma_target_min < 1.0
+        assert self.sigma_sampling in ("id_uniform", "sigma_uniform")
 
         for k in ["max_sigma_gap_min", "max_sigma_gap_max", "min_substep_sigma"]:
             if k in kwargs:
@@ -149,8 +152,18 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         valid_upper = N - 1
         while valid_upper > 0 and sigmas[valid_upper].item() < self.sigma_target_min:
             valid_upper -= 1
-        
-        timestep_id_target = torch.randint(1, valid_upper + 1, (1,)).item()
+
+        if self.sigma_sampling == "sigma_uniform":
+            # v7b: sample sigma_target uniform in sigma-space, then snap to nearest id.
+            # Counters FLUX shift=3 right-skew of id-uniform sampling (25% of samples in [0.9,1.0],
+            # only 4% in [0.1,0.2]). Cap upper at sigmas[1] to keep id_target>=1.
+            sigma_lo = float(self.sigma_target_min)
+            sigma_hi = float(sigmas[1].item())
+            sampled_sigma = float(np.random.uniform(sigma_lo, sigma_hi))
+            valid_sigmas = sigmas[1:valid_upper + 1]
+            timestep_id_target = int(torch.argmin(torch.abs(valid_sigmas - sampled_sigma)).item()) + 1
+        else:
+            timestep_id_target = torch.randint(1, valid_upper + 1, (1,)).item()
         
         # Sample K steps for the detached rollout
         K = int(np.random.randint(self.rollout_steps_min, self.rollout_steps_max + 1))
@@ -466,6 +479,9 @@ if __name__ == "__main__":
                         help="Upper bound for per-step sampled rollout_steps ~ randint(min, max+1). Default 15 for v6.")
     parser.add_argument("--sigma_target_min", type=float, default=0.1,
                         help="Floor on sigma_target to avoid 1/sigma blow-up of the rectified v-target when drift is amplified at small sigma.")
+    parser.add_argument("--sigma_sampling", type=str, default="id_uniform",
+                        choices=["id_uniform", "sigma_uniform"],
+                        help="v7b: 'sigma_uniform' samples sigma_target uniformly in sigma-space (inverse-CDF over the timestep grid) to counter FLUX shift=3 right-skew. Default 'id_uniform' matches v6/v7a.")
     
     # Deprecated v5 arguments (ignored in v6)
     parser.add_argument("--max_sigma_gap_min", type=float, default=0.0, help="[v6 ignored]")
@@ -518,6 +534,7 @@ if __name__ == "__main__":
         rollout_steps_min=args.rollout_steps_min,
         rollout_steps_max=args.rollout_steps_max,
         sigma_target_min=args.sigma_target_min,
+        sigma_sampling=args.sigma_sampling,
         # Pass deprecated args to trigger warning
         max_sigma_gap_min=args.max_sigma_gap_min,
         max_sigma_gap_max=args.max_sigma_gap_max,

@@ -58,6 +58,17 @@ DinoPD — Learned structure-preserving diffusion via DINOv2 features. Replaces 
     - cfg=1→2 alone adds +0.123 to DINO distance (CFG is the larger structure-destroying term)
     - Both together (A4) adds +0.034 — **negative interaction**: embed=3.5 partially compensates for cfg=2's damage. embed=3.5 fixes DiT's conditioning to high-confidence state; CFG's v_uncond subtraction is less destabilizing there.
 
+  - **v7-α result (failure mode = blurry-but-structure-preserving, 2026-04-24)**: val/dino_final 0.464 (step 100) → 0.460 (step 300) → **0.429 (step 1000)** — DINO monotonically improves, but visual output progressively blurs. Step 30 (σ=0.66) latent decode is sharp/structured; steps 40 (σ=0.41) and 49 (σ=0.009) progressively smooth detail away. Reproduces A1's "low DINO + blurry" pathology at fewer training steps. embed=3.5 in training did NOT solve A1's blur — the `embed-mismatch` branch of the 2×2 was a misdiagnosis of the blur root cause.
+
+  - **Real root cause of blur (diagnosed 2026-04-24): sigma sampling skew × 1/σ amplification**.
+    - `timestep_id_target ~ Uniform(1, valid_upper)` is uniform in id-space. FLUX shift=3 maps this to a heavily right-skewed σ distribution: per-sample buckets are 25.9% in [0.9,1.0], 32.4% in [0.7,0.9), 26.5% in [0.4,0.7), 10.9% in [0.2,0.4), **only 4.3% in [0.1,0.2)**.
+    - Rectified target `(z_target - z0)/σ_target` has gain `1/σ_target`; MSE contribution `1/σ_target²`. At σ=0.1 a sample contributes 100× the gradient mass of a σ=1 sample.
+    - The 4% of low-σ samples thus dominate the total loss (training-loss spikes to 14 are these). Their gradient direction is "drag z toward z0". z0 is a smooth low-freq VAE-decoded image and DINO patch loss further biases low-freq → at σ=0.1 (latent already mostly clean) this means "smooth high-freq detail toward z0" = blur. Mid/high-σ majority samples train trivial-denoising, not detail preservation.
+    - Net: LoRA learns aggressive low-σ pull-to-z0 from a small number of huge-gradient samples. Structure (low-freq) preserved; detail (high-freq) erased.
+
+  - **v7-b plan (2026-04-24, code landed, not yet launched)**: change `--sigma_sampling` from default `id_uniform` → `sigma_uniform`. Inverse-CDF: `σ ~ Uniform(0.1, sigmas[1]≈1.0)`, snap to nearest timestep_id. Realized distribution: ~11% per 0.1-band → low-σ [0.1,0.4] now gets 33.7% of samples (was 15.2%). Single CLI flag added (`--sigma_sampling`) defaulting to `id_uniform` for backwards compat. Launcher (`DinoPD-FLUX.1-dev.sh`) updated to `output=v7b`, `--sigma_sampling sigma_uniform`, warm-start from `v7a/step-200.safetensors`.
+    - Pure (A) intervention: does NOT touch the 1/σ² gradient-mass imbalance. If v7b alone clears the blur, the bottleneck was sample count. If still blurry, add (B) loss reweighting by σ² in v7c.
+
   - **Theoretical constraint on "simple" CFG training fixes**: A naive proposal was to train both v_posi and v_uncond branches with DinoPD objective via prompt dropout (so both push toward z0). **This does NOT guarantee v_cfg = 2·v_posi − v_uncond preserves DINO.** Three reasons:
     1. DINO-preservation at z_t is not a linear subspace but a local nonlinear constraint (tangent space of `DINO(decode(·)) ≈ DINO(decode(z0))`). Linear combinations like CFG may push off this manifold.
     2. Prompt effect (v_posi − v_uncond) is NOT orthogonal to the DINO-preservation direction because prompt conditioning alters texture/material via attention, which DINO patch features encode.
