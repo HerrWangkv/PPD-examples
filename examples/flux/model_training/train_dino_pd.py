@@ -95,7 +95,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
             "height":      data["image"].size[1],
             "width":       data["image"].size[0],
             "cfg_scale":   1,
-            "embedded_guidance": 3.5,  # v7-α: match FLUX-dev inference default (was 1 in v1-v6 — source of embed train/infer mismatch)
+            "embedded_guidance": 1,  # v7-c: revert to v6 setup. v7-α/b's embed=3.5 trained the LoRA to cancel embed_g's detail contribution → blur. Inference uses embed=3.5; the structural mismatch is accepted as the smaller cost.
             "t5_sequence_length": 512,
             "tiled":       False,
             "rand_device": self.pipe.device,
