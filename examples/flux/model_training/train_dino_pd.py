@@ -41,6 +41,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         rollout_steps_max=15,
         sigma_target_min=0.1,
         sigma_sampling="id_uniform",  # v7b: "sigma_uniform" samples uniform in sigma-space (inverse-CDF) to fix shift=3 skew
+        dino_loss_layers=None,  # v8: list of 0-indexed ViT block indices, e.g. [4,11,23]; None = final-layer only (v7c behavior)
         **kwargs,  # swallow deprecated v5 args: max_sigma_gap_min/max, min_substep_sigma
     ):
         super().__init__()
@@ -64,6 +65,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
         self.rollout_steps_max = int(rollout_steps_max)
         self.sigma_target_min = float(sigma_target_min)
         self.sigma_sampling = str(sigma_sampling)
+        self.dino_loss_layers = list(dino_loss_layers) if dino_loss_layers else None
         assert self.rollout_steps_max >= self.rollout_steps_min >= 1
         assert 0.0 <= self.sigma_target_min < 1.0
         assert self.sigma_sampling in ("id_uniform", "sigma_uniform")
@@ -181,6 +183,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                 vae_decoder=self.pipe.vae_decoder,
                 dino=self._dino,
                 n_steps=self.dino_opt_steps,
+                loss_layers=self.dino_loss_layers,
             )
 
         z1_star = z1_star.detach()
@@ -300,6 +303,7 @@ class DinoPDTrainingModule(DiffusionTrainingModule):
                     z0=z0_f32, t=1.0,
                     vae_decoder=self.pipe.vae_decoder, dino=self._dino,
                     n_steps=dino_opt_steps if dino_opt_steps is not None else self.dino_opt_steps,
+                    loss_layers=self.dino_loss_layers,
                 )
             noise = z1_star.to(dtype=self.pipe.torch_dtype).contiguous()
 
@@ -479,6 +483,9 @@ if __name__ == "__main__":
                         help="Upper bound for per-step sampled rollout_steps ~ randint(min, max+1). Default 15 for v6.")
     parser.add_argument("--sigma_target_min", type=float, default=0.1,
                         help="Floor on sigma_target to avoid 1/sigma blow-up of the rectified v-target when drift is amplified at small sigma.")
+    parser.add_argument("--dino_loss_layers", type=int, nargs="+", default=None,
+                        help="v8: 0-indexed ViT block indices for multi-layer DINO loss "
+                             "(e.g. --dino_loss_layers 4 11 23). Default None = final-layer only (v7c).")
     parser.add_argument("--sigma_sampling", type=str, default="id_uniform",
                         choices=["id_uniform", "sigma_uniform"],
                         help="v7b: 'sigma_uniform' samples sigma_target uniformly in sigma-space (inverse-CDF over the timestep grid) to counter FLUX shift=3 right-skew. Default 'id_uniform' matches v6/v7a.")
@@ -535,6 +542,7 @@ if __name__ == "__main__":
         rollout_steps_max=args.rollout_steps_max,
         sigma_target_min=args.sigma_target_min,
         sigma_sampling=args.sigma_sampling,
+        dino_loss_layers=args.dino_loss_layers,
         # Pass deprecated args to trigger warning
         max_sigma_gap_min=args.max_sigma_gap_min,
         max_sigma_gap_max=args.max_sigma_gap_max,

@@ -85,6 +85,33 @@ def latent_to_dino(
     }
 
 
+def latent_to_dino_multilayer(
+    vae_decoder: torch.nn.Module,
+    dino: torch.nn.Module,
+    z: torch.Tensor,
+    layer_indices: list[int],          # 0-indexed ViT block indices, e.g. [4, 11, 23]
+    max_dino_size: int = 518,
+) -> list[torch.Tensor]:
+    """Return patch features at each requested ViT block depth.
+
+    Earlier blocks are spatially more local (less attention mixing) — useful
+    when we want a DINO loss that doesn't trivially permit spatial scrambling.
+    """
+    vae_dtype = next(vae_decoder.parameters()).dtype
+    decoded = vae_decoder(z.to(vae_dtype), tiled=False).float()
+    img = (decoded + 1.0) / 2.0
+    img = img.clamp(0.0, 1.0)
+    raw_size = min(img.shape[-2], img.shape[-1], max_dino_size)
+    dino_size = dino.patch_size * (raw_size // dino.patch_size)
+    img = F.interpolate(img, size=(dino_size, dino_size), mode="bilinear", align_corners=False)
+
+    with torch.autocast("cuda", dtype=torch.bfloat16):
+        feats = dino.get_intermediate_layers(
+            img, n=layer_indices, return_class_token=False, norm=True
+        )
+    return [f.float() for f in feats]                  # each: (N, num_patches, 1024)
+
+
 def dino_distance(feat_a: dict, feat_b: dict) -> torch.Tensor:
     """
     Cosine distance over DINOv2 x_norm_patchtokens (CLS dropped).
@@ -101,6 +128,8 @@ def find_dino_preserving_noise(
     dino: torch.nn.Module,          # DINOv2 on the correct device
     n_steps: int = 300,
     z1: Optional[torch.Tensor] = None,  # noise endpoint initialization; sampled N(0,1) if None
+    loss_layers: Optional[list[int]] = None,  # if set, sum cosine-distance over these ViT blocks
+                                              # (0-indexed). None = original behavior (final-layer).
 ) -> torch.Tensor:
     """
     Find z_t* = argmin_{z_t} dino_distance(z_t, z0) s.t. z_t initialized on the flow path.
@@ -133,8 +162,14 @@ def find_dino_preserving_noise(
 
     # Compute DINOv2 target features once (no grad needed)
     with torch.no_grad():
-        target = latent_to_dino(vae_decoder, dino, z0)
-        target = {k: v.detach() for k, v in target.items()}
+        if loss_layers is None:
+            target = latent_to_dino(vae_decoder, dino, z0)
+            target = {k: v.detach() for k, v in target.items()}
+            target_layers = None
+        else:
+            target_layers = [
+                f.detach() for f in latent_to_dino_multilayer(vae_decoder, dino, z0, loss_layers)
+            ]
 
     # Initialise noise endpoint
     if z1 is None:
@@ -148,12 +183,26 @@ def find_dino_preserving_noise(
     final_dist = 0.0
     for step in range(n_steps):
         optimizer.zero_grad()
-        feats = latent_to_dino(vae_decoder, dino, z_t)
-        loss  = dino_distance(feats, target)
+        if loss_layers is None:
+            feats = latent_to_dino(vae_decoder, dino, z_t)
+            loss  = dino_distance(feats, target)
+        else:
+            feats = latent_to_dino_multilayer(vae_decoder, dino, z_t, loss_layers)
+            # Sum of (1 - cosine_sim) per layer, mean over patches
+            loss = sum(
+                (1.0 - F.cosine_similarity(f, t_, dim=-1).mean())
+                for f, t_ in zip(feats, target_layers)
+            ) / len(loss_layers)
         loss.backward()
         optimizer.step()
         if (step + 1) % 50 == 0:
-            print(f"  DINO opt step {step + 1}/{n_steps}  loss={loss.item():.4f}")
+            with torch.no_grad():
+                z1_cur = (z_t.detach() - (1.0 - t) * z0) / t
+                print(
+                    f"  DINO opt step {step + 1}/{n_steps}  loss={loss.item():.4f}  "
+                    f"z_t std={z_t.detach().std().item():.4f}  "
+                    f"z1* std={z1_cur.std().item():.4f}  mean={z1_cur.mean().item():+.4f}"
+                )
         final_dist = loss.item()
 
     # Restore VAE grad state

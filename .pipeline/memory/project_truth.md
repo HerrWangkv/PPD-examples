@@ -66,8 +66,112 @@ DinoPD — Learned structure-preserving diffusion via DINOv2 features. Replaces 
     - The 4% of low-σ samples thus dominate the total loss (training-loss spikes to 14 are these). Their gradient direction is "drag z toward z0". z0 is a smooth low-freq VAE-decoded image and DINO patch loss further biases low-freq → at σ=0.1 (latent already mostly clean) this means "smooth high-freq detail toward z0" = blur. Mid/high-σ majority samples train trivial-denoising, not detail preservation.
     - Net: LoRA learns aggressive low-σ pull-to-z0 from a small number of huge-gradient samples. Structure (low-freq) preserved; detail (high-freq) erased.
 
-  - **v7-b plan (2026-04-24, code landed, not yet launched)**: change `--sigma_sampling` from default `id_uniform` → `sigma_uniform`. Inverse-CDF: `σ ~ Uniform(0.1, sigmas[1]≈1.0)`, snap to nearest timestep_id. Realized distribution: ~11% per 0.1-band → low-σ [0.1,0.4] now gets 33.7% of samples (was 15.2%). Single CLI flag added (`--sigma_sampling`) defaulting to `id_uniform` for backwards compat. Launcher (`DinoPD-FLUX.1-dev.sh`) updated to `output=v7b`, `--sigma_sampling sigma_uniform`, warm-start from `v7a/step-200.safetensors`.
-    - Pure (A) intervention: does NOT touch the 1/σ² gradient-mass imbalance. If v7b alone clears the blur, the bottleneck was sample count. If still blurry, add (B) loss reweighting by σ² in v7c.
+  - **v7-b (sigma_uniform sampling, embed=3.5 in training, warm-start v7a/step-200)** — *blur unchanged, falsifies "sample count was the bottleneck"*.
+    - `--sigma_sampling sigma_uniform`: inverse-CDF `σ ~ Uniform(0.1, sigmas[1]≈1.0)`, snap to nearest timestep_id. Realized distribution: ~11% per 0.1-band → low-σ [0.1,0.4] now 33.7% of samples (was 15.2%). Single CLI flag added (`--sigma_sampling`) defaulting to `id_uniform` for backwards compat.
+    - **TB metrics (1179 steps, run 20260424_220006)**: `rollout/sigma_target` median ~0.5–0.7, `rollout/sigma_gap` ~0.4 (sampling working). Loss noisy 2.8–8 with no downward trend.
+    - **Validation (test1, cfg=1, embed=3.5)**: val/dino_final 0.616 (s100) → 0.482 (s600) → **0.446 (s900)** → 0.514 (s1100, regress). val/cls_final dropped to 0.265 at s900. **val/dino_peak_step shifted from 45–47 (v4/v5/v6) to 49 (last step)** — failure now localized to the final 5–10 low-σ steps.
+    - **Visual (s900)**: σ=0.66 (step 30) sharp+structured, σ=0.41 (step 40) structure+detail intact, **σ=0.009 (step 49 / output_final.png) heavy blur emerges in the last few steps**. Best v7b ckpt: step-900.
+    - **Read**: sigma_uniform's rebalanced sample count made the blur **worse, not better** — the additional low-σ samples each carry 1/σ² gradient mass and aggregate pressure now even more dominant than v6. Pure intervention (A) was insufficient AND counterproductive on its own.
+
+  - **Refined blur diagnosis (post-v7b)**: rectified MSE target `v_pred = (z_target − z0)/σ_target` **fully specifies the velocity** at supervised timesteps. The LoRA has zero degrees of freedom left to allow embed_g's prompt-aligned amplification to flow through — whatever embed_g contributes at training time, the LoRA learns to subtract to hit the target. Three regimes, all bad:
+    - train=1, infer=1 (A1): structure ✓, blur ✗ — no embed_g detail at all
+    - train=1, infer=3.5 (v6@A4): embed_g adds detail ✓, structure drifts (+0.024) ✗
+    - train=3.5, infer=3.5 (v7-α/b): structure ✓, LoRA cancels embed_g detail ✗ → blur
+
+  - **v7-c (sigma_uniform + train embed=1, warm-start v6/step-300, 2026-04-25 → 04-26)** — *blur resolved, structural fidelity sacrificed.*
+    - Setup: `embedded_guidance` 3.5 → 1 in `train_dino_pd.py:98` (revert to v6 setup); `--sigma_sampling sigma_uniform` kept; warm-start `models/train/FLUX.1-dev_lora_dino_pd_v6/step-300.safetensors`; output `FLUX.1-dev_lora_dino_pd_v7c`.
+    - **TB metrics (2591 steps, run 20260425_085128)**: loss median flat 4.3–4.8 across all bins (no downward trend, same plateau as v7-α/b). val/dino_final wobbles 0.46–0.58, val/cls_final 0.24–0.62, **val/dino_peak_step shifted back to 44–49** (mid-trajectory) — the "blur generated in last 5 steps" pathology of v7-b is gone.
+    - **Visual (test1, cfg=1, embed=3.5)**: outputs are sharp, photorealistic across all checkpoints. Skin/hair/fabric/stone all crisp. Embed-cancellation hypothesis confirmed: training at embed=1 lets FLUX-base's distilled-guidance contribution flow through unmolested at inference embed=3.5.
+    - **Best ckpt: step-600** (dino_final 0.458, cls_final 0.238, most input-faithful background). Higher steps drift further from warm-start basin as training continues on non-sim2real `bghira/photo-concept-bucket` data.
+    - **DINO numbers are now noisy and non-monotonic** → checkpoint selection is visual, not metric-driven. Loss plateau at 4.5 mirrors v7-α/b regardless of embed/sampling settings — rectified-flow MSE has hit its noise floor.
+    - **v7-d (σ²-reweighting) cancelled**: the blur was embed=3.5-cancellation, NOT 1/σ² gradient mass amplification. The σ²-reweight hypothesis is falsified by v7c.
+
+  - **DINO trajectory comparison vs PPD/WPD/Gaussian (2026-04-26, `outputs/dino_traj_compare/`)** — *the linearity diagnosis is empirically validated and DinoPD is dominated by linear-invariant baselines on its own metric.*
+
+    Setup: same input (`models/ppd/test1.jpg`), same prompt (`models/ppd/test1.txt`), same seed (42), same scheduler (50 steps), patch-only DINO metric. Each method at its native cfg (PPD/WPD: cfg=2 published; DinoPD: cfg=1 v7c-native), embed=3.5 throughout.
+
+    | Method | LoRA | step 0 | final | shape |
+    |---|---|---|---|---|
+    | Gaussian (cfg=2) | none | 0.793 | 0.788 | flat ~0.79 — no structure preservation |
+    | **PPD r=20 (cfg=2)** | `models/ppd/flux1-dev_phipd_lora_302000.safetensors` | 0.732 | **0.388** | **monotone descent** |
+    | **WPD r=20 (cfg=2)** | `models/train/FLUX.1-dev_lora_wpd/step-20000.safetensors` | 0.674 | **0.360** | **monotone descent** |
+    | DinoPD v7c step-600 (cfg=1) | `FLUX.1-dev_lora_dino_pd_v7c/step-600.safetensors` | **0.037** | 0.521 | **monotone ascent** |
+
+    **Trajectory shapes (smoking gun)**:
+    - **PPD/WPD start moderately mismatched (≈0.7) and monotonically descend toward z0** — exactly the behavior we want, despite *neither method ever being trained on DINO*.
+    - **DinoPD starts at the DINO-optimal z1\* (0.037) and monotonically ascends away from it** — the LoRA's nonlinear constraint is enforced exactly only at the optimization point and falls apart under composition with subsequent denoising steps.
+    - Gaussian is flat at ~0.79 — confirms ~0.8 is the no-structure-preservation reference.
+
+    **Validates the linearity argument**: a structure constraint that composes cleanly with CFG / embed_g / flow-matching automatically enforces convergence on any downstream feature correlated with the linear invariant (DINO clearly is). DinoPD's nonlinear constraint cannot.
+
+    **Visuals**: PPD r=20 and WPD r=20 outputs preserve Lara's pose, top, belt, gloves, and cave geometry, with FLUX-quality detail added. DinoPD output is a completely different woman in a different room — high visual quality, zero structural fidelity. Low step-0 DINO score is a red herring; the trajectory throws away every gain.
+
+    **Caveat**: DinoPD ran at cfg=1 (favorable v7c regime). At cfg=2 (matching PPD/WPD), expected DinoPD final DINO ≈ 0.65 (+0.12 from 2×2 ablation). Gap would widen, not close.
+
+    **Wrong-LoRA pitfall noted**: initial run used `flux1-dev_lora_color_step=266000_biased.safetensors` for both PPD and WPD modes — that's the published PPD LoRA, not WPD. Real WPD requires the WPD-trained LoRA (`FLUX.1-dev_lora_wpd/step-20000.safetensors`). Default in `validate_dino_trajectory.py` now correctly routes per noise mode.
+
+    **Implication for paper direction**: DinoPD as currently formulated cannot beat WPD on DINO distance — the paper story "we use DINO supervision to get better structure preservation" is empirically false. Two viable rescue directions remain: (a) **tangent-space supervision** of DINO loss (project to locally-DINO-preserving tangent of `decode(z)` so embed_g/CFG/prompt detail flows through the orthogonal complement); (b) **hybrid** — use WPD wavelet noise as the enforced invariant, add a low-weight DINO reward as tie-breaker on `x0_hat`.
+
+  - **Multi-layer DINO noise opt + z1\* variance audit (2026-04-27, `outputs/dino_std_check/`)** — *clean inference-time experiment, no training. Tests whether richer DINO loss (more ViT blocks) gives stronger noise structure, and whether Adam-on-z_t blows up the variance prior FLUX expects.*
+
+    Setup: `validate_dino_trajectory.py` extended with `--dino_loss_layers` flag; `find_dino_preserving_noise` extended with `loss_layers` param that averages `(1 - cos)` across multiple ViT block depths via `dino.get_intermediate_layers()`. Patch tokens only, same spatial position alignment, equal-weighted layer sum. All runs: 300 Adam steps, lr=1e-2, 50-step denoising, cfg=1 (v7c-native), `models/ppd/test1.jpg`, seed=0.
+
+    **z1\* statistics (variance is NOT the bug)**:
+
+    | Mode | mean | std (overall) | std (per-channel) | z_t std drift over 300 steps |
+    |---|---|---|---|---|
+    | gaussian | -0.003 | **0.999** | 0.999 | — |
+    | ppd r=20 | +0.000 | 0.974 | 0.974 | — |
+    | wpd r=20 | -0.002 | 0.955 | 0.955 | — |
+    | dino baseline (final layer) | -0.000 | **1.024** | 1.024 | 1.011 → 1.022 → 1.024 (slow up-drift) |
+    | dino layer-4 only | -0.039 | 0.953 | **0.912** ⚠ | 0.975 → 0.960 → 0.953 (down-drift) |
+    | dino [4,11,23] mix | -0.019 | 0.975 | 0.969 | 0.999 → 0.988 → 0.975 (mild down) |
+
+    All modes within 5% of N(0,1) — **no catastrophic variance blowup. Std penalty / renormalization is unnecessary.** The earlier hypothesis "Adam-on-z_t with no prior could push z1\* far from N(0,1)" is falsified for 300 Adam steps at lr=1e-2 on this image.
+
+    **One real concern surfaced**: `dino_layer4` shows per-channel std 0.912 vs aggregate 0.953 → some FLUX latent channels get pushed harder than others. FLUX's 16 latent channels carry asymmetric semantic content; DiT's normalization expects channel-isotropic noise. Layer-4-only's channel anisotropy is the most plausible reason it underperforms multi-layer. Multi-layer [4,11,23] keeps per-channel std nearly aggregate (0.969 vs 0.975) — better behaved.
+
+    **Final DINO trajectory comparison (50 denoising steps)**:
+
+    | Mode | step 0 | final | max @ step | shape |
+    |---|---|---|---|---|
+    | gaussian (cfg=1) | 0.799 | 0.780 | 0.827 @ 19 | flat, no preservation |
+    | **PPD r=20 (cfg=1)** | 0.718 | **0.405** | 0.718 @ 0 | **monotone descent** ✓ |
+    | **WPD r=20 (cfg=1)** | 0.673 | **0.375** | 0.673 @ 2 | **monotone descent** ✓ |
+    | DinoPD baseline | **0.038** | 0.512 | 0.520 @ 47 | monotone ascent ✗ |
+    | DinoPD layer-4 | 0.185 | 0.496 | 0.496 @ 49 | monotone ascent ✗ |
+    | **DinoPD [4,11,23]** | **0.019** | **0.425** | 0.425 @ 49 | monotone ascent, but lowest endpoint among DINO modes |
+
+    **Reads:**
+    - Multi-layer [4,11,23] is the **best DINO variant**: lowest step-0 (0.019, 2× better than baseline 0.037) AND lowest final (0.425, 17% better than baseline 0.512). Adding early-block constraints both shrinks the optimization basin (early ViT layers carry more spatial info, harder to game) and produces less-anisotropic noise.
+    - **Layer-4-only is the worst DINO variant** despite richest spatial signal at step 0 — channel anisotropy + single-layer redundancy lets Adam exploit a narrow direction, hurting downstream LoRA usability.
+    - **Multi-layer DINO still cannot match WPD** (final 0.425 vs WPD 0.375). The trajectory shape (monotone ascent) is unchanged — the failure mode is architectural, not loss-strength. Even the DINO-optimal noise diverges away from z0 once denoising composes embed_g + cfg + per-step velocities.
+    - **Step-0 DINO distance is misleading**: WPD's step-0 is **35× worse** than DinoPD [4,11,23]'s step-0, but WPD's final is 12% **better**. The figure of merit is trajectory endpoint, not initialization quality.
+
+    **Inspiration for v8**: Multi-layer noise is a clean win at the *noise-generation* stage. The current v7c LoRA was trained on baseline (final-layer) z1\*; retraining the LoRA with `--dino_loss_layers 4 11 23` may compound the gain (LoRA learns to decode multi-layer-DINO-preserving noise, not single-layer). But: the trajectory-shape problem (ascent vs descent) is unsolved — multi-layer is unlikely to invert it on its own. Recommend launching v8 only as a confirmation, not as the headline experiment.
+
+    **Files**: `dino_noise.py:88-112` (`latent_to_dino_multilayer`), `dino_noise.py:131-206` (loss_layers branch in `find_dino_preserving_noise`), `validate_dino_trajectory.py:34-66` (`--dino_loss_layers` arg), `std_check.sh` (driver). Per-run logs in `outputs/dino_std_check/{gaussian,ppd_r20,wpd_r20,dino_baseline,dino_layer4,dino_4_11_23}/log.txt`.
+
+  - **v8** (`models/train/FLUX.1-dev_lora_dino_pd_v8/`, launched 2026-04-27) — *retrains v7c LoRA with multi-layer DINO loss [4,11,23] in noise opt*. Same algorithm as v7c (rectified flow rollout, sigma_uniform sampling, embed=1, cfg=1, σ_target_min=0.1, K∈[5,15]); only the `find_dino_preserving_noise` call now uses `loss_layers=[4,11,23]` so z1\* is supervised against three ViT-L/14 block depths simultaneously.
+
+    **Hypothesis**: validate_dino_trajectory's multi-layer experiment showed [4,11,23] gives lowest step-0 (0.019) AND lowest final (0.425) DINO distance among DINO variants — but the LoRA was v7c, trained on baseline (final-layer) z1\*. If v8 LoRA is trained directly on multi-layer-DINO-preserving noise, the gap may close further; or the trajectory shape may invert.
+
+    **Setup**: `--dino_loss_layers 4 11 23`, warm-start `v7c/step-600.safetensors`, all other knobs identical to v7c. Plumbing: `train_dino_pd.py` constructor + CLI flag + both training and validation `find_dino_preserving_noise` calls thread `loss_layers` through.
+
+    **Watchpoints**:
+    - `dino/distance_start` interpretation changes: now reports averaged `(1−cos)` across 3 layers, not single layer. Lower-bounded ~0.02 (vs v7c's 0.04) per std_check baseline.
+    - Loss scale may shift: 3-layer loss has different gradient magnitude. If `loss/max` blows up, may need to scale lr down or revert sigma_uniform.
+    - True success criterion is val DINO trajectory final + visual sharpness on `val/step-N/output_final.png`. If trajectory still monotone-ascends, multi-layer loss is not the lever — confirms architectural-not-loss-strength diagnosis from std_check.
+
+    **Stop conditions**: (a) val/dino_final < 0.40 at any checkpoint (would beat WPD's 0.375 on this image), (b) visual sharpness regression vs v7c at step 600 mark, or (c) flat training loss at v7c-equivalent floor for 1000+ steps with no val improvement.
+
+  - **v7-c plan (2026-04-25) — superseded by v7-c results above. Original plan text retained for context**: accept the smaller evil: structural drift over blur.
+    - **`embedded_guidance` 3.5 → 1** in `train_dino_pd.py:98` (revert to v6 setup).
+    - **Keep** `--sigma_sampling sigma_uniform` from v7b.
+    - **Warm-start**: `models/train/FLUX.1-dev_lora_dino_pd_v6/step-300.safetensors` (v7a/b weights have already absorbed embed=3.5-cancellation; not a usable seed).
+    - **Output path**: `./models/train/FLUX.1-dev_lora_dino_pd_v7c`.
+    - **Hypothesis under test**: sigma_uniform's low-σ supervision rebalance, applied in the v6 (embed=1) velocity field, lets high-freq detail flow through embed_g at inference instead of being cancelled. Trades A2's +0.024 structural drift for sharpness.
+    - **Watchpoints**: val/dino_final landing in v6's ~0.5 range (HIGHER than v7a/b's 0.43–0.45 is the *positive* sign — those low numbers were blurred-toward-z0 artifacts). Visual sharpness on `val/step-N/output_final.png` is the actual success criterion. If still blurry at ~step 500, falsifies embed-cancellation hypothesis and v7d should layer on σ²-reweighting on the rectified-flow MSE.
 
   - **Theoretical constraint on "simple" CFG training fixes**: A naive proposal was to train both v_posi and v_uncond branches with DinoPD objective via prompt dropout (so both push toward z0). **This does NOT guarantee v_cfg = 2·v_posi − v_uncond preserves DINO.** Three reasons:
     1. DINO-preservation at z_t is not a linear subspace but a local nonlinear constraint (tangent space of `DINO(decode(·)) ≈ DINO(decode(z0))`). Linear combinations like CFG may push off this manifold.
