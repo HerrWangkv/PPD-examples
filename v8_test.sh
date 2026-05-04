@@ -1,4 +1,4 @@
-accelerate launch --multi_gpu --num_processes 8 examples/flux/model_training/train_dino_pd.py \
+PYTHONPATH=. accelerate launch --multi_gpu --num_processes 2 examples/flux/model_training/train_dino_pd.py \
   --max_pixels 262144 \
   --dataset_repeat 1 \
   --model_id_with_origin_paths "black-forest-labs/FLUX.1-dev:flux1-dev.safetensors,black-forest-labs/FLUX.1-dev:text_encoder/model.safetensors,black-forest-labs/FLUX.1-dev:text_encoder_2/,black-forest-labs/FLUX.1-dev:ae.safetensors" \

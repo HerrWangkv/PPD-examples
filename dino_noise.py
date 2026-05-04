@@ -126,10 +126,12 @@ def find_dino_preserving_noise(
     t: float,                       # flow timestep in (0, 1]
     vae_decoder: torch.nn.Module,   # DiffSynth FluxVAEDecoder on the correct device
     dino: torch.nn.Module,          # DINOv2 on the correct device
-    n_steps: int = 300,
+    n_steps: int = 150,
     z1: Optional[torch.Tensor] = None,  # noise endpoint initialization; sampled N(0,1) if None
     loss_layers: Optional[list[int]] = None,  # if set, sum cosine-distance over these ViT blocks
                                               # (0-indexed). None = original behavior (final-layer).
+    early_stop_loss: Optional[float] = 0.15,  # stop early if loss <= this; set None to disable
+    early_stop_min_steps: int = 30,           # never stop before this many Adam steps
 ) -> torch.Tensor:
     """
     Find z_t* = argmin_{z_t} dino_distance(z_t, z0) s.t. z_t initialized on the flow path.
@@ -195,15 +197,22 @@ def find_dino_preserving_noise(
             ) / len(loss_layers)
         loss.backward()
         optimizer.step()
+        final_dist = loss.item()
         if (step + 1) % 50 == 0:
             with torch.no_grad():
                 z1_cur = (z_t.detach() - (1.0 - t) * z0) / t
                 print(
-                    f"  DINO opt step {step + 1}/{n_steps}  loss={loss.item():.4f}  "
+                    f"  DINO opt step {step + 1}/{n_steps}  loss={final_dist:.4f}  "
                     f"z_t std={z_t.detach().std().item():.4f}  "
                     f"z1* std={z1_cur.std().item():.4f}  mean={z1_cur.mean().item():+.4f}"
                 )
-        final_dist = loss.item()
+        if (
+            early_stop_loss is not None
+            and step + 1 >= early_stop_min_steps
+            and final_dist <= early_stop_loss
+        ):
+            print(f"  DINO opt early-stop at step {step + 1}/{n_steps}  loss={final_dist:.4f} <= {early_stop_loss}")
+            break
 
     # Restore VAE grad state
     for p, was_grad in zip(vae_decoder.parameters(), vae_was_grad):
