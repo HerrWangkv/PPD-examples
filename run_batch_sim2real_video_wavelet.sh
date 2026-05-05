@@ -2,7 +2,7 @@
 
 # Default Arguments
 INPUT_DATASET="data/nucarla_videos"
-OUTPUT_DIR="outputs/wavelet/flux_30_30_1_wan_30_30_1"
+OUTPUT_DIR="outputs/wavelet/flux_30_wan_30"
 
 # Override if provided
 if [ ! -z "$1" ]; then
@@ -24,13 +24,9 @@ docker run -it --rm --gpus all \
         PYTHONPATH=. python batch_sim2real_video_wavelet.py \
         --input_dataset '$INPUT_DATASET' \
         --output_dir '$OUTPUT_DIR' \
-        --flux_lora models/train/FLUX.1-dev_lora_wpd/step-15000.safetensors \
+        --flux_lora flux.safetensors \
         --flux_cutoff_radius 30 \
-        --flux_maximal_radius 30 \
-        --flux_gamma 1 \
         --wan_low_lora wan_low_wpd.safetensors \
         --wan_high_lora wan_high_wpd.safetensors \
-        --wan_cutoff_radius 30 \
-        --wan_maximal_radius 30 \
-        --wan_gamma 1
+        --wan_cutoff_radius 30
     "
