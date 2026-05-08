@@ -1,0 +1,3 @@
+[submodule "FlowEdit"]
+	path = FlowEdit
+	url = https://github.com/fallenshock/FlowEdit.git
