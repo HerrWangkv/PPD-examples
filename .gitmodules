@@ -1,3 +1,6 @@
 [submodule "FlowEdit"]
 	path = FlowEdit
 	url = https://github.com/fallenshock/FlowEdit.git
+[submodule "surreal"]
+	path = surreal
+	url = https://github.com/gulvarol/surreal.git

@@ -36,6 +36,9 @@ def parse_args():
     parser.add_argument("--width", type=int, default=1024)
     parser.add_argument("--num_inference_steps", type=int, default=50)
     parser.add_argument("--cfg_scale", type=float, default=2.0)
+    parser.add_argument("--negative_prompt", type=str, default=(
+        "ugly, low quality, CG, Render, unreal, game, cartoon, blur, low res"
+    ))
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
 
@@ -101,7 +104,7 @@ def main():
 
                 result = pipe(
                     prompt=args.prompt,
-                    negative_prompt="ugly, low quality, CG, Render, unreal, game, cartoon, blur, low res",
+                    negative_prompt=args.negative_prompt,
                     height=args.height,
                     width=args.width,
                     cfg_scale=args.cfg_scale,
