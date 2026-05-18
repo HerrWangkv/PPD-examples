@@ -4,3 +4,6 @@
 [submodule "surreal"]
 	path = surreal
 	url = https://github.com/gulvarol/surreal.git
+[submodule "ECCV-2026-WPD"]
+	path = ECCV-2026-WPD
+	url = git@github.com:HerrWangkv/ECCV-2026-WPD.git
