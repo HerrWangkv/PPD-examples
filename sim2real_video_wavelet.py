@@ -26,6 +26,7 @@ def parse_args():
     # --- Flux Arguments ---
     parser.add_argument("--flux_lora", type=str, default="models/ppd/flux1-dev_phipd_lora_302000.safetensors")
     parser.add_argument("--flux_cutoff_radius", type=int, default=30, help="Flux: Wavelet noise radius")
+    parser.add_argument("--flux_min_radius", type=int, default=None, help="Flux: DC suppression radius (suppresses sim global illumination). None = standard WPD.")
 
     # --- Wan Arguments ---
     parser.add_argument("--wan_low_lora", type=str, default="models/ppd/wan2.2-14b-low-step-12400.safetensors")
@@ -98,6 +99,7 @@ def run_flux_stage(args, first_frame_pil, device):
         noise = generate_wavelet_structured_noise_batch_vectorized(
             image_batch=input_latents,
             radius_map=args.flux_cutoff_radius,
+            min_radius=args.flux_min_radius,
             noise_std=1.0,
         ).contiguous()
 

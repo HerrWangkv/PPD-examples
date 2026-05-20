@@ -37,10 +37,17 @@ def parse_args():
         help="Output image filename"
     )
     parser.add_argument(
-        "--radius", 
-        type=int, 
-        default=30, 
-        help="Pixel radius for near degradation (heavy noise)")
+        "--radius",
+        type=int,
+        default=30,
+        help="Upper cutoff radius: bands below this frequency are preserved (structure).")
+    parser.add_argument(
+        "--min_radius",
+        type=int,
+        default=None,
+        help="Lower cutoff radius: bands below this frequency are replaced with noise "
+             "(suppresses global illumination from sim). None = standard WPD. Try 5–10."
+    )
     parser.add_argument(
         "--prompt",
         type=str,
@@ -107,6 +114,7 @@ if __name__ == "__main__":
         noise = generate_wavelet_structured_noise_batch_vectorized(
             image_batch=input_latents,
             radius_map=args.radius,
+            min_radius=args.min_radius,
             noise_std=1.0
         )
         

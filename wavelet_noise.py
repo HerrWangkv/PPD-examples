@@ -154,11 +154,16 @@ def ll_fusion_fftshift_global_phase(
     yl_src: torch.Tensor,     # (N,C,H,W) real, global LL phase source (mask-independent)
     yl_nz: torch.Tensor,      # (N,C,H,W) real, noise LL magnitude source
     pad_factor: float = 1.5,
+    dc_suppress_radius: int = 0,
     eps: float = 1e-8,
 ) -> torch.Tensor:
     """
     LL_mix = IFFT( |FFT(yl_nz)| * exp(j * angle(FFT(yl_src))) )
-    with reflect padding + fftshift (same style as your snippet).
+    with reflect padding + fftshift.
+
+    dc_suppress_radius: if > 0, phase within this radius (in LL-pixel units) of DC is taken
+    from noise instead of src. This removes the global illumination bias (mean brightness,
+    large-scale colour cast) while preserving all other coarse structural phase.
     """
     if yl_src.shape != yl_nz.shape:
         raise ValueError(f"LL shapes must match. got src={yl_src.shape}, nz={yl_nz.shape}")
@@ -189,8 +194,21 @@ def ll_fusion_fftshift_global_phase(
     fft_src = torch.fft.fftshift(torch.fft.fft2(yl_src_pad, dim=(-2, -1)), dim=(-2, -1))
     fft_nz  = torch.fft.fftshift(torch.fft.fft2(yl_nz_pad,  dim=(-2, -1)), dim=(-2, -1))
 
-    phi = torch.angle(fft_src)
+    phi_src = torch.angle(fft_src)
+    phi_nz  = torch.angle(fft_nz)
     mag = torch.abs(fft_nz)
+
+    if dc_suppress_radius > 0:
+        # Build a mask: 1 = keep src phase, 0 = use noise phase (DC region)
+        pH, pW = yl_src_pad.shape[-2], yl_src_pad.shape[-1]
+        cy, cx = pH // 2, pW // 2
+        yy = torch.arange(pH, device=yl_src.device).float() - cy
+        xx = torch.arange(pW, device=yl_src.device).float() - cx
+        rr = torch.sqrt(yy[:, None] ** 2 + xx[None, :] ** 2)   # (pH, pW)
+        dc_mask = (rr > dc_suppress_radius).float()             # 0 inside DC radius, 1 outside
+        phi = dc_mask * phi_src + (1.0 - dc_mask) * phi_nz
+    else:
+        phi = phi_src
 
     fft_mix = mag * torch.exp(1j * phi)
     fft_mix = torch.fft.ifftshift(fft_mix, dim=(-2, -1))
@@ -249,14 +267,31 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         LL_img, C_img,
         LL_z, C_z,
         freq_map: torch.Tensor,
+        min_freq_map: Optional[torch.Tensor] = None,
         pad_factor: float = 1.5,
         max_packet_level: int = 4,
         eps: float = 1e-8,
     ):
-        # freq_map: (N, 1, H, W) per-pixel cutoff frequency, normalized by Nyquist.
-        # Higher values = more structure preserved.
+        # freq_map:     (N,1,H,W) upper cutoff (Nyquist-norm). Higher = more structure preserved.
+        # min_freq_map: (N,1,H,W) lower cutoff (Nyquist-norm). Bands BELOW this are not preserved
+        #               (lets the model regenerate global illumination). None = preserve LL as before.
 
-        LL_mix = ll_fusion_fftshift_global_phase(LL_img, LL_z, pad_factor=pad_factor)
+        # LL subband: preserve structural phase but suppress DC (global illumination) region.
+        # dc_suppress_radius is min_radius mapped into LL pixel units (LL is 1/2^J of original).
+        if min_freq_map is not None:
+            # Convert min_freq (Nyquist-normalised) to a radius in LL-pixel space.
+            # LL has shape H/2^J × W/2^J; nyquist of LL = (H/2^J)/2.
+            # dc_suppress_radius in LL pixels = min_freq * nyquist_LL
+            # = min_freq * (H / 2^(J+1))  [use H as reference dimension]
+            LL_H = LL_img.shape[-2]
+            nyquist_LL = LL_H / 2.0
+            dc_r = int(round(min_freq_map.max().item() * nyquist_LL))
+            dc_r = max(dc_r, 0)
+        else:
+            dc_r = 0
+        LL_mix = ll_fusion_fftshift_global_phase(LL_img, LL_z, pad_factor=pad_factor,
+                                                  dc_suppress_radius=dc_r)
+
         J = len(C_img)
         C_mix = []
 
@@ -300,19 +335,21 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         return x_hat, LL_mix, C_mix
 
     def _process_band_recursive(self, c_img, c_nz, f_start, f_end, freq_map, level, max_level, eps):
-        # freq_map: per-pixel cutoff frequency (Nyquist-normalized). Higher = more structure.
-        print(f"Processing level {level} band [{f_start:.4f}, {f_end:.4f}] with freq_map range [{freq_map.min().item():.4f}, {freq_map.max().item():.4f}]", end=".")
-        # 1. All pixels preserve structure in this band
+        # freq_map:     upper cutoff — bands below this are preserved from image.
+        # min_freq_map: lower cutoff — bands below this are replaced with noise (not preserved).
+        print(f"Processing level {level} band [{f_start:.4f}, {f_end:.4f}]", end=".")
+
+        # All pixels preserve structure in this band (below upper cutoff)
         if f_end <= freq_map.min().item() + 1e-9:
             print(" Preserving entire band from image.")
             return fuse_subband_generic(c_img, c_nz, mask=1.0, eps=eps)
 
-        # 2. All pixels use noise in this band
+        # All pixels use noise in this band (above upper cutoff)
         if f_start >= freq_map.max().item() - 1e-9:
             print(" Replacing entire band with noise.")
             return fuse_subband_generic(c_img, c_nz, mask=0.0, eps=eps)
 
-        # 3. Mixed band: per-pixel decision
+        # Mixed band: per-pixel decision
         mid = (f_start + f_end) / 2
         decision_map = (mid <= freq_map).float()
         if level >= max_level:
@@ -332,6 +369,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
 def _generate_wavelet_noise_impl(
     image_batch: torch.Tensor,
     freq_map: torch.Tensor,
+    min_freq_map: Optional[torch.Tensor] = None,
     noise_std: float = 1.0,
     pad_factor: float = 1.5,
     input_noise: Optional[torch.Tensor] = None,
@@ -340,8 +378,11 @@ def _generate_wavelet_noise_impl(
 ) -> torch.Tensor:
     """
     Args:
-        freq_map: (N, 1, H, W) per-pixel cutoff frequency, normalized by Nyquist.
-                  Higher values = more structure preserved.
+        freq_map:     (N,1,H,W) upper cutoff frequency, Nyquist-normalized. Bands below this
+                      are preserved from image_batch (structure).
+        min_freq_map: (N,1,H,W) lower cutoff frequency, Nyquist-normalized. Bands below this
+                      are replaced with noise even if below freq_map (illumination suppression).
+                      None = standard WPD (LL always preserved).
     """
     if image_batch.ndim != 4:
         raise ValueError("Expected image_batch in NCHW format")
@@ -350,6 +391,8 @@ def _generate_wavelet_noise_impl(
     dtype = image_batch.dtype
     image_batch = image_batch.float()
     freq_map = freq_map.to(device).float().clamp(0.0, 1.0)
+    if min_freq_map is not None:
+        min_freq_map = min_freq_map.to(device).float().clamp(0.0, 1.0)
 
     # Prepare Noise
     if input_noise is None:
@@ -374,6 +417,7 @@ def _generate_wavelet_noise_impl(
             LL_img, C_img,
             LL_z, C_z,
             freq_map=freq_map,
+            min_freq_map=min_freq_map,
             pad_factor=pad_factor,
         )
     clamp_mask = x_hat.abs() > 5
@@ -383,6 +427,7 @@ def _generate_wavelet_noise_impl(
 def generate_wavelet_structured_noise_batch_vectorized(
     image_batch: torch.Tensor,
     radius_map: Union[torch.Tensor, int],
+    min_radius: Union[torch.Tensor, int, None] = None,
     input_noise: Optional[torch.Tensor] = None,
     noise_std: float = 1.0,
     pad_factor: float = 1.5,
@@ -394,20 +439,34 @@ def generate_wavelet_structured_noise_batch_vectorized(
 
     Args:
         image_batch: (N, C, H, W) source latents/images.
-        radius_map: (N, 1, H, W) per-pixel cutoff radius in pixel-space.
-                    Higher values = more structure preserved from image_batch.
+        radius_map:  (N,1,H,W) or int — upper cutoff radius in pixel-space.
+                     Bands below this frequency are preserved from image_batch (structure).
+        min_radius:  (N,1,H,W) or int or None — lower cutoff radius in pixel-space.
+                     Bands below this frequency are replaced with noise even if below radius_map.
+                     Use this to suppress global illumination (e.g. min_radius=5 drops DC/very-low-freq).
+                     None (default) = standard WPD, LL subband always preserved.
         input_noise: Optional pre-generated noise tensor (same shape as image_batch).
-        noise_std: Std of generated noise when input_noise is None.
+        noise_std:   Std of generated noise when input_noise is None.
     """
     N, _, H, W = image_batch.shape
     nyquist_radius = min(H, W) / 2.0
+
     if not isinstance(radius_map, torch.Tensor):
         freq_map = torch.full((N, 1, H, W), max(float(radius_map), 1.0) / nyquist_radius, device=image_batch.device)
     else:
         freq_map = radius_map.to(image_batch.device).float() / nyquist_radius
+
+    if min_radius is None:
+        min_freq_map = None
+    elif not isinstance(min_radius, torch.Tensor):
+        min_freq_map = torch.full((N, 1, H, W), max(float(min_radius), 0.0) / nyquist_radius, device=image_batch.device)
+    else:
+        min_freq_map = min_radius.to(image_batch.device).float() / nyquist_radius
+
     return _generate_wavelet_noise_impl(
         image_batch=image_batch,
         freq_map=freq_map,
+        min_freq_map=min_freq_map,
         noise_std=noise_std,
         pad_factor=pad_factor,
         input_noise=input_noise,
