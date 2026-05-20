@@ -325,25 +325,25 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
     def _process_band_recursive(self, c_img, c_nz, f_start, f_end, freq_map, level, max_level, eps):
         # freq_map:     upper cutoff — bands below this are preserved from image.
         # min_freq_map: lower cutoff — bands below this are replaced with noise (not preserved).
-        print(f"Processing level {level} band [{f_start:.4f}, {f_end:.4f}]", end=".")
+        # print(f"Processing level {level} band [{f_start:.4f}, {f_end:.4f}]", end=".")
 
         # All pixels preserve structure in this band (below upper cutoff)
         if f_end <= freq_map.min().item() + 1e-9:
-            print(" Preserving entire band from image.")
+            # print(" Preserving entire band from image.")
             return fuse_subband_generic(c_img, c_nz, mask=1.0, eps=eps)
 
         # All pixels use noise in this band (above upper cutoff)
         if f_start >= freq_map.max().item() - 1e-9:
-            print(" Replacing entire band with noise.")
+            # print(" Replacing entire band with noise.")
             return fuse_subband_generic(c_img, c_nz, mask=0.0, eps=eps)
 
         # Mixed band: per-pixel decision
         mid = (f_start + f_end) / 2
         decision_map = (mid <= freq_map).float()
         if level >= max_level:
-            print(" Reaching maximum level. Using mixed decision.")
+            # print(" Reaching maximum level. Using mixed decision.")
             return fuse_subband_generic(c_img, c_nz, mask=decision_map, eps=eps)
-        print(" Splitting band and processing recursively.")
+        # print(" Splitting band and processing recursively.")
         lo_img, hi_img = self.splitter.split_once(c_img)
         lo_nz, hi_nz   = self.splitter.split_once(c_nz)
 
@@ -353,6 +353,18 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_freq, level + 1, max_level, eps)
         out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_freq, level + 1, max_level, eps)
         return out_lo + out_hi
+
+_wavelet_module_cache: dict = {}
+
+def _get_cached_modules(J: int, biort: str, qshift: str, device):
+    key = (J, biort, qshift, str(device))
+    if key not in _wavelet_module_cache:
+        _wavelet_module_cache[key] = (
+            DTCWTDecomposer(J=J, biort=biort, qshift=qshift).to(device),
+            DTCWTFusePhaseMag_Recursive(biort=biort, qshift=qshift).to(device),
+        )
+    return _wavelet_module_cache[key]
+
 
 def _generate_wavelet_noise_impl(
     image_batch: torch.Tensor,
@@ -387,23 +399,22 @@ def _generate_wavelet_noise_impl(
     else:
         z = input_noise.to(device)
 
+    H, W = image_batch.shape[-2:]
+
     # Determine Decomposition Depth J
     if j_override is not None:
-        J = max(1, min(j_override, 6))
+        J = max(1, j_override)
     else:
         f_min = max(freq_map.min().item(), 1e-2)
         J = math.ceil(-math.log2(f_min))
-        J = max(1, min(J, 6))
-
-    H, W = image_batch.shape[-2:]
+        J = max(1, J)
     ll_h, ll_w = H // (2 ** max(J - 1, 0)), W // (2 ** max(J - 1, 0))
     ll_f_end = 1.0 / (2 ** J)
     ll_mode = "dropped" if drop_ll else "preserved"
-    print(f"LL band [0.0000, {ll_f_end:.4f}] (J={J}, {ll_h}x{ll_w}). {ll_mode}.")
+    # print(f"LL band [0.0000, {ll_f_end:.4f}] (J={J}, {ll_h}x{ll_w}). {ll_mode}.")
 
     # Execute
-    decomp = DTCWTDecomposer(J=J, biort=biort, qshift=qshift).to(device)
-    fuser = DTCWTFusePhaseMag_Recursive(biort=biort, qshift=qshift).to(device)
+    decomp, fuser = _get_cached_modules(J, biort, qshift, device)
 
     with torch.no_grad():
         LL_img, C_img = decomp(image_batch)

@@ -107,20 +107,26 @@ class FluxTrainingModule(DiffusionTrainingModule):
         h, w = input_latents.shape[-2:]
 
         # Sample params
-        radius = np.random.exponential(scale=1 / 0.1)
+        radius = 4 + np.random.exponential(scale=16)
         radius = min(radius, min(h, w) // 2)
 
-        # auto J from radius (same logic as _generate_wavelet_noise_impl)
+        # auto J from radius
         nyquist = min(h, w) / 2.0
         f_min = max(min(float(radius), nyquist) / nyquist, 1e-2)
-        auto_J = max(1, min(math.ceil(-math.log2(f_min)), 6))
+        auto_J = max(1, math.ceil(-math.log2(f_min)))
 
-        drop_ll = bool(np.random.random() < 0.5)
-        # J must be > auto_J so LL cutoff (1/2^J) stays below radius cutoff
-        j_min = auto_J + 1
-        J = int(np.random.randint(j_min, 7)) if (drop_ll and j_min <= 6) else None
-        if J is None:
-            drop_ll = False  # can't satisfy constraint, fall back to standard WPD
+        # Hard upper bound: LL must stay >= 2px → J <= log2(min(h,w))
+        j_max_latent = int(math.log2(min(h, w)))
+
+        drop_ll = bool(np.random.random() < 0.8)
+        j_min = max(auto_J, 3)
+        j_max = min(auto_J + 4, j_max_latent)
+        # If no valid J exists (auto_J already near latent limit), skip drop_ll
+        if drop_ll and j_min <= j_max:
+            J = int(np.random.randint(j_min, j_max + 1))
+        else:
+            drop_ll = False
+            J = None
 
         input_noise = torch.randn_like(input_latents.float())
 
