@@ -42,11 +42,16 @@ def parse_args():
         default=30,
         help="Upper cutoff radius: bands below this frequency are preserved (structure).")
     parser.add_argument(
-        "--min_radius",
+        "--drop_ll",
+        action="store_true",
+        help="Drop entire LL subband (replace with noise). Use with --J to control LL size."
+    )
+    parser.add_argument(
+        "--J",
         type=int,
         default=None,
-        help="Lower cutoff radius: bands below this frequency are replaced with noise "
-             "(suppresses global illumination from sim). None = standard WPD. Try 5–10."
+        help="DTCWT decomposition depth (1–6). Auto-determined from --radius if not set. "
+             "When using --drop_ll, set J=3+ so LL contains mostly global illumination."
     )
     parser.add_argument(
         "--prompt",
@@ -114,7 +119,8 @@ if __name__ == "__main__":
         noise = generate_wavelet_structured_noise_batch_vectorized(
             image_batch=input_latents,
             radius_map=args.radius,
-            min_radius=args.min_radius,
+            drop_ll=args.drop_ll,
+            J=args.J,
             noise_std=1.0
         )
         

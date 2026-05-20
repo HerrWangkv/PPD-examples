@@ -26,12 +26,15 @@ def parse_args():
     # --- Flux Arguments ---
     parser.add_argument("--flux_lora", type=str, default="models/ppd/flux1-dev_phipd_lora_302000.safetensors")
     parser.add_argument("--flux_cutoff_radius", type=int, default=30, help="Flux: Wavelet noise radius")
-    parser.add_argument("--flux_min_radius", type=int, default=None, help="Flux: DC suppression radius (suppresses sim global illumination). None = standard WPD.")
+    parser.add_argument("--flux_drop_ll", action="store_true", help="Flux: Drop entire LL subband. Use with --flux_J.")
+    parser.add_argument("--flux_J", type=int, default=None, help="Flux: DTCWT decomposition depth (1–6). When using --flux_drop_ll, set J=3+.")
 
     # --- Wan Arguments ---
     parser.add_argument("--wan_low_lora", type=str, default="models/ppd/wan2.2-14b-low-step-12400.safetensors")
     parser.add_argument("--wan_high_lora", type=str, default="models/ppd/wan2.2-14b-high-step-12400.safetensors")
     parser.add_argument("--wan_cutoff_radius", type=int, default=30, help="Wan: Wavelet noise radius")
+    parser.add_argument("--wan_drop_ll", action="store_true", help="Wan: Drop entire LL subband. Use with --wan_J.")
+    parser.add_argument("--wan_J", type=int, default=None, help="Wan: DTCWT decomposition depth (1–6). When using --wan_drop_ll, set J=3+.")
     parser.add_argument("--n_frames", type=int, default=49)
 
     # --- General ---
@@ -99,7 +102,8 @@ def run_flux_stage(args, first_frame_pil, device):
         noise = generate_wavelet_structured_noise_batch_vectorized(
             image_batch=input_latents,
             radius_map=args.flux_cutoff_radius,
-            min_radius=args.flux_min_radius,
+            drop_ll=args.flux_drop_ll,
+            J=args.flux_J,
             noise_std=1.0,
         ).contiguous()
 
@@ -175,6 +179,8 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, device):
             structured_noise = generate_wavelet_structured_noise_batch_vectorized(
                 image_batch=latents_for_noise,
                 radius_map=args.wan_cutoff_radius,
+                drop_ll=args.wan_drop_ll,
+                J=args.wan_J,
                 input_noise=torch.randn_like(latents_for_noise),
             )
             # Back to (1, C, T, H, W)

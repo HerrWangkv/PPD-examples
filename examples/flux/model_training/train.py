@@ -2,6 +2,7 @@ import os, time
 from pathlib import Path
 from datetime import datetime
 
+import math
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -109,11 +110,25 @@ class FluxTrainingModule(DiffusionTrainingModule):
         radius = np.random.exponential(scale=1 / 0.1)
         radius = min(radius, min(h, w) // 2)
 
+        # auto J from radius (same logic as _generate_wavelet_noise_impl)
+        nyquist = min(h, w) / 2.0
+        f_min = max(min(float(radius), nyquist) / nyquist, 1e-2)
+        auto_J = max(1, min(math.ceil(-math.log2(f_min)), 6))
+
+        drop_ll = bool(np.random.random() < 0.5)
+        # J must be > auto_J so LL cutoff (1/2^J) stays below radius cutoff
+        j_min = auto_J + 1
+        J = int(np.random.randint(j_min, 7)) if (drop_ll and j_min <= 6) else None
+        if J is None:
+            drop_ll = False  # can't satisfy constraint, fall back to standard WPD
+
         input_noise = torch.randn_like(input_latents.float())
 
         structured_noise = generate_wavelet_structured_noise_batch_vectorized(
             input_latents.float(),
             radius_map=radius,
+            drop_ll=drop_ll,
+            J=J,
             input_noise=input_noise,
         )
 
@@ -134,6 +149,8 @@ class FluxTrainingModule(DiffusionTrainingModule):
                         "noise/std": stats[1].item(),
                         "noise/max_abs": stats[2].item(),
                         "noise/radius": float(radius),
+                        "noise/drop_ll": float(drop_ll),
+                        "noise/J": float(J) if J is not None else float(auto_J),
                         "loss": stats[3].item(),
                     },
                     step=step,

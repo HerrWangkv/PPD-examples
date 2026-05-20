@@ -267,30 +267,18 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         LL_img, C_img,
         LL_z, C_z,
         freq_map: torch.Tensor,
-        min_freq_map: Optional[torch.Tensor] = None,
         pad_factor: float = 1.5,
         max_packet_level: int = 4,
         eps: float = 1e-8,
+        drop_ll: bool = False,
     ):
-        # freq_map:     (N,1,H,W) upper cutoff (Nyquist-norm). Higher = more structure preserved.
-        # min_freq_map: (N,1,H,W) lower cutoff (Nyquist-norm). Bands BELOW this are not preserved
-        #               (lets the model regenerate global illumination). None = preserve LL as before.
+        # freq_map: (N,1,H,W) upper cutoff (Nyquist-norm). Higher = more structure preserved.
+        # drop_ll:  If True, replace LL entirely with noise.
 
-        # LL subband: preserve structural phase but suppress DC (global illumination) region.
-        # dc_suppress_radius is min_radius mapped into LL pixel units (LL is 1/2^J of original).
-        if min_freq_map is not None:
-            # Convert min_freq (Nyquist-normalised) to a radius in LL-pixel space.
-            # LL has shape H/2^J × W/2^J; nyquist of LL = (H/2^J)/2.
-            # dc_suppress_radius in LL pixels = min_freq * nyquist_LL
-            # = min_freq * (H / 2^(J+1))  [use H as reference dimension]
-            LL_H = LL_img.shape[-2]
-            nyquist_LL = LL_H / 2.0
-            dc_r = int(round(min_freq_map.max().item() * nyquist_LL))
-            dc_r = max(dc_r, 0)
+        if drop_ll:
+            LL_mix = LL_z
         else:
-            dc_r = 0
-        LL_mix = ll_fusion_fftshift_global_phase(LL_img, LL_z, pad_factor=pad_factor,
-                                                  dc_suppress_radius=dc_r)
+            LL_mix = ll_fusion_fftshift_global_phase(LL_img, LL_z, pad_factor=pad_factor)
 
         J = len(C_img)
         C_mix = []
@@ -369,20 +357,21 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
 def _generate_wavelet_noise_impl(
     image_batch: torch.Tensor,
     freq_map: torch.Tensor,
-    min_freq_map: Optional[torch.Tensor] = None,
     noise_std: float = 1.0,
     pad_factor: float = 1.5,
     input_noise: Optional[torch.Tensor] = None,
     biort: str = 'near_sym_b',
     qshift: str = 'qshift_b',
+    drop_ll: bool = False,
+    j_override: Optional[int] = None,
 ) -> torch.Tensor:
     """
     Args:
-        freq_map:     (N,1,H,W) upper cutoff frequency, Nyquist-normalized. Bands below this
-                      are preserved from image_batch (structure).
-        min_freq_map: (N,1,H,W) lower cutoff frequency, Nyquist-normalized. Bands below this
-                      are replaced with noise even if below freq_map (illumination suppression).
-                      None = standard WPD (LL always preserved).
+        freq_map:   (N,1,H,W) upper cutoff frequency, Nyquist-normalized. Bands below this
+                    are preserved from image_batch (structure).
+        drop_ll:    Drop the entire LL subband (replace with noise). Use with j_override to
+                    control how small LL becomes before dropping (higher J = smaller LL = safer).
+        j_override: Force a specific J decomposition depth (1–6). Overrides the auto J from freq_map.
     """
     if image_batch.ndim != 4:
         raise ValueError("Expected image_batch in NCHW format")
@@ -391,8 +380,6 @@ def _generate_wavelet_noise_impl(
     dtype = image_batch.dtype
     image_batch = image_batch.float()
     freq_map = freq_map.to(device).float().clamp(0.0, 1.0)
-    if min_freq_map is not None:
-        min_freq_map = min_freq_map.to(device).float().clamp(0.0, 1.0)
 
     # Prepare Noise
     if input_noise is None:
@@ -400,10 +387,19 @@ def _generate_wavelet_noise_impl(
     else:
         z = input_noise.to(device)
 
-    # Determine Decomposition Depth J based on minimum cutoff in freq_map
-    f_min = max(freq_map.min().item(), 1e-2)
-    J = math.ceil(-math.log2(f_min))
-    J = max(1, min(J, 6))
+    # Determine Decomposition Depth J
+    if j_override is not None:
+        J = max(1, min(j_override, 6))
+    else:
+        f_min = max(freq_map.min().item(), 1e-2)
+        J = math.ceil(-math.log2(f_min))
+        J = max(1, min(J, 6))
+
+    H, W = image_batch.shape[-2:]
+    ll_h, ll_w = H // (2 ** max(J - 1, 0)), W // (2 ** max(J - 1, 0))
+    ll_f_end = 1.0 / (2 ** J)
+    ll_mode = "dropped" if drop_ll else "preserved"
+    print(f"LL band [0.0000, {ll_f_end:.4f}] (J={J}, {ll_h}x{ll_w}). {ll_mode}.")
 
     # Execute
     decomp = DTCWTDecomposer(J=J, biort=biort, qshift=qshift).to(device)
@@ -417,8 +413,8 @@ def _generate_wavelet_noise_impl(
             LL_img, C_img,
             LL_z, C_z,
             freq_map=freq_map,
-            min_freq_map=min_freq_map,
             pad_factor=pad_factor,
+            drop_ll=drop_ll,
         )
     clamp_mask = x_hat.abs() > 5
     structured_noise = torch.where(clamp_mask, z, x_hat)
@@ -427,12 +423,13 @@ def _generate_wavelet_noise_impl(
 def generate_wavelet_structured_noise_batch_vectorized(
     image_batch: torch.Tensor,
     radius_map: Union[torch.Tensor, int],
-    min_radius: Union[torch.Tensor, int, None] = None,
     input_noise: Optional[torch.Tensor] = None,
     noise_std: float = 1.0,
     pad_factor: float = 1.5,
     biort: str = 'near_sym_b',
     qshift: str = 'qshift_b',
+    drop_ll: bool = False,
+    J: Optional[int] = None,
 ) -> torch.Tensor:
     """
     Generates DTCWT structured noise with a per-pixel frequency cutoff map.
@@ -441,10 +438,10 @@ def generate_wavelet_structured_noise_batch_vectorized(
         image_batch: (N, C, H, W) source latents/images.
         radius_map:  (N,1,H,W) or int — upper cutoff radius in pixel-space.
                      Bands below this frequency are preserved from image_batch (structure).
-        min_radius:  (N,1,H,W) or int or None — lower cutoff radius in pixel-space.
-                     Bands below this frequency are replaced with noise even if below radius_map.
-                     Use this to suppress global illumination (e.g. min_radius=5 drops DC/very-low-freq).
-                     None (default) = standard WPD, LL subband always preserved.
+        drop_ll:     Drop the entire LL subband (replace with noise).
+                     Use with J to control LL size: higher J → smaller LL → less structure lost.
+        J:           Override decomposition depth (1–6). If None, auto-determined from radius_map.
+                     When using drop_ll, set J=3+ so LL contains mostly global illumination.
         input_noise: Optional pre-generated noise tensor (same shape as image_batch).
         noise_std:   Std of generated noise when input_noise is None.
     """
@@ -456,20 +453,14 @@ def generate_wavelet_structured_noise_batch_vectorized(
     else:
         freq_map = radius_map.to(image_batch.device).float() / nyquist_radius
 
-    if min_radius is None:
-        min_freq_map = None
-    elif not isinstance(min_radius, torch.Tensor):
-        min_freq_map = torch.full((N, 1, H, W), max(float(min_radius), 0.0) / nyquist_radius, device=image_batch.device)
-    else:
-        min_freq_map = min_radius.to(image_batch.device).float() / nyquist_radius
-
     return _generate_wavelet_noise_impl(
         image_batch=image_batch,
         freq_map=freq_map,
-        min_freq_map=min_freq_map,
         noise_std=noise_std,
         pad_factor=pad_factor,
         input_noise=input_noise,
         biort=biort,
         qshift=qshift,
+        drop_ll=drop_ll,
+        j_override=J,
     )
