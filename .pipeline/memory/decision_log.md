@@ -54,6 +54,30 @@ def compute_adaptive_radius_map(latent, r_min=5.0, r_max=50.0, smooth_kernel=9):
 
 ---
 
+## 2026-05-21 | 确认 Baseline Set（FID benchmark on vKITTI→KITTI）
+
+**确认的 baseline 方法集合**：
+
+| 方法 | 类别 | Backbone | 年份 | 代码状态 |
+|------|------|----------|------|---------|
+| SDEdit | 扩散噪声编辑（经典） | FLUX | 2022 | ✅ 已有脚本 |
+| FlowEdit | RF flow 编辑 | FLUX | 2024 | ✅ 已有脚本 (`batch_sim2real_image_flowedit.py`) |
+| DNAEdit | SOTA RF inversion 编辑 | FLUX | 2025.06 | ❓ 待接入 (arxiv: 2506.01430) |
+| Cosmos-Transfer2.5 | Sim-to-real 专用世界模型 | Cosmos | 2025 | ❓ 待接入 |
+| **WPD (ours)** | 结构化 wavelet 噪声注入 | FLUX | — | ✅ 运行中 |
+
+**排除的方法及原因**：
+- Step1X-Edit：MLLM 架构，定位不同（instruction-following），与 WPD 架构差异过大
+- DirectEdit (arxiv: 2605.02417)：与 DNAEdit 同类（RF inversion 误差修正），选 DNAEdit 作代表即可
+- ControlNet：违反"无 conditioning"约束（需 depth/canny 输入）
+- ICEdit：偏 general editing，不专注 sim-to-real
+
+**论文故事逻辑**：
+- SDEdit → FlowEdit → DNAEdit：展示 WPD 对同 backbone 不同 noise 策略的优势
+- Cosmos：WPD 对专用 sim-to-real 方法的竞争力
+
+---
+
 ## 2026-05-21 | 其他改进方向（论文约束内）
 
 以下方向均满足"无 conditioning + 只用真实训练数据"约束：

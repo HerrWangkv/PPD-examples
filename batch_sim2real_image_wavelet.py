@@ -28,16 +28,19 @@ def parse_args():
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--flux_lora", type=str, default="models/ppd/flux1-dev_phipd_lora_302000.safetensors")
     parser.add_argument("--flux_cutoff_radius", type=int, default=30)
+    parser.add_argument("--flux_drop_ll", action="store_true", help="Drop LL subband. Use with --flux_J.")
+    parser.add_argument("--flux_J", type=int, default=None, help="DTCWT decomposition depth. Use J=4 with --flux_drop_ll.")
     parser.add_argument("--prompt", type=str, default=(
-        "A photorealistic indoor room, natural lighting, real photograph. "
-        "High resolution, realistic textures, photographic quality."
+        "A photorealistic photograph taken from a forward-facing vehicle-mounted camera. "
+        "Natural outdoor lighting, authentic surface textures, real-world colors."
     ))
     parser.add_argument("--height", type=int, default=768)
     parser.add_argument("--width", type=int, default=1024)
     parser.add_argument("--num_inference_steps", type=int, default=50)
     parser.add_argument("--cfg_scale", type=float, default=2.0)
     parser.add_argument("--negative_prompt", type=str, default=(
-        "ugly, low quality, CG, Render, unreal, game, cartoon, blur, low res"
+        "ugly, low quality, CG, render, unreal, game, cartoon, blur, low res, "
+        "dashboard, steering wheel, windshield frame, car interior, lens artifacts"
     ))
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
@@ -99,6 +102,8 @@ def main():
                 noise = generate_wavelet_structured_noise_batch_vectorized(
                     image_batch=input_latents,
                     radius_map=args.flux_cutoff_radius,
+                    drop_ll=args.flux_drop_ll,
+                    J=args.flux_J,
                     noise_std=1.0,
                 ).contiguous()
 

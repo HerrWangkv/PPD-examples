@@ -6,6 +6,7 @@ docker run --rm --name train_wan_low_dropll --gpus all --ipc=host \
     -v "$(pwd):/workspace" \
     -e HF_TOKEN=$HUGGING_FACE_TOKEN \
     -e NCCL_P2P_DISABLE=1 \
+    -e PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     wpd bash -c "
         cd /workspace && \
         PYTHONPATH=. bash examples/wanvideo/model_training/lora/WPD_Wan2.2-I2V-A14B_low_dropll.sh"

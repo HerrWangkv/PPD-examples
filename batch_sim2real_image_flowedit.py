@@ -5,7 +5,6 @@ import glob
 import sys
 from PIL import Image
 from diffusers import FluxPipeline
-import torch.distributed as dist
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "FlowEdit"))
 from FlowEdit_utils import FlowEditFLUX
@@ -13,9 +12,8 @@ from FlowEdit_utils import FlowEditFLUX
 
 def init_distributed():
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
-        dist.init_process_group(backend="nccl")
-        rank = dist.get_rank()
-        world = dist.get_world_size()
+        rank = int(os.environ["RANK"])
+        world = int(os.environ["WORLD_SIZE"])
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
         torch.cuda.set_device(local_rank)
         return rank, world, local_rank
@@ -27,12 +25,12 @@ def parse_args():
     parser.add_argument("--input_dir", type=str, required=True)
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--src_prompt", type=str, default=(
-        "A synthetic rendered indoor scene, computer graphics, 3D rendering, "
-        "artificial lighting, CG textures."
+        "A synthetic rendered outdoor driving scene, virtual world, computer graphics, "
+        "CG textures, simulated environment."
     ))
     parser.add_argument("--tar_prompt", type=str, default=(
-        "A photorealistic indoor scene, natural and artificial lighting, "
-        "real photograph, high resolution, realistic textures and materials."
+        "A photorealistic photograph taken from a forward-facing vehicle-mounted camera. "
+        "Natural outdoor lighting, authentic surface textures, real-world colors."
     ))
     parser.add_argument("--T_steps", type=int, default=28)
     parser.add_argument("--n_min", type=int, default=0)
@@ -41,6 +39,8 @@ def parse_args():
     parser.add_argument("--src_guidance_scale", type=float, default=1.5)
     parser.add_argument("--tar_guidance_scale", type=float, default=5.5)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--height", type=int, default=None)
+    parser.add_argument("--width", type=int, default=None)
     return parser.parse_args()
 
 
@@ -73,6 +73,8 @@ def main():
         print(f"[{i+1}/{len(images)}] {fname}", flush=True)
         try:
             image = Image.open(img_path).convert("RGB")
+            if args.height and args.width:
+                image = image.resize((args.width, args.height), Image.LANCZOS)
             # crop to dimensions divisible by 16
             image = image.crop((0, 0, image.width - image.width % 16, image.height - image.height % 16))
 
