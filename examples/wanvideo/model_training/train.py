@@ -1,4 +1,4 @@
-import torch, os, json, io, tempfile
+import torch, os, json, io, tempfile, math
 import numpy as np
 import imageio
 from PIL import Image
@@ -268,23 +268,50 @@ class WanTrainingModule(DiffusionTrainingModule):
         # Load models back to GPU for training
         self.pipe.load_models_to_device(self.pipe.in_iteration_models)
         input_latents = inputs["input_latents"]
-        cutoff_radius = np.random.exponential(scale=1/0.1)
-        maximal_radius = cutoff_radius
-        input_noise = torch.randn_like(input_latents[0].transpose(0,1).float())
+
+        # (1, C, T, H, W) → (T, C, H, W) per-frame batch for wavelet noise
+        latents_frames = input_latents[0].transpose(0, 1).float()
+        h, w = latents_frames.shape[-2:]
+
+        # Sample radius
+        radius = 4 + np.random.exponential(scale=16)
+        radius = min(radius, min(h, w) // 2)
+
+        # auto J from radius
+        nyquist = min(h, w) / 2.0
+        f_min = max(min(float(radius), nyquist) / nyquist, 1e-2)
+        auto_J = max(1, math.ceil(-math.log2(f_min)))
+
+        j_max_latent = int(math.log2(min(h, w)))
+
+        drop_ll = bool(np.random.random() < 0.8)
+        j_min = max(auto_J, 3)
+        j_max = min(auto_J + 4, j_max_latent)
+        if drop_ll and j_min <= j_max:
+            J = int(np.random.randint(j_min, j_max + 1))
+        else:
+            drop_ll = False
+            J = None
+
+        input_noise = torch.randn_like(latents_frames)
         structured_noise = generate_wavelet_structured_noise_batch_vectorized(
-            input_latents[0].transpose(0,1).float(), 
-            cutoff_radius=cutoff_radius, 
-            maximal_radius=cutoff_radius, 
-            input_noise=input_noise)
-        structured_noise = structured_noise.transpose(0,1)[None].contiguous()
+            latents_frames,
+            radius_map=radius,
+            drop_ll=drop_ll,
+            J=J,
+            input_noise=input_noise,
+        )
+        structured_noise = structured_noise.transpose(0, 1)[None].contiguous()
         inputs["noise"] = structured_noise.to(dtype=self.pipe.torch_dtype, device=self.pipe.device)
+
         models = {name: getattr(self.pipe, name) for name in self.pipe.in_iteration_models}
-        loss = self.pipe.training_loss(**models, **inputs)# Log stats (only if accelerator injected)
+        loss = self.pipe.training_loss(**models, **inputs)
+
         if self.accelerator is not None and step is not None:
             with torch.no_grad():
                 n = structured_noise.detach().float()
-                stats = torch.stack([n.mean(), n.std(), n.abs().max(), loss.detach().float()])  # (4,)
-                stats = self.accelerator.gather(stats[None]).mean(dim=0)  # (4,)
+                stats = torch.stack([n.mean(), n.std(), n.abs().max(), loss.detach().float()])
+                stats = self.accelerator.gather(stats[None]).mean(dim=0)
 
             if self.accelerator.is_main_process:
                 self.accelerator.log(
@@ -292,8 +319,9 @@ class WanTrainingModule(DiffusionTrainingModule):
                         "noise/mean": stats[0].item(),
                         "noise/std": stats[1].item(),
                         "noise/max_abs": stats[2].item(),
-                        "noise/cutoff_radius": float(cutoff_radius),
-                        "noise/maximal_radius": float(maximal_radius),
+                        "noise/radius": float(radius),
+                        "noise/drop_ll": float(drop_ll),
+                        "noise/J": float(J) if J is not None else float(auto_J),
                         "loss": stats[3].item(),
                     },
                     step=step,

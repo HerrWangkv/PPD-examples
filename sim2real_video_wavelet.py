@@ -20,7 +20,7 @@ def parse_args():
     # --- Input/Output ---
     parser.add_argument("--rgb_video", type=str, required=True, help="Path to input RGB video")
     parser.add_argument("--output_video", type=str, default="output_wpd.mp4", help="Path for final output video")
-    parser.add_argument("--prompt", type=str, default="A photorealistic driving scene in a city, view from a car dashboard. Natural lighting, urban buildings, trees, cars on the street. High resolution, realistic textures.", help="Prompt for generation")
+    parser.add_argument("--prompt", type=str, default="A photorealistic photograph taken from a forward-facing vehicle-mounted camera. Natural outdoor lighting, authentic surface textures, real-world colors.", help="Prompt for generation")
     parser.add_argument("--image-only", action="store_true", help="If set, only runs the Flux stage and saves the first frame image.")
 
     # --- Flux Arguments ---
@@ -109,7 +109,7 @@ def run_flux_stage(args, first_frame_pil, device):
 
         generated_image = pipe(
             prompt=args.prompt,
-            negative_prompt="ugly, low quality, CG, Render, unreal, game, cartoon, blur, low res",
+            negative_prompt="ugly, low quality, CG, render, unreal, game, cartoon, blur, low res, dashboard, steering wheel, windshield frame, car interior, lens artifacts",
             height=args.height, width=args.width,
             cfg_scale=2,
             num_inference_steps=50,

@@ -1,0 +1,67 @@
+# Decision Log
+
+## 2026-05-21 | Adaptive Radius Map
+
+**想法**: 用 sim latent 的局部高频能量自动计算 per-pixel cutoff radius，替代全局固定 radius。
+
+**设计逻辑**:
+- 高梯度区域（建筑轮廓、边缘）= sim 几何可靠 → 大 radius（保留到高频）
+- 低梯度区域（天空、路面）= sim 外观不可信 → 小 radius（让模型自由替换）
+
+**实现方式** (inference-time only，无需重训练):
+```python
+def compute_adaptive_radius_map(latent, r_min=5.0, r_max=50.0, smooth_kernel=9):
+    x = latent.mean(dim=1, keepdim=True).float()
+    blurred = F.avg_pool2d(x, kernel_size=smooth_kernel, stride=1, padding=smooth_kernel//2)
+    hf_energy = (x - blurred).abs()
+    energy_smooth = F.avg_pool2d(hf_energy, kernel_size=smooth_kernel, stride=1, padding=smooth_kernel//2)
+    N = energy_smooth.shape[0]
+    emin = energy_smooth.view(N, -1).min(dim=1)[0].view(N, 1, 1, 1)
+    emax = energy_smooth.view(N, -1).max(dim=1)[0].view(N, 1, 1, 1)
+    energy_norm = (energy_smooth - emin) / (emax - emin + 1e-8)
+    return r_min + (r_max - r_min) * energy_norm
+```
+
+**兼容性**: `radius_map` 参数已支持 `(N,1,H,W)` 张量，基础设施已就位。
+
+**超参数**: `r_min`, `r_max`，等价于控制全局 radius 范围。
+
+**验证方法**: 
+1. 可视化 radius map（天空应低，建筑边缘应高）
+2. 与固定 r=30 对比 AS/SSIM on Synthia
+
+**约束满足**: 无 conditioning，无新训练，纯信号处理。
+
+---
+
+## 2026-05-21 | drop_ll J 选择
+
+**决策**: 推理时用 J=4（非 J=3）。
+
+**原因**: J=3 过于激进（全局灰调），J=4 在去除 lens flare 的同时保留自然光照变化。
+
+**LL 空间大小**: J=4 时 latent 88×160 → LL = 11×10px，仅包含全局亮度/色调信息。
+
+---
+
+## 2026-05-21 | Sim-to-real prompt 修改
+
+**旧 prompt**: 包含 "view from a car dashboard" → 导致 FLUX 生成可见仪表板遮挡（hallucination）
+
+**新 prompt**: "A photorealistic photograph taken from a forward-facing vehicle-mounted camera. Natural outdoor lighting, authentic surface textures, real-world colors."
+
+**新 negative prompt**: 增加 "dashboard, steering wheel, windshield frame, car interior, lens artifacts"
+
+---
+
+## 2026-05-21 | 其他改进方向（论文约束内）
+
+以下方向均满足"无 conditioning + 只用真实训练数据"约束：
+
+1. **训练分布对齐**: 对 r≈30, J=4 附近加重要性采样权重，减少 train-test gap
+2. **频域加权 loss**: 低频 band 加大训练 loss 权重，更专注修正光照/色调
+3. **时空 3D wavelet**: Wan 阶段在时空联合域注入噪声，改善帧间一致性
+
+已排除方向：
+- ~~LL 分布非高斯替换~~: FLUX 本身从 N(0,1) 去噪，高斯替换是正确的
+- ~~magnitude 替换~~: 当前 magnitude 已完全来自噪声（leak=0），无需修改
