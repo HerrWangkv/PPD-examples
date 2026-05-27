@@ -58,12 +58,15 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
+    existing = set(os.listdir(args.output_dir))
+    print(f"[Rank {rank}/{world}] output_dir={args.output_dir}, existing={len(existing)} files")
+
     all_images = sorted(glob.glob(os.path.join(args.input_dir, "*.jpg")) +
                         glob.glob(os.path.join(args.input_dir, "*.png")))
 
     # Filter out already-translated images before distributing
     todo = [p for p in all_images
-            if not os.path.exists(os.path.join(args.output_dir, os.path.basename(p)))]
+            if os.path.basename(p) not in existing]
 
     # Distribute remaining work across GPUs
     images = todo[rank::world]
