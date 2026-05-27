@@ -7,3 +7,9 @@
 [submodule "ECCV-2026-WPD"]
 	path = ECCV-2026-WPD
 	url = git@github.com:HerrWangkv/ECCV-2026-WPD.git
+[submodule "DNAEdit"]
+	path = DNAEdit
+	url = https://github.com/xiechenxi99/DNAEdit_code
+[submodule "DrivIng"]
+	path = DrivIng
+	url = https://github.com/cvims/DrivIng

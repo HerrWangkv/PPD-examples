@@ -1,0 +1,31 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+  warnings.warn(msg)
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/kitti_tracking_flat_84rkzmf8
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/dnaedit (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/dnaedit
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: legacy_pytorch
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_legacy_pytorch'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_legacy_pytorch statistics
+Found 2126 images in the folder /tmp/fid_flatten_edb4gmvg
+FID fid_flatten_edb4gmvg :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_edb4gmvg :   1%|▏         | 1/67 [00:01<01:16,  1.17s/it]FID fid_flatten_edb4gmvg :   7%|▋         | 5/67 [00:01<00:12,  5.01it/s]FID fid_flatten_edb4gmvg :  13%|█▎        | 9/67 [00:01<00:06,  9.33it/s]FID fid_flatten_edb4gmvg :  19%|█▉        | 13/67 [00:01<00:03, 13.65it/s]FID fid_flatten_edb4gmvg :  25%|██▌       | 17/67 [00:01<00:02, 17.79it/s]FID fid_flatten_edb4gmvg :  31%|███▏      | 21/67 [00:01<00:02, 21.38it/s]FID fid_flatten_edb4gmvg :  37%|███▋      | 25/67 [00:01<00:01, 21.04it/s]FID fid_flatten_edb4gmvg :  43%|████▎     | 29/67 [00:02<00:01, 24.05it/s]FID fid_flatten_edb4gmvg :  49%|████▉     | 33/67 [00:02<00:01, 26.68it/s]FID fid_flatten_edb4gmvg :  55%|█████▌    | 37/67 [00:02<00:01, 21.11it/s]FID fid_flatten_edb4gmvg :  61%|██████    | 41/67 [00:02<00:01, 23.85it/s]FID fid_flatten_edb4gmvg :  67%|██████▋   | 45/67 [00:02<00:00, 26.29it/s]FID fid_flatten_edb4gmvg :  73%|███████▎  | 49/67 [00:02<00:00, 20.65it/s]FID fid_flatten_edb4gmvg :  79%|███████▉  | 53/67 [00:03<00:00, 23.37it/s]FID fid_flatten_edb4gmvg :  85%|████████▌ | 57/67 [00:03<00:00, 25.77it/s]FID fid_flatten_edb4gmvg :  91%|█████████ | 61/67 [00:03<00:00, 18.81it/s]FID fid_flatten_edb4gmvg :  97%|█████████▋| 65/67 [00:03<00:00, 21.85it/s]FID fid_flatten_edb4gmvg : 100%|██████████| 67/67 [00:03<00:00, 17.33it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_legacy_pytorch statistics
+Found 2126 images in the folder /tmp/fid_flatten_edb4gmvg
+KID fid_flatten_edb4gmvg :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_edb4gmvg :   1%|▏         | 1/67 [00:00<00:57,  1.14it/s]KID fid_flatten_edb4gmvg :   7%|▋         | 5/67 [00:00<00:09,  6.46it/s]KID fid_flatten_edb4gmvg :  13%|█▎        | 9/67 [00:01<00:04, 11.73it/s]KID fid_flatten_edb4gmvg :  19%|█▉        | 13/67 [00:01<00:04, 11.69it/s]KID fid_flatten_edb4gmvg :  25%|██▌       | 17/67 [00:01<00:03, 15.58it/s]KID fid_flatten_edb4gmvg :  31%|███▏      | 21/67 [00:01<00:02, 19.29it/s]KID fid_flatten_edb4gmvg :  37%|███▋      | 25/67 [00:02<00:02, 15.35it/s]KID fid_flatten_edb4gmvg :  43%|████▎     | 29/67 [00:02<00:02, 18.47it/s]KID fid_flatten_edb4gmvg :  49%|████▉     | 33/67 [00:02<00:01, 21.54it/s]KID fid_flatten_edb4gmvg :  55%|█████▌    | 37/67 [00:02<00:01, 18.55it/s]KID fid_flatten_edb4gmvg :  61%|██████    | 41/67 [00:02<00:01, 21.42it/s]KID fid_flatten_edb4gmvg :  67%|██████▋   | 45/67 [00:02<00:00, 23.80it/s]KID fid_flatten_edb4gmvg :  73%|███████▎  | 49/67 [00:03<00:00, 19.67it/s]KID fid_flatten_edb4gmvg :  78%|███████▊  | 52/67 [00:03<00:00, 21.30it/s]KID fid_flatten_edb4gmvg :  84%|████████▎ | 56/67 [00:03<00:00, 23.96it/s]KID fid_flatten_edb4gmvg :  88%|████████▊ | 59/67 [00:03<00:00, 25.16it/s]KID fid_flatten_edb4gmvg :  93%|█████████▎| 62/67 [00:03<00:00, 18.35it/s]KID fid_flatten_edb4gmvg :  99%|█████████▊| 66/67 [00:03<00:00, 21.46it/s]KID fid_flatten_edb4gmvg : 100%|██████████| 67/67 [00:03<00:00, 17.06it/s]
+
+============================================================
+  Gen: outputs/vkitti/dnaedit
+  FID:  87.8555
+  KID:  0.051498
+============================================================

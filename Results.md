@@ -1,3 +1,18 @@
+# vKITTI → KITTI (clone-only, 2126 frames, r=16)
+
+FID/KID ref: KITTI tracking sequences 0001/0002/0006/0018/0020 (2126 frames, scene-matched).
+mIoU: SegFormer-B5 (Cityscapes). Depth: Depth Anything V2 Large. LPIPS: AlexNet vs paired KITTI.
+
+| Variant | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ | LPIPS↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| input (raw sim) | 99.71 | 0.0656 | 50.39 | 0.9002 | 0.1573 | 0.6696 |
+| FlowEdit | 85.45 | 0.0534 | 42.72 | 0.8119 | 0.2599 | 0.6921 |
+| DNAEdit | 87.86 | 0.0515 | 41.22 | 0.8274 | 0.2539 | 0.6970 |
+| baseline (no drop_ll) | 90.85 | 0.0665 | 48.28 | 0.8693 | 0.1931 | 0.7167 |
+| **drop_ll J=3** | **76.02** | **0.0494** | 38.73 | 0.8383 | 0.2446 | 0.7447 |
+| **drop_ll J=4** | 77.80 | 0.0500 | **44.31** | **0.8512** | **0.2096** | 0.7112 |
+| drop_ll J=5 | 87.03 | 0.0599 | 45.84 | 0.8554 | 0.2037 | **0.6998** |
+
 # Synthia
 ## mIoU
 |  | road | sidewalk | building | wall | fence | pole | traffic light | traffic sign | vegetation | terrain | sky | person | rider | car | truck | bus | train | motorcycle | bicycle | **mIoU** |

@@ -1,0 +1,31 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+  warnings.warn(msg)
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/kitti_tracking_flat_po97up0c
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/dropll_step6000_J3 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/dropll_step6000_J3
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: legacy_pytorch
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_legacy_pytorch'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_legacy_pytorch statistics
+Found 2126 images in the folder /tmp/fid_flatten_hjdv1_ec
+FID fid_flatten_hjdv1_ec :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_hjdv1_ec :   1%|▏         | 1/67 [00:01<01:18,  1.19s/it]FID fid_flatten_hjdv1_ec :   7%|▋         | 5/67 [00:01<00:12,  4.95it/s]FID fid_flatten_hjdv1_ec :  13%|█▎        | 9/67 [00:01<00:06,  9.42it/s]FID fid_flatten_hjdv1_ec :  19%|█▉        | 13/67 [00:01<00:03, 13.90it/s]FID fid_flatten_hjdv1_ec :  25%|██▌       | 17/67 [00:01<00:02, 18.11it/s]FID fid_flatten_hjdv1_ec :  31%|███▏      | 21/67 [00:01<00:02, 22.20it/s]FID fid_flatten_hjdv1_ec :  37%|███▋      | 25/67 [00:01<00:01, 22.31it/s]FID fid_flatten_hjdv1_ec :  43%|████▎     | 29/67 [00:02<00:01, 22.32it/s]FID fid_flatten_hjdv1_ec :  49%|████▉     | 33/67 [00:02<00:01, 24.78it/s]FID fid_flatten_hjdv1_ec :  55%|█████▌    | 37/67 [00:02<00:01, 19.90it/s]FID fid_flatten_hjdv1_ec :  60%|█████▉    | 40/67 [00:02<00:01, 21.62it/s]FID fid_flatten_hjdv1_ec :  66%|██████▌   | 44/67 [00:02<00:00, 24.30it/s]FID fid_flatten_hjdv1_ec :  72%|███████▏  | 48/67 [00:02<00:00, 26.55it/s]FID fid_flatten_hjdv1_ec :  76%|███████▌  | 51/67 [00:03<00:00, 19.11it/s]FID fid_flatten_hjdv1_ec :  82%|████████▏ | 55/67 [00:03<00:00, 22.14it/s]FID fid_flatten_hjdv1_ec :  87%|████████▋ | 58/67 [00:03<00:00, 23.60it/s]FID fid_flatten_hjdv1_ec :  91%|█████████ | 61/67 [00:03<00:00, 22.97it/s]FID fid_flatten_hjdv1_ec :  96%|█████████▌| 64/67 [00:03<00:00, 21.09it/s]FID fid_flatten_hjdv1_ec : 100%|██████████| 67/67 [00:03<00:00, 20.60it/s]FID fid_flatten_hjdv1_ec : 100%|██████████| 67/67 [00:03<00:00, 17.22it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_legacy_pytorch statistics
+Found 2126 images in the folder /tmp/fid_flatten_hjdv1_ec
+KID fid_flatten_hjdv1_ec :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_hjdv1_ec :   1%|▏         | 1/67 [00:00<00:59,  1.11it/s]KID fid_flatten_hjdv1_ec :   7%|▋         | 5/67 [00:01<00:09,  6.22it/s]KID fid_flatten_hjdv1_ec :  13%|█▎        | 9/67 [00:01<00:05, 11.38it/s]KID fid_flatten_hjdv1_ec :  19%|█▉        | 13/67 [00:01<00:04, 12.56it/s]KID fid_flatten_hjdv1_ec :  25%|██▌       | 17/67 [00:01<00:02, 16.67it/s]KID fid_flatten_hjdv1_ec :  31%|███▏      | 21/67 [00:01<00:02, 20.74it/s]KID fid_flatten_hjdv1_ec :  37%|███▋      | 25/67 [00:01<00:02, 16.54it/s]KID fid_flatten_hjdv1_ec :  43%|████▎     | 29/67 [00:02<00:01, 19.94it/s]KID fid_flatten_hjdv1_ec :  49%|████▉     | 33/67 [00:02<00:01, 23.48it/s]KID fid_flatten_hjdv1_ec :  55%|█████▌    | 37/67 [00:02<00:01, 19.21it/s]KID fid_flatten_hjdv1_ec :  61%|██████    | 41/67 [00:02<00:01, 22.39it/s]KID fid_flatten_hjdv1_ec :  67%|██████▋   | 45/67 [00:02<00:00, 25.58it/s]KID fid_flatten_hjdv1_ec :  73%|███████▎  | 49/67 [00:02<00:00, 20.68it/s]KID fid_flatten_hjdv1_ec :  79%|███████▉  | 53/67 [00:03<00:00, 23.08it/s]KID fid_flatten_hjdv1_ec :  85%|████████▌ | 57/67 [00:03<00:00, 25.86it/s]KID fid_flatten_hjdv1_ec :  91%|█████████ | 61/67 [00:03<00:00, 21.20it/s]KID fid_flatten_hjdv1_ec :  96%|█████████▌| 64/67 [00:03<00:00, 22.58it/s]KID fid_flatten_hjdv1_ec : 100%|██████████| 67/67 [00:03<00:00, 17.95it/s]
+
+============================================================
+  Gen: outputs/vkitti/dropll_step6000_J3
+  FID:  76.0206
+  KID:  0.049405
+============================================================
