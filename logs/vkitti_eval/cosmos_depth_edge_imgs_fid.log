@@ -1,0 +1,31 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+  warnings.warn(msg)
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/kitti_tracking_flat_sur_olo7
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/cosmos_depth_edge_imgs (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/cosmos_depth_edge_imgs
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: legacy_pytorch
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_legacy_pytorch'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_legacy_pytorch statistics
+Found 2126 images in the folder /tmp/fid_flatten_1wqtipb5
+FID fid_flatten_1wqtipb5 :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_1wqtipb5 :   1%|▏         | 1/67 [00:00<00:56,  1.16it/s]FID fid_flatten_1wqtipb5 :   7%|▋         | 5/67 [00:00<00:09,  6.55it/s]FID fid_flatten_1wqtipb5 :  13%|█▎        | 9/67 [00:01<00:04, 11.90it/s]FID fid_flatten_1wqtipb5 :  19%|█▉        | 13/67 [00:01<00:03, 16.77it/s]FID fid_flatten_1wqtipb5 :  25%|██▌       | 17/67 [00:01<00:02, 21.05it/s]FID fid_flatten_1wqtipb5 :  31%|███▏      | 21/67 [00:01<00:01, 24.44it/s]FID fid_flatten_1wqtipb5 :  37%|███▋      | 25/67 [00:01<00:01, 27.29it/s]FID fid_flatten_1wqtipb5 :  43%|████▎     | 29/67 [00:01<00:01, 29.41it/s]FID fid_flatten_1wqtipb5 :  49%|████▉     | 33/67 [00:01<00:01, 30.85it/s]FID fid_flatten_1wqtipb5 :  55%|█████▌    | 37/67 [00:01<00:00, 32.30it/s]FID fid_flatten_1wqtipb5 :  61%|██████    | 41/67 [00:01<00:00, 33.41it/s]FID fid_flatten_1wqtipb5 :  67%|██████▋   | 45/67 [00:02<00:00, 33.98it/s]FID fid_flatten_1wqtipb5 :  73%|███████▎  | 49/67 [00:02<00:00, 34.95it/s]FID fid_flatten_1wqtipb5 :  79%|███████▉  | 53/67 [00:02<00:00, 35.51it/s]FID fid_flatten_1wqtipb5 :  85%|████████▌ | 57/67 [00:02<00:00, 35.98it/s]FID fid_flatten_1wqtipb5 :  91%|█████████ | 61/67 [00:02<00:00, 36.64it/s]FID fid_flatten_1wqtipb5 :  97%|█████████▋| 65/67 [00:02<00:00, 37.19it/s]FID fid_flatten_1wqtipb5 : 100%|██████████| 67/67 [00:02<00:00, 23.91it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_legacy_pytorch statistics
+Found 2126 images in the folder /tmp/fid_flatten_1wqtipb5
+KID fid_flatten_1wqtipb5 :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_1wqtipb5 :   1%|▏         | 1/67 [00:00<00:40,  1.62it/s]KID fid_flatten_1wqtipb5 :   7%|▋         | 5/67 [00:00<00:07,  8.52it/s]KID fid_flatten_1wqtipb5 :  13%|█▎        | 9/67 [00:00<00:03, 14.71it/s]KID fid_flatten_1wqtipb5 :  19%|█▉        | 13/67 [00:00<00:02, 19.09it/s]KID fid_flatten_1wqtipb5 :  25%|██▌       | 17/67 [00:01<00:02, 23.20it/s]KID fid_flatten_1wqtipb5 :  31%|███▏      | 21/67 [00:01<00:01, 26.18it/s]KID fid_flatten_1wqtipb5 :  37%|███▋      | 25/67 [00:01<00:01, 29.25it/s]KID fid_flatten_1wqtipb5 :  43%|████▎     | 29/67 [00:01<00:01, 30.98it/s]KID fid_flatten_1wqtipb5 :  49%|████▉     | 33/67 [00:01<00:01, 32.60it/s]KID fid_flatten_1wqtipb5 :  55%|█████▌    | 37/67 [00:01<00:00, 33.30it/s]KID fid_flatten_1wqtipb5 :  61%|██████    | 41/67 [00:01<00:00, 31.14it/s]KID fid_flatten_1wqtipb5 :  67%|██████▋   | 45/67 [00:01<00:00, 30.41it/s]KID fid_flatten_1wqtipb5 :  73%|███████▎  | 49/67 [00:02<00:00, 31.22it/s]KID fid_flatten_1wqtipb5 :  79%|███████▉  | 53/67 [00:02<00:00, 32.36it/s]KID fid_flatten_1wqtipb5 :  85%|████████▌ | 57/67 [00:02<00:00, 33.19it/s]KID fid_flatten_1wqtipb5 :  91%|█████████ | 61/67 [00:02<00:00, 33.71it/s]KID fid_flatten_1wqtipb5 :  97%|█████████▋| 65/67 [00:02<00:00, 34.37it/s]KID fid_flatten_1wqtipb5 : 100%|██████████| 67/67 [00:02<00:00, 25.48it/s]
+
+============================================================
+  Gen: outputs/vkitti/cosmos_depth_edge_imgs
+  FID:  76.0906
+  KID:  0.050149
+============================================================

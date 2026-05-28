@@ -13,3 +13,6 @@
 [submodule "DrivIng"]
 	path = DrivIng
 	url = https://github.com/cvims/DrivIng
+[submodule "CosmosTransfer"]
+	path = CosmosTransfer
+	url = https://github.com/nvidia-cosmos/cosmos-transfer2.5

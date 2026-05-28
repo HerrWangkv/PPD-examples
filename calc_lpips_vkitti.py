@@ -49,7 +49,7 @@ def kitti_path(scene, frame_5digit):
 
 def collect_pairs_from_gen(gen_folder):
     """Collect (gen_path, kitti_path) pairs from a translated gen folder."""
-    pattern = re.compile(r"^(\d{4})_clone_(\d{5})\.png$")
+    pattern = re.compile(r"^(\d{4})_clone_(\d{5})\.(png|jpg)$")
     pairs = []
     for fname in sorted(os.listdir(gen_folder)):
         m = pattern.match(fname)
