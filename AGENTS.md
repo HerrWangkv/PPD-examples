@@ -93,3 +93,45 @@ Data is mounted into Docker at runtime (see `debug.sh` / `run_hypersim.sh`):
 ## WPD Naming Convention
 
 Experiment names in `Results.md` follow `WPD<flux_radius>_<wan_radius>[_<scale>]`, e.g. `WPD20_40_0.5` means flux cutoff radius=20, wan cutoff radius=40, noise scale=0.5. `PPD<radius>` denotes FLUX-only (no Wan stage).
+
+In the vKITTI benchmark, naming is:
+- `PPD r<N>` — FLUX-only, cutoff radius N
+- `WPD no drop_ll r16` — WPD (FLUX+Wan), radius=16, no LL subband drop
+- `WPD J=<J> r<N>` — WPD with LL drop, J decomposition levels, radius N
+
+## vKITTI → KITTI Benchmark (current status: complete)
+
+**Setup:** 2126 clone frames across 5 scenes (0001/0002/0006/0018/0020), paired with real KITTI tracking sequences.
+
+**Translated variants** live under `/mrtstorage/users/kwang/vkitti_translated/` with symlinks at `outputs/vkitti/<variant>/`. Cosmos outputs also have `_imgs` symlink dirs (translated only, no condition images).
+
+**Eval scripts** (run from repo root with `.venv` activated, no Docker needed):
+```bash
+python calc_fid_vkitti.py --gen_folder outputs/vkitti/<variant> --clone_only
+python calc_miou_vkitti.py --gen_folder outputs/vkitti/<variant> --clone_only
+python calc_depth_metrics_vkitti.py --gen_folder outputs/vkitti/<variant> --clone_only
+python calc_lpips_vkitti.py --gen_folder outputs/vkitti/<variant>
+python calc_clipiqa_vkitti.py --gen_folder outputs/vkitti/<variant> --clone_only
+python summarize_vkitti_eval.py  # print full table from logs
+```
+
+Logs saved to `logs/vkitti_eval/<variant>_<metric>.log`.
+
+**Cosmos Transfer baseline** scripts:
+```bash
+python create_cosmos_specs.py --mode image --controls depth edge  # generate specs
+bash run_vkitti_cosmos.sh --control depth_edge --gpu 4            # run inference
+```
+Cosmos outputs: `outputs/vkitti/cosmos_<controls>/` → moved to mrtstorage after completion.
+
+**Key findings (vKITTI→KITTI):**
+- WPD J=4 r8: best FID (68.56) / KID (0.0388) — most realistic distribution
+- PPD r20: best CLIP-IQA (0.8794) — sharpest perceptual quality
+- PPD r24: best DepSSIM (0.8789) / AbsRel (0.1596) — best depth preservation
+- WPD no drop_ll r16: best mIoU (48.28) — best semantic structure among translation methods
+- Cosmos: low CLIP-IQA (0.35–0.59), close to real KITTI (0.34) — blurry but distributionally similar
+- Radius is a stronger FID knob than J; larger radius preserves structure but hurts FID
+
+**Next step: Synthia translation with WPD** using the new checkpoint and `--flux_drop_ll` flag.
+Synthia input: `/mrtstorage/users/kwang/synthia_sim2real/` (flat PNG dirs per variant).
+Existing Synthia WPD outputs use outdated checkpoint — need fresh runs with drop_ll variants.
