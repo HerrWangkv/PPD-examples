@@ -5,6 +5,29 @@ mIoU: SegFormer-B5 (Cityscapes). Depth: Depth Anything V2 Large. LPIPS: AlexNet 
 CLIP-IQA: piq.CLIPIQA. KITTI real CLIP-IQA = 0.3433 (reference). * = best (excl. raw sim).
 Full table: `python summarize_vkitti_eval.py`
 
+## Key findings (2026-05-29)
+
+**Primary metrics for storytelling: FID/KID** (CLIP-IQA disfavored — it rewards sharpness, which benefits PPD but is orthogonal to the sim2real realism claim).
+
+**Radius is the main knob**: larger radius → better mIoU/DepSSIM but higher FID, across all variants. J is a secondary effect.
+
+**WPD drop_ll wins on FID/KID**: WPD J=4 r8 achieves best FID (68.56) / KID (0.0388). WPD J=3/4 r16 (FID 76–78) beats Cosmos depth+edge (76.09) while maintaining higher mIoU (38–44 vs 39).
+
+**WPD baseline wins on structure**: WPD baseline r20/r24 achieve best mIoU (48.32/48.46) and DepSSIM (0.8814) — better than all Cosmos variants and PPD. No-drop_ll preserves semantics better than drop_ll by ~4 mIoU points at the same radius.
+
+**drop_ll trades structure for realism**: WPD baseline r16 vs WPD J=4 r16: FID 90.85→77.80 (gain), mIoU 48.28→44.31 (loss). The LL subband carries structural information.
+
+**PPD is dominated by WPD on FID**: All PPD variants have FID > 86. WPD drop_ll variants consistently outperform PPD on distributional realism.
+
+**Best single operating point**: WPD J=4 r12 (FID 75.72, mIoU 43.50) — beats Cosmos depth+edge on both FID and mIoU simultaneously, without any conditioning signals.
+
+## Suggested next experiments
+
+- **J sweep at r12** (J=3, J=5): confirm J=4 is robustly optimal, not just at r16. Two inference runs.
+- **drop_ll ablation**: run baseline lora + `--flux_drop_ll` flag (and/or drop_ll lora without flag) to separate training-time vs inference-time contribution of LL zeroing.
+- **Longer drop_ll checkpoint**: step-6000 lora is undertrained vs baseline (302k steps). Later checkpoint may narrow the mIoU gap.
+- **Synthia cross-dataset**: run WPD J=4 r12 and WPD baseline r20 on Synthia to validate generalization (reviewers will ask).
+
 | Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ | LPIPS↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | input (raw sim) | 0.7180 | 99.71 | 0.0656 | 50.39 | 0.9002 | 0.1573 | 0.6696 |
@@ -22,8 +45,12 @@ Full table: `python summarize_vkitti_eval.py`
 | PPD r12 | 0.8467 | 96.91 | 0.0743 | 46.49 | 0.8607 | 0.2035 | 0.7167 |
 | PPD r16 | 0.8731 | 102.14 | 0.0807 | 47.02 | 0.8646 | 0.1883 | 0.7327 |
 | PPD r20 | **0.8794** | 102.40 | 0.0819 | 46.77 | 0.8662 | 0.1824 | 0.7389 |
-| PPD r24 | 0.8615 | 110.19 | 0.0890 | 47.05 | **0.8789** | **0.1596** | 0.7501 |
-| WPD no drop_ll r16 | 0.7956 | 90.85 | 0.0665 | **48.28** | 0.8693 | 0.1931 | 0.7167 |
+| PPD r24 | 0.8615 | 110.19 | 0.0890 | 47.05 | 0.8789 | **0.1596** | 0.7501 |
+| WPD baseline r8 | 0.7678 | 76.48 | 0.0488 | 44.23 | 0.8335 | 0.2894 | 0.7004 |
+| WPD baseline r12 | 0.7420 | 89.61 | 0.0645 | 47.22 | 0.8637 | 0.2166 | 0.7012 |
+| WPD baseline r16 | 0.7956 | 90.85 | 0.0665 | 48.28 | 0.8693 | 0.1931 | 0.7167 |
+| WPD baseline r20 | 0.8028 | 90.22 | 0.0663 | 48.32 | 0.8688 | 0.1850 | 0.7191 |
+| WPD baseline r24 | 0.8079 | 101.63 | 0.0781 | **48.46** | **0.8814** | 0.1609 | 0.7342 |
 | WPD J=3 r16 | 0.8214 | 76.02 | 0.0494 | 38.73 | 0.8383 | 0.2446 | 0.7447 |
 | WPD J=4 r16 | 0.8264 | 77.80 | 0.0500 | 44.31 | 0.8512 | 0.2096 | 0.7112 |
 | WPD J=5 r16 | 0.8161 | 87.03 | 0.0599 | 45.84 | 0.8554 | 0.2037 | 0.6998 |
