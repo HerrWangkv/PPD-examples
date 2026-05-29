@@ -1,0 +1,31 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+  warnings.warn(msg)
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_qa6qyto4
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/baseline_r20 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/baseline_r20
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: legacy_pytorch
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_legacy_pytorch'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_legacy_pytorch statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_6h4l8uew
+FID fid_flatten_6h4l8uew :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_6h4l8uew :   1%|▏         | 1/67 [00:01<01:20,  1.22s/it]FID fid_flatten_6h4l8uew :   7%|▋         | 5/67 [00:01<00:12,  4.84it/s]FID fid_flatten_6h4l8uew :  13%|█▎        | 9/67 [00:01<00:06,  9.16it/s]FID fid_flatten_6h4l8uew :  19%|█▉        | 13/67 [00:01<00:03, 13.66it/s]FID fid_flatten_6h4l8uew :  25%|██▌       | 17/67 [00:01<00:02, 17.95it/s]FID fid_flatten_6h4l8uew :  31%|███▏      | 21/67 [00:01<00:02, 21.82it/s]FID fid_flatten_6h4l8uew :  37%|███▋      | 25/67 [00:02<00:02, 17.85it/s]FID fid_flatten_6h4l8uew :  43%|████▎     | 29/67 [00:02<00:01, 20.95it/s]FID fid_flatten_6h4l8uew :  49%|████▉     | 33/67 [00:02<00:01, 23.80it/s]FID fid_flatten_6h4l8uew :  55%|█████▌    | 37/67 [00:02<00:01, 17.28it/s]FID fid_flatten_6h4l8uew :  61%|██████    | 41/67 [00:02<00:01, 20.40it/s]FID fid_flatten_6h4l8uew :  67%|██████▋   | 45/67 [00:02<00:00, 22.87it/s]FID fid_flatten_6h4l8uew :  73%|███████▎  | 49/67 [00:03<00:00, 18.56it/s]FID fid_flatten_6h4l8uew :  79%|███████▉  | 53/67 [00:03<00:00, 21.56it/s]FID fid_flatten_6h4l8uew :  85%|████████▌ | 57/67 [00:03<00:00, 24.63it/s]FID fid_flatten_6h4l8uew :  91%|█████████ | 61/67 [00:03<00:00, 18.07it/s]FID fid_flatten_6h4l8uew :  96%|█████████▌| 64/67 [00:03<00:00, 19.03it/s]FID fid_flatten_6h4l8uew : 100%|██████████| 67/67 [00:04<00:00, 18.49it/s]FID fid_flatten_6h4l8uew : 100%|██████████| 67/67 [00:04<00:00, 15.99it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_legacy_pytorch statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_6h4l8uew
+KID fid_flatten_6h4l8uew :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_6h4l8uew :   1%|▏         | 1/67 [00:00<01:05,  1.01it/s]KID fid_flatten_6h4l8uew :   7%|▋         | 5/67 [00:01<00:10,  5.83it/s]KID fid_flatten_6h4l8uew :  13%|█▎        | 9/67 [00:01<00:05, 10.69it/s]KID fid_flatten_6h4l8uew :  19%|█▉        | 13/67 [00:01<00:04, 11.42it/s]KID fid_flatten_6h4l8uew :  25%|██▌       | 17/67 [00:01<00:03, 15.52it/s]KID fid_flatten_6h4l8uew :  31%|███▏      | 21/67 [00:01<00:02, 19.53it/s]KID fid_flatten_6h4l8uew :  37%|███▋      | 25/67 [00:02<00:02, 14.56it/s]KID fid_flatten_6h4l8uew :  43%|████▎     | 29/67 [00:02<00:02, 17.79it/s]KID fid_flatten_6h4l8uew :  49%|████▉     | 33/67 [00:02<00:01, 21.15it/s]KID fid_flatten_6h4l8uew :  55%|█████▌    | 37/67 [00:02<00:01, 17.09it/s]KID fid_flatten_6h4l8uew :  61%|██████    | 41/67 [00:02<00:01, 20.40it/s]KID fid_flatten_6h4l8uew :  67%|██████▋   | 45/67 [00:02<00:00, 23.66it/s]KID fid_flatten_6h4l8uew :  73%|███████▎  | 49/67 [00:03<00:00, 18.83it/s]KID fid_flatten_6h4l8uew :  79%|███████▉  | 53/67 [00:03<00:00, 21.87it/s]KID fid_flatten_6h4l8uew :  85%|████████▌ | 57/67 [00:03<00:00, 25.10it/s]KID fid_flatten_6h4l8uew :  91%|█████████ | 61/67 [00:03<00:00, 20.20it/s]KID fid_flatten_6h4l8uew :  97%|█████████▋| 65/67 [00:03<00:00, 23.19it/s]KID fid_flatten_6h4l8uew : 100%|██████████| 67/67 [00:03<00:00, 16.79it/s]
+
+============================================================
+  Gen: outputs/vkitti/baseline_r20
+  FID:  90.2157
+  KID:  0.066290
+============================================================

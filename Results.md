@@ -3,7 +3,28 @@
 FID/KID ref: KITTI tracking sequences 0001/0002/0006/0018/0020 (2126 frames, scene-matched).
 mIoU: SegFormer-B5 (Cityscapes). Depth: Depth Anything V2 Large. LPIPS: AlexNet vs paired KITTI.
 CLIP-IQA: piq.CLIPIQA. KITTI real CLIP-IQA = 0.3433 (reference). * = best (excl. raw sim).
+† FLUX.1-Kontext excluded from paper (mIoU inflated by Cityscapes-style appearance, not structural preservation).
 Full table: `python summarize_vkitti_eval.py`
+
+## Paper table (one variant per method)
+
+WPD baseline variants reserved for ablation. No LPIPS/CLIP-IQA.
+Frontier plot: `python plot_vkitti_frontier.py --output outputs/vkitti_frontier.pdf`
+
+| Method | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Input (raw sim) | 99.71 | 0.0656 | 50.39 | 0.9002 | 0.1573 |
+| FlowEdit | 85.45 | 0.0534 | 42.72 | 0.8119 | 0.2599 |
+| DNAEdit | 87.86 | 0.0515 | 41.22 | 0.8274 | 0.2539 |
+| Cosmos depth+edge | *76.09* | *0.0501* | 39.36 | **0.8700** | **0.2016** |
+| PPD r8 | 86.39 | 0.0604 | *43.20* | 0.8347 | 0.2851 |
+| WPD J=4 r12 (ours) | **75.72** | **0.0477** | **43.50** | *0.8394* | *0.2286* |
+
+## Ablation 1: WPD baseline vs PPD (effect of new LoRA training)
+
+![Ablation 1](outputs/ablation_baseline_vs_ppd.png)
+
+Generate: `python plot_ablation_baseline_vs_ppd.py --output outputs/ablation_baseline_vs_ppd.png`
 
 ## Key findings (2026-05-29)
 
@@ -33,6 +54,7 @@ Full table: `python summarize_vkitti_eval.py`
 | input (raw sim) | 0.7180 | 99.71 | 0.0656 | 50.39 | 0.9002 | 0.1573 | 0.6696 |
 | FlowEdit | 0.6267 | 85.45 | 0.0534 | 42.72 | 0.8119 | 0.2599 | 0.6921 |
 | DNAEdit | 0.7643 | 87.86 | 0.0515 | 41.22 | 0.8274 | 0.2539 | 0.6970 |
+| FLUX.1-Kontext† | 0.8069 | 82.45 | 0.0490 | 51.86 | 0.8709 | 0.1871 | 0.6831 |
 | Cosmos depth | 0.3583 | 78.81 | 0.0583 | 38.37 | 0.8521 | 0.2160 | 0.6725 |
 | Cosmos depth+edge | 0.4083 | 76.09 | 0.0501 | 39.36 | 0.8700 | 0.2016 | **0.6581** |
 | Cosmos depth+vis | 0.5227 | 98.20 | 0.0715 | 40.99 | 0.8720 | 0.1629 | 0.6682 |
