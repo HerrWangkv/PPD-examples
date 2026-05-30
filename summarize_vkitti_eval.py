@@ -41,7 +41,9 @@ VARIANTS_ORDER = [
     "dropll_step6000_J4",
     "dropll_step6000_J5",
     "dropll_J4_r8",
+    "dropll_J3_r12",
     "dropll_J4_r12",
+    "dropll_J5_r12",
     "dropll_J4_r20",
     "dropll_J4_r24",
 ]
@@ -73,7 +75,9 @@ DISPLAY_NAMES = {
     "dropll_step6000_J4":           "WPD J=4 r16",
     "dropll_step6000_J5":           "WPD J=5 r16",
     "dropll_J4_r8":                 "WPD J=4 r8",
+    "dropll_J3_r12":                "WPD J=3 r12",
     "dropll_J4_r12":                "WPD J=4 r12",
+    "dropll_J5_r12":                "WPD J=5 r12",
     "dropll_J4_r20":                "WPD J=4 r20",
     "dropll_J4_r24":                "WPD J=4 r24",
 }

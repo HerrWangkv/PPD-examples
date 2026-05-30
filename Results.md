@@ -26,6 +26,14 @@ Frontier plot: `python plot_vkitti_frontier.py --output outputs/vkitti_frontier.
 
 Generate: `python plot_ablation_baseline_vs_ppd.py --output outputs/ablation_baseline_vs_ppd.png`
 
+## Ablation 2: J sweep at r=12 and r=16 (WPD baseline = J=∞, no drop_ll)
+
+J=4 minimises FID; J=5 better preserves structure. Both radii show the same trade-off.
+
+![Ablation 2](outputs/ablation_J_sweep.png)
+
+Generate: `python plot_ablation_J_sweep.py --output outputs/ablation_J_sweep.png`
+
 ## Key findings (2026-05-29)
 
 **Primary metrics for storytelling: FID/KID** (CLIP-IQA disfavored — it rewards sharpness, which benefits PPD but is orthogonal to the sim2real realism claim).
@@ -44,10 +52,10 @@ Generate: `python plot_ablation_baseline_vs_ppd.py --output outputs/ablation_bas
 
 ## Suggested next experiments
 
-- **J sweep at r12** (J=3, J=5): confirm J=4 is robustly optimal, not just at r16. Two inference runs.
-- **drop_ll ablation**: run baseline lora + `--flux_drop_ll` flag (and/or drop_ll lora without flag) to separate training-time vs inference-time contribution of LL zeroing.
-- **Longer drop_ll checkpoint**: step-6000 lora is undertrained vs baseline (302k steps). Later checkpoint may narrow the mIoU gap.
-- **Synthia cross-dataset**: run WPD J=4 r12 and WPD baseline r20 on Synthia to validate generalization (reviewers will ask).
+- **drop_ll ablation (training vs inference)**: run baseline lora + `--flux_drop_ll` at inference (and drop_ll lora without flag) to isolate what the training contributes vs the inference-time LL zeroing. Key scientific question reviewers will ask.
+- **Hypersim → ScanNet benchmark**: supports the lighting claim (drop_ll corrects LL = global illumination). Existing translated variants: `hypersim_wavelet` (WPD baseline r20), `hypersim_flowedit`. Need drop_ll variant (`run_hypersim_dropll.sh`). Eval scripts exist (`calc_fid_hypersim.py`, `calc_depth_metrics_hypersim.py`).
+- **Longer drop_ll checkpoint**: step-6000 lora is undertrained vs baseline (302k steps). Later checkpoint may narrow the mIoU gap while maintaining FID gain.
+- **CUT/CycleGAN baseline**: reviewers of sim2real papers expect an unpaired GAN baseline.
 
 | Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ | LPIPS↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -77,7 +85,9 @@ Generate: `python plot_ablation_baseline_vs_ppd.py --output outputs/ablation_bas
 | WPD J=4 r16 | 0.8264 | 77.80 | 0.0500 | 44.31 | 0.8512 | 0.2096 | 0.7112 |
 | WPD J=5 r16 | 0.8161 | 87.03 | 0.0599 | 45.84 | 0.8554 | 0.2037 | 0.6998 |
 | WPD J=4 r8 | 0.8086 | **68.56** | **0.0388** | 38.11 | 0.7883 | 0.3128 | 0.7246 |
+| WPD J=3 r12 | 0.7866 | 76.16 | 0.0480 | 37.00 | 0.8182 | 0.2809 | 0.7392 |
 | WPD J=4 r12 | 0.7963 | 75.72 | 0.0477 | 43.50 | 0.8394 | 0.2286 | 0.7052 |
+| WPD J=5 r12 | 0.7940 | 83.60 | 0.0558 | 44.81 | 0.8468 | 0.2204 | 0.6914 |
 | WPD J=4 r20 | 0.8292 | 78.22 | 0.0508 | 45.04 | 0.8532 | 0.2011 | 0.7123 |
 | WPD J=4 r24 | 0.8228 | 88.79 | 0.0609 | 44.98 | 0.8763 | 0.1682 | 0.7203 |
 
