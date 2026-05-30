@@ -1,24 +1,40 @@
 # Orchestrator State
+_最后同步：2026-05-30_
 
-_最后更新: 2026-05-21_
+## 全局进度看板
 
-## 当前阶段
-**实验执行** — 核心训练/推理任务并行运行中
+| 阶段 | 状态 | 备注 |
+|------|------|------|
+| Survey | ✅ done | baselines 确定：FlowEdit/DNAEdit/Cosmos/Kontext |
+| Ideation | ✅ done | WPD J=4 r12 为主 operating point，J sweep 验证完毕 |
+| Experiment | 🔄 active | vKITTI 完成，Hypersim 运行中，ablation 排队 |
+| Publication | ⏳ pending | paper table 就绪，待写作 |
 
-## 运行中任务
-- `wan_low_training`: GPU 0-3，step ~2，~6h 到第一个 checkpoint
-- `batch_inference_60scenes`: GPU 4/5，~16-17/60 完成，~1h 到完成
+## 当前活跃任务
 
-## 待解决
-- Wan high training 还未启动（GPU 0-3 被 Wan low 占用）
-- batch inference 完成后需要立刻跑定量评估
+| 任务 | GPU | 进度 | ETA |
+|------|-----|------|-----|
+| Hypersim dropll_J5_r24 翻译 | 0-3 | ~1552/7402 (21%) | ~9h |
+| drop_ll ablation (training vs inference) | 等待 GPU | 排队中 | Hypersim 完成后 |
 
-## 下一个里程碑
-1. batch inference 完成 → 跑 Synthia mIoU eval（今日）
-2. Wan low 第一个 ckpt (step-100) 出现 → 检查 loss curve（~6h 后）
-3. 评估完成 → 决定是否需要继续训练或调整超参数
+## 已完成任务（最近完成）
 
-## 近期决策记录
-- drop_ll J=4（不是 J=3）用于推理
-- prompt 修改去除 dashboard artifact
-- Adaptive radius map 作为下一个待实现的方法改进（见 decision_log.md）
+- [2026-05-30] J sweep at r12 eval (J=3/5)：J=4 FID 最优，J=5 结构更好
+- [2026-05-30] Ablation 2 图（J sweep 3-panel FID/mIoU/DepSSIM vs J）
+- [2026-05-29] vKITTI FLUX-Kontext baseline eval（排除出 paper）
+- [2026-05-29] WPD baseline r8/r12/r20/r24 eval 完成
+- [2026-05-29] Paper table + Ablation 1 plot（PPD vs WPD baseline）
+- [2026-05-28] vKITTI 全量 benchmark：PPD/WPD/drop_ll/Cosmos/FlowEdit/DNAEdit
+
+## 决策点
+
+1. **CUT baseline** — reviewer 必问，尚未实施。低优先级但需要在写作前决定
+2. **Hypersim eval 脚本重构** — `calc_fid_hypersim.py` 等硬编码路径，需适配 `--gen_folder`
+3. **写作时机** — benchmark 完整性 vs 早开始写作的 trade-off
+
+## 下一步建议（优先级）
+
+1. **等 Hypersim 完成** → 立刻跑 eval（FID vs ScanNet，depth metrics）
+2. **启动 drop_ll ablation**（2 变体 × vKITTI）
+3. **重构 Hypersim eval 脚本** → 适配 `--gen_folder`
+4. **开始论文写作**（Results section + 消融分析）

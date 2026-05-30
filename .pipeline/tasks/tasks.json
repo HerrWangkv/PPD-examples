@@ -2,44 +2,40 @@
   "stage": "experimentation",
   "tasks": [
     {
-      "id": "wan_low_training",
-      "title": "Wan low LoRA drop_ll 训练",
+      "id": "vkitti_benchmark",
+      "title": "vKITTI→KITTI 完整 benchmark",
+      "status": "done",
+      "updatedAt": "2026-05-29",
+      "output": "logs/vkitti_eval/, summarize_vkitti_eval.py, Results.md",
+      "details": "PPD r8-r24, WPD baseline r8-r24, WPD J=3/4/5 r8-r24, FlowEdit, DNAEdit, Cosmos variants, FLUX-Kontext. Paper table + Ablation 1 & 2 完成."
+    },
+    {
+      "id": "hypersim_dropll_J5_r24",
+      "title": "Hypersim drop_ll J=5 r=24 翻译",
       "status": "in_progress",
-      "details": "GPU 0-3, step ~2/unknown, ~3.5min/step, first ckpt ~6h",
-      "output": "models/train/Wan2.2-I2V-A14B_low_lora_wpd_dropll/"
+      "updatedAt": "2026-05-30",
+      "details": "GPU 0-3, ~1552/7402 完成, ETA ~9h. 支持 lighting claim (Hypersim 光照差距大于 vKITTI).",
+      "output": "/mrtstorage/users/kwang/hypersim_dropll_J5_r24/"
     },
     {
-      "id": "wan_high_training",
-      "title": "Wan high LoRA drop_ll 训练",
+      "id": "hypersim_eval",
+      "title": "Hypersim eval (FID vs ScanNet + depth)",
       "status": "pending",
-      "details": "脚本已准备: train_wan_high_dropll.sh，待 GPU 空闲后启动"
+      "depends_on": ["hypersim_dropll_J5_r24"],
+      "details": "重构 calc_fid_hypersim.py 为 --gen_folder 接口，然后 eval: input / flowedit / wpd_r20 / dropll_J5_r24"
     },
     {
-      "id": "batch_inference_60scenes",
-      "title": "Batch inference nuCarla 60 scenes",
-      "status": "in_progress",
-      "details": "GPU 4 (baseline) ~16/60, GPU 5 (dropll step-6000) ~17/60",
-      "output": "outputs/batch_scene0000_0059/"
-    },
-    {
-      "id": "quant_eval_dropll",
-      "title": "定量评估 FLUX drop_ll",
+      "id": "dropll_ablation",
+      "title": "drop_ll training vs inference ablation",
       "status": "pending",
-      "depends_on": ["batch_inference_60scenes"],
-      "details": "Synthia mIoU + Hypersim depth SSIM，对比 WPD baseline vs drop_ll step-6000"
+      "depends_on": ["hypersim_dropll_J5_r24"],
+      "details": "2 变体: flux.safetensors + drop_ll flag (变体A) vs step-6000 lora 无 flag (变体B). 需写 run_vkitti_ablation_dropll.sh."
     },
     {
-      "id": "adaptive_radius_impl",
-      "title": "Adaptive Radius Map 实现与验证",
+      "id": "publication",
+      "title": "论文写作",
       "status": "pending",
-      "details": "实现 compute_adaptive_radius_map，可视化，对比 AS/SSIM。见 decision_log.md"
-    },
-    {
-      "id": "wan_dropll_eval",
-      "title": "Wan drop_ll 完整 pipeline 评估",
-      "status": "pending",
-      "depends_on": ["wan_low_training", "wan_high_training"],
-      "details": "FLUX drop_ll + Wan drop_ll 两阶段 pipeline 定量评估"
+      "details": "Results section, ablation analysis, related work. paper table 已就绪."
     }
   ]
 }
