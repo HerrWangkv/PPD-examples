@@ -31,7 +31,7 @@ srun --label --export=ALL \
     --env HF_TOKEN="${HUGGING_FACE_TOKEN}" \
     ${SIF} bash -c "
         cd /workspace
-        torchrun --nproc_per_node=4 batch_sim2real_image_wavelet.py \
+        torchrun --nproc_per_node=4 batch_sim2real_image_ppd.py \
             --input_dir /data/vkitti/clone_flat \
             --output_dir /data/vkitti_wpd/ppd_r16 \
             --flux_lora ${PPD_LORA} \

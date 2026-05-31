@@ -38,7 +38,7 @@ srun --label --export=ALL \
         cd /workspace
 
         # GPU 0: PPD r=8
-        CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python batch_sim2real_image_wavelet.py \
+        CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python batch_sim2real_image_ppd.py \
             --input_dir /data/vkitti/clone_flat \
             --output_dir /data/vkitti_wpd/ppd_r8 \
             --flux_lora ${PPD_LORA} \
@@ -48,7 +48,7 @@ srun --label --export=ALL \
             > /workspace/logs/vkitti_ppd_r8_\${SLURM_JOB_ID}.out 2>&1 &
 
         # GPU 1: PPD r=12
-        CUDA_VISIBLE_DEVICES=1 PYTHONPATH=. python batch_sim2real_image_wavelet.py \
+        CUDA_VISIBLE_DEVICES=1 PYTHONPATH=. python batch_sim2real_image_ppd.py \
             --input_dir /data/vkitti/clone_flat \
             --output_dir /data/vkitti_wpd/ppd_r12 \
             --flux_lora ${PPD_LORA} \
@@ -58,7 +58,7 @@ srun --label --export=ALL \
             > /workspace/logs/vkitti_ppd_r12_\${SLURM_JOB_ID}.out 2>&1 &
 
         # GPU 2: PPD r=20
-        CUDA_VISIBLE_DEVICES=2 PYTHONPATH=. python batch_sim2real_image_wavelet.py \
+        CUDA_VISIBLE_DEVICES=2 PYTHONPATH=. python batch_sim2real_image_ppd.py \
             --input_dir /data/vkitti/clone_flat \
             --output_dir /data/vkitti_wpd/ppd_r20 \
             --flux_lora ${PPD_LORA} \
@@ -68,7 +68,7 @@ srun --label --export=ALL \
             > /workspace/logs/vkitti_ppd_r20_\${SLURM_JOB_ID}.out 2>&1 &
 
         # GPU 3: PPD r=24
-        CUDA_VISIBLE_DEVICES=3 PYTHONPATH=. python batch_sim2real_image_wavelet.py \
+        CUDA_VISIBLE_DEVICES=3 PYTHONPATH=. python batch_sim2real_image_ppd.py \
             --input_dir /data/vkitti/clone_flat \
             --output_dir /data/vkitti_wpd/ppd_r24 \
             --flux_lora ${PPD_LORA} \
