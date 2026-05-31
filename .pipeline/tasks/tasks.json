@@ -6,30 +6,36 @@
       "title": "vKITTI→KITTI 完整 benchmark",
       "status": "done",
       "updatedAt": "2026-05-29",
-      "output": "logs/vkitti_eval/, summarize_vkitti_eval.py, Results.md",
-      "details": "PPD r8-r24, WPD baseline r8-r24, WPD J=3/4/5 r8-r24, FlowEdit, DNAEdit, Cosmos variants, FLUX-Kontext. Paper table + Ablation 1 & 2 完成."
+      "output": "logs/vkitti_eval/, Results.md",
+      "details": "PPD/WPD baseline/drop_ll 全系列 + FlowEdit/DNAEdit/Cosmos/Kontext. Paper table + Ablation 1 & 2 完成."
     },
     {
-      "id": "hypersim_dropll_J5_r24",
+      "id": "dropll_ablation_a",
+      "title": "Ablation A: flux.safetensors + infer drop_ll J=4",
+      "status": "done",
+      "updatedAt": "2026-05-31",
+      "output": "logs/vkitti_eval/ablation_dropll_r{8,12,20,24}_*.log",
+      "details": "r8/12/20/24 全部完成。推理时 LL zeroing 贡献 ~15pt FID，训练仅 ~1pt。"
+    },
+    {
+      "id": "dropll_ablation_b",
+      "title": "Ablation B: step-6000 lora，无 drop_ll flag（完整 2×2）",
+      "status": "pending",
+      "details": "step-6000 lora + no --flux_drop_ll, radius=12. 预期 FID 无改善，验证推理时 zeroing 是关键。"
+    },
+    {
+      "id": "hypersim_translation",
       "title": "Hypersim drop_ll J=5 r=24 翻译",
-      "status": "in_progress",
-      "updatedAt": "2026-05-30",
-      "details": "GPU 0-3, ~1552/7402 完成, ETA ~9h. 支持 lighting claim (Hypersim 光照差距大于 vKITTI).",
+      "status": "pending",
+      "details": "bash run_hypersim_dropll.sh --gpus 0,1,2,3 --J 5 --radius 24. 已有 ~1552/7402，需重启.",
       "output": "/mrtstorage/users/kwang/hypersim_dropll_J5_r24/"
     },
     {
       "id": "hypersim_eval",
-      "title": "Hypersim eval (FID vs ScanNet + depth)",
+      "title": "Hypersim eval 脚本重构 + 评估",
       "status": "pending",
-      "depends_on": ["hypersim_dropll_J5_r24"],
-      "details": "重构 calc_fid_hypersim.py 为 --gen_folder 接口，然后 eval: input / flowedit / wpd_r20 / dropll_J5_r24"
-    },
-    {
-      "id": "dropll_ablation",
-      "title": "drop_ll training vs inference ablation",
-      "status": "pending",
-      "depends_on": ["hypersim_dropll_J5_r24"],
-      "details": "2 变体: flux.safetensors + drop_ll flag (变体A) vs step-6000 lora 无 flag (变体B). 需写 run_vkitti_ablation_dropll.sh."
+      "depends_on": ["hypersim_translation"],
+      "details": "重构 calc_fid_hypersim.py 等为 --gen_folder 接口，eval: input/flowedit/wpd_r20/dropll_J5_r24 vs ScanNet"
     },
     {
       "id": "publication",

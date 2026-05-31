@@ -46,6 +46,10 @@ VARIANTS_ORDER = [
     "dropll_J5_r12",
     "dropll_J4_r20",
     "dropll_J4_r24",
+    "ablation_dropll_r8",
+    "ablation_dropll_r12",
+    "ablation_dropll_r20",
+    "ablation_dropll_r24",
 ]
 
 DISPLAY_NAMES = {
@@ -79,6 +83,10 @@ DISPLAY_NAMES = {
     "dropll_J4_r12":                "WPD J=4 r12",
     "dropll_J5_r12":                "WPD J=5 r12",
     "dropll_J4_r20":                "WPD J=4 r20",
+    "ablation_dropll_r8":           "Ablation: infer drop_ll r8",
+    "ablation_dropll_r12":          "Ablation: infer drop_ll r12",
+    "ablation_dropll_r20":          "Ablation: infer drop_ll r20",
+    "ablation_dropll_r24":          "Ablation: infer drop_ll r24",
     "dropll_J4_r24":                "WPD J=4 r24",
 }
 

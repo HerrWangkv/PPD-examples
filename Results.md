@@ -3,7 +3,7 @@
 FID/KID ref: KITTI tracking sequences 0001/0002/0006/0018/0020 (2126 frames, scene-matched).
 mIoU: SegFormer-B5 (Cityscapes). Depth: Depth Anything V2 Large. LPIPS: AlexNet vs paired KITTI.
 CLIP-IQA: piq.CLIPIQA. KITTI real CLIP-IQA = 0.3433 (reference). * = best (excl. raw sim).
-† FLUX.1-Kontext excluded from paper (mIoU inflated by Cityscapes-style appearance, not structural preservation).
+† FLUX.1-Kontext: mIoU inflated by Cityscapes-style appearance (excluded from paper). Ablation infer drop_ll: flux.safetensors + --flux_drop_ll J=4 at inference only (no drop_ll training); LPIPS not computed.
 Full table: `python summarize_vkitti_eval.py`
 
 ## Paper table (one variant per method)
@@ -50,9 +50,11 @@ Generate: `python plot_ablation_J_sweep.py --output outputs/ablation_J_sweep.png
 
 **Best single operating point**: WPD J=4 r12 (FID 75.72, mIoU 43.50) — beats Cosmos depth+edge on both FID and mIoU simultaneously, without any conditioning signals.
 
+**Ablation (2026-05-31): inference-time LL zeroing drives FID gain**. Comparing at r12: WPD baseline (89.61) → infer drop_ll only (74.54) → full WPD J=4 (75.72). The gap baseline→infer-only is ~15 FID points; infer-only→full WPD is ~1 point. Inference-time LL zeroing accounts for most of the realism improvement; drop_ll training provides marginal additional FID benefit but helps recover mIoU (42.97→43.50). This holds across all radii.
+
 ## Suggested next experiments
 
-- **drop_ll ablation (training vs inference)**: run baseline lora + `--flux_drop_ll` at inference (and drop_ll lora without flag) to isolate what the training contributes vs the inference-time LL zeroing. Key scientific question reviewers will ask.
+- **drop_ll ablation Variant B** (training-only): step-6000 lora + no `--flux_drop_ll` flag, to confirm training alone does not improve FID. Completes the 2×2 matrix.
 - **Hypersim → ScanNet benchmark**: supports the lighting claim (drop_ll corrects LL = global illumination). Existing translated variants: `hypersim_wavelet` (WPD baseline r20), `hypersim_flowedit`. Need drop_ll variant (`run_hypersim_dropll.sh`). Eval scripts exist (`calc_fid_hypersim.py`, `calc_depth_metrics_hypersim.py`).
 - **Longer drop_ll checkpoint**: step-6000 lora is undertrained vs baseline (302k steps). Later checkpoint may narrow the mIoU gap while maintaining FID gain.
 - **CUT/CycleGAN baseline**: reviewers of sim2real papers expect an unpaired GAN baseline.
@@ -90,6 +92,10 @@ Generate: `python plot_ablation_J_sweep.py --output outputs/ablation_J_sweep.png
 | WPD J=5 r12 | 0.7940 | 83.60 | 0.0558 | 44.81 | 0.8468 | 0.2204 | 0.6914 |
 | WPD J=4 r20 | 0.8292 | 78.22 | 0.0508 | 45.04 | 0.8532 | 0.2011 | 0.7123 |
 | WPD J=4 r24 | 0.8228 | 88.79 | 0.0609 | 44.98 | 0.8763 | 0.1682 | 0.7203 |
+| Ablation: infer drop_ll r8† | 0.8498 | 72.61 | 0.0423 | 36.94 | 0.7837 | 0.3175 | — |
+| Ablation: infer drop_ll r12† | 0.8490 | 74.54 | 0.0468 | 42.97 | 0.8331 | 0.2295 | — |
+| Ablation: infer drop_ll r20† | 0.8719 | 79.45 | 0.0513 | 43.87 | 0.8479 | 0.2056 | — |
+| Ablation: infer drop_ll r24† | 0.8268 | 90.16 | 0.0621 | 44.51 | 0.8733 | 0.1718 | — |
 
 # Synthia
 ## mIoU
