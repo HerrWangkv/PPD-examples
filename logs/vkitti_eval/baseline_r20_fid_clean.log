@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_lykdcol9
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/baseline_r20 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/baseline_r20
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_gxi0rp21
+FID fid_flatten_gxi0rp21 :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_gxi0rp21 :   1%|▏         | 1/67 [00:01<01:59,  1.80s/it]FID fid_flatten_gxi0rp21 :   3%|▎         | 2/67 [00:03<01:50,  1.70s/it]FID fid_flatten_gxi0rp21 :   9%|▉         | 6/67 [00:03<00:25,  2.44it/s]FID fid_flatten_gxi0rp21 :  15%|█▍        | 10/67 [00:03<00:11,  4.79it/s]FID fid_flatten_gxi0rp21 :  21%|██        | 14/67 [00:03<00:07,  7.56it/s]FID fid_flatten_gxi0rp21 :  27%|██▋       | 18/67 [00:03<00:04, 10.55it/s]FID fid_flatten_gxi0rp21 :  31%|███▏      | 21/67 [00:04<00:03, 12.19it/s]FID fid_flatten_gxi0rp21 :  36%|███▌      | 24/67 [00:04<00:03, 13.64it/s]FID fid_flatten_gxi0rp21 :  40%|████      | 27/67 [00:04<00:02, 13.40it/s]FID fid_flatten_gxi0rp21 :  45%|████▍     | 30/67 [00:04<00:02, 14.49it/s]FID fid_flatten_gxi0rp21 :  51%|█████     | 34/67 [00:04<00:01, 18.25it/s]FID fid_flatten_gxi0rp21 :  57%|█████▋    | 38/67 [00:04<00:01, 21.68it/s]FID fid_flatten_gxi0rp21 :  61%|██████    | 41/67 [00:05<00:02, 11.03it/s]FID fid_flatten_gxi0rp21 :  67%|██████▋   | 45/67 [00:05<00:01, 14.13it/s]FID fid_flatten_gxi0rp21 :  73%|███████▎  | 49/67 [00:05<00:01, 17.25it/s]FID fid_flatten_gxi0rp21 :  78%|███████▊  | 52/67 [00:06<00:01, 10.16it/s]FID fid_flatten_gxi0rp21 :  84%|████████▎ | 56/67 [00:06<00:00, 13.14it/s]FID fid_flatten_gxi0rp21 :  90%|████████▉ | 60/67 [00:06<00:00, 16.52it/s]FID fid_flatten_gxi0rp21 :  94%|█████████▍| 63/67 [00:07<00:00, 10.34it/s]FID fid_flatten_gxi0rp21 :  99%|█████████▊| 66/67 [00:07<00:00, 11.86it/s]FID fid_flatten_gxi0rp21 : 100%|██████████| 67/67 [00:07<00:00,  8.89it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_gxi0rp21
+KID fid_flatten_gxi0rp21 :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_gxi0rp21 :   1%|▏         | 1/67 [00:01<01:16,  1.15s/it]KID fid_flatten_gxi0rp21 :   3%|▎         | 2/67 [00:03<01:43,  1.59s/it]KID fid_flatten_gxi0rp21 :   9%|▉         | 6/67 [00:03<00:23,  2.59it/s]KID fid_flatten_gxi0rp21 :  15%|█▍        | 10/67 [00:03<00:11,  5.05it/s]KID fid_flatten_gxi0rp21 :  21%|██        | 14/67 [00:03<00:06,  7.97it/s]KID fid_flatten_gxi0rp21 :  27%|██▋       | 18/67 [00:03<00:04, 11.39it/s]KID fid_flatten_gxi0rp21 :  33%|███▎      | 22/67 [00:03<00:03, 13.79it/s]KID fid_flatten_gxi0rp21 :  37%|███▋      | 25/67 [00:03<00:02, 14.91it/s]KID fid_flatten_gxi0rp21 :  42%|████▏     | 28/67 [00:03<00:02, 16.50it/s]KID fid_flatten_gxi0rp21 :  48%|████▊     | 32/67 [00:04<00:01, 20.20it/s]KID fid_flatten_gxi0rp21 :  54%|█████▎    | 36/67 [00:04<00:01, 23.09it/s]KID fid_flatten_gxi0rp21 :  58%|█████▊    | 39/67 [00:04<00:02, 13.11it/s]KID fid_flatten_gxi0rp21 :  63%|██████▎   | 42/67 [00:04<00:01, 14.21it/s]KID fid_flatten_gxi0rp21 :  67%|██████▋   | 45/67 [00:05<00:01, 15.67it/s]KID fid_flatten_gxi0rp21 :  73%|███████▎  | 49/67 [00:05<00:00, 19.39it/s]KID fid_flatten_gxi0rp21 :  78%|███████▊  | 52/67 [00:05<00:01, 14.49it/s]KID fid_flatten_gxi0rp21 :  84%|████████▎ | 56/67 [00:05<00:00, 18.01it/s]KID fid_flatten_gxi0rp21 :  90%|████████▉ | 60/67 [00:05<00:00, 20.67it/s]KID fid_flatten_gxi0rp21 :  94%|█████████▍| 63/67 [00:06<00:00, 13.19it/s]KID fid_flatten_gxi0rp21 : 100%|██████████| 67/67 [00:06<00:00, 16.77it/s]KID fid_flatten_gxi0rp21 : 100%|██████████| 67/67 [00:06<00:00, 10.54it/s]
+
+============================================================
+  Gen: outputs/vkitti/baseline_r20
+  FID:  87.8149
+  KID:  0.062143
+============================================================

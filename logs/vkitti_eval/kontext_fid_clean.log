@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat__bhl49ai
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/kontext (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/kontext
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_7fx18q1y
+FID fid_flatten_7fx18q1y :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_7fx18q1y :   1%|▏         | 1/67 [00:01<01:44,  1.59s/it]FID fid_flatten_7fx18q1y :   3%|▎         | 2/67 [00:03<01:44,  1.61s/it]FID fid_flatten_7fx18q1y :  10%|█         | 7/67 [00:03<00:19,  3.04it/s]FID fid_flatten_7fx18q1y :  18%|█▊        | 12/67 [00:03<00:09,  6.05it/s]FID fid_flatten_7fx18q1y :  25%|██▌       | 17/67 [00:03<00:05,  9.49it/s]FID fid_flatten_7fx18q1y :  33%|███▎      | 22/67 [00:03<00:03, 13.42it/s]FID fid_flatten_7fx18q1y :  40%|████      | 27/67 [00:04<00:03, 11.58it/s]FID fid_flatten_7fx18q1y :  46%|████▋     | 31/67 [00:04<00:02, 14.27it/s]FID fid_flatten_7fx18q1y :  52%|█████▏    | 35/67 [00:04<00:01, 16.99it/s]FID fid_flatten_7fx18q1y :  58%|█████▊    | 39/67 [00:05<00:02,  9.67it/s]FID fid_flatten_7fx18q1y :  64%|██████▍   | 43/67 [00:05<00:01, 12.26it/s]FID fid_flatten_7fx18q1y :  70%|███████   | 47/67 [00:05<00:01, 15.13it/s]FID fid_flatten_7fx18q1y :  76%|███████▌  | 51/67 [00:06<00:01,  9.81it/s]FID fid_flatten_7fx18q1y :  82%|████████▏ | 55/67 [00:06<00:00, 12.48it/s]FID fid_flatten_7fx18q1y :  88%|████████▊ | 59/67 [00:06<00:00, 15.57it/s]FID fid_flatten_7fx18q1y :  94%|█████████▍| 63/67 [00:07<00:00, 10.47it/s]FID fid_flatten_7fx18q1y : 100%|██████████| 67/67 [00:07<00:00, 12.55it/s]FID fid_flatten_7fx18q1y : 100%|██████████| 67/67 [00:07<00:00,  9.02it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_7fx18q1y
+KID fid_flatten_7fx18q1y :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_7fx18q1y :   1%|▏         | 1/67 [00:01<01:14,  1.14s/it]KID fid_flatten_7fx18q1y :   3%|▎         | 2/67 [00:02<01:29,  1.37s/it]KID fid_flatten_7fx18q1y :   7%|▋         | 5/67 [00:02<00:25,  2.41it/s]KID fid_flatten_7fx18q1y :  13%|█▎        | 9/67 [00:02<00:11,  5.19it/s]KID fid_flatten_7fx18q1y :  19%|█▉        | 13/67 [00:03<00:06,  8.32it/s]KID fid_flatten_7fx18q1y :  24%|██▍       | 16/67 [00:03<00:04, 10.88it/s]KID fid_flatten_7fx18q1y :  30%|██▉       | 20/67 [00:03<00:03, 14.87it/s]KID fid_flatten_7fx18q1y :  36%|███▌      | 24/67 [00:03<00:02, 19.07it/s]KID fid_flatten_7fx18q1y :  42%|████▏     | 28/67 [00:03<00:02, 17.36it/s]KID fid_flatten_7fx18q1y :  46%|████▋     | 31/67 [00:03<00:01, 18.25it/s]KID fid_flatten_7fx18q1y :  51%|█████     | 34/67 [00:03<00:01, 20.13it/s]KID fid_flatten_7fx18q1y :  55%|█████▌    | 37/67 [00:03<00:01, 21.14it/s]KID fid_flatten_7fx18q1y :  60%|█████▉    | 40/67 [00:04<00:02, 13.39it/s]KID fid_flatten_7fx18q1y :  63%|██████▎   | 42/67 [00:04<00:01, 13.86it/s]KID fid_flatten_7fx18q1y :  69%|██████▊   | 46/67 [00:04<00:01, 17.53it/s]KID fid_flatten_7fx18q1y :  73%|███████▎  | 49/67 [00:04<00:00, 19.41it/s]KID fid_flatten_7fx18q1y :  78%|███████▊  | 52/67 [00:05<00:01, 11.90it/s]KID fid_flatten_7fx18q1y :  81%|████████  | 54/67 [00:05<00:01, 12.33it/s]KID fid_flatten_7fx18q1y :  87%|████████▋ | 58/67 [00:05<00:00, 16.22it/s]KID fid_flatten_7fx18q1y :  93%|█████████▎| 62/67 [00:05<00:00, 20.22it/s]KID fid_flatten_7fx18q1y :  97%|█████████▋| 65/67 [00:06<00:00, 12.25it/s]KID fid_flatten_7fx18q1y : 100%|██████████| 67/67 [00:06<00:00, 10.72it/s]
+
+============================================================
+  Gen: outputs/vkitti/kontext
+  FID:  80.6246
+  KID:  0.046405
+============================================================

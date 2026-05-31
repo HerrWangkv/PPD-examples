@@ -1,6 +1,12 @@
 """
-Calculate FID for Hypersim sim2real experiments vs ScanNet.
-Compares: original Hypersim, WPD-translated, FlowEdit-translated.
+Calculate FID & KID for Hypersim sim2real experiments vs ScanNet test split.
+
+Real reference: ScanNet test split (/mrtstorage/datasets_tmp/scannet/test/)
+Gen: any flat folder of translated Hypersim images.
+
+Usage:
+    python calc_fid_hypersim.py --gen_folder outputs/hypersim/dropll_J5_r24
+    python calc_fid_hypersim.py --gen_folder outputs/hypersim/input
 """
 
 import os
@@ -10,12 +16,7 @@ import argparse
 from cleanfid import fid
 
 REAL_DIR = "/mrtstorage/datasets_tmp/scannet"
-
-EXPERIMENTS = {
-    "hypersim_original": "/mrtstorage/datasets_tmp/hypersim",
-    "hypersim_wavelet":  "/mrtstorage/users/kwang/hypersim_wavelet",
-    "hypersim_flowedit": "/mrtstorage/users/kwang/hypersim_flowedit",
-}
+SCANNET_STATS_NAME = "scannet_test_legacy"
 
 
 class FlattenedFolder:
@@ -56,48 +57,53 @@ class FlattenedFolder:
             shutil.rmtree(self.temp_dir)
 
 
-def compute_fid(gen_path, exp_name):
-    print(f"\n{'='*60}")
-    print(f" Experiment: {exp_name}")
-    print(f"{'='*60}")
-
-    with FlattenedFolder(REAL_DIR) as real_flat:
-        with FlattenedFolder(gen_path) as gen_flat:
-            print(f"  Gen:  {gen_flat}")
-            print(f"  Real: {real_flat}")
-
-            fid_score = fid.compute_fid(
-                fdir1=gen_flat,
-                fdir2=real_flat,
-                mode="clean",
-                use_dataparallel=False,
-            )
-
-    print(f"  FID: {fid_score:.4f}")
-    return fid_score
-
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", type=str, default=None,
-                        help="Run only one experiment: original / wavelet / flowedit")
+    parser.add_argument("--gen_folder", type=str, required=True,
+                        help="Folder of translated Hypersim images")
+    parser.add_argument("--mode", type=str, default="legacy_pytorch",
+                        choices=["clean", "legacy_pytorch"])
+    parser.add_argument("--recompute_stats", action="store_true")
     args = parser.parse_args()
 
-    exps = {k: v for k, v in EXPERIMENTS.items()
-            if args.only is None or args.only in k}
+    if not os.path.exists(args.gen_folder):
+        raise FileNotFoundError(f"gen_folder not found: {args.gen_folder}")
 
-    results = {}
-    for name, path in exps.items():
-        if not os.path.exists(path):
-            print(f"[SKIP] {name}: path not found ({path})")
-            continue
-        results[name] = compute_fid(path, name)
+    stats_name = f"{SCANNET_STATS_NAME}_{args.mode}"
+
+    with FlattenedFolder(REAL_DIR) as real_flat:
+        with FlattenedFolder(args.gen_folder) as gen_flat:
+            print(f"\n{'='*60}")
+            print(f"  Gen:  {args.gen_folder}")
+            print(f"  Real: ScanNet test ({REAL_DIR})")
+            print(f"  Mode: {args.mode}")
+            print(f"{'='*60}\n")
+
+            if args.recompute_stats or not fid.test_stats_exists(stats_name, mode=args.mode):
+                print("[Cache] Computing ScanNet stats...")
+                fid.make_custom_stats(name=stats_name, fdir=real_flat, mode=args.mode)
+            else:
+                print(f"[Cache] Using cached stats '{stats_name}'")
+
+            print("Computing FID...")
+            fid_score = fid.compute_fid(
+                fdir1=gen_flat,
+                dataset_name=stats_name,
+                dataset_split="custom",
+                mode=args.mode,
+            )
+            print("Computing KID...")
+            kid_score = fid.compute_kid(
+                fdir1=gen_flat,
+                dataset_name=stats_name,
+                dataset_split="custom",
+                mode=args.mode,
+            )
 
     print(f"\n{'='*60}")
-    print(f"{'Experiment':<30} {'FID':>10}")
-    print(f"{'-'*60}")
-    for name, f in results.items():
-        print(f"{name:<30} {f:>10.4f}")
+    print(f"  Gen: {args.gen_folder}")
+    print(f"  FID:  {fid_score:.4f}")
+    print(f"  KID:  {kid_score:.6f}")
     print(f"{'='*60}")
 
 

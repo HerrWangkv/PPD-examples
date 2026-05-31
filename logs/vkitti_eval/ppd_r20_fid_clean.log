@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_gpcq7aw2
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/ppd_r20 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/ppd_r20
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_na4r9vg6
+FID fid_flatten_na4r9vg6 :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_na4r9vg6 :   1%|▏         | 1/67 [00:01<01:47,  1.63s/it]FID fid_flatten_na4r9vg6 :   3%|▎         | 2/67 [00:03<01:43,  1.60s/it]FID fid_flatten_na4r9vg6 :   9%|▉         | 6/67 [00:03<00:23,  2.58it/s]FID fid_flatten_na4r9vg6 :  15%|█▍        | 10/67 [00:03<00:11,  5.05it/s]FID fid_flatten_na4r9vg6 :  21%|██        | 14/67 [00:03<00:06,  7.94it/s]FID fid_flatten_na4r9vg6 :  27%|██▋       | 18/67 [00:03<00:04, 11.18it/s]FID fid_flatten_na4r9vg6 :  33%|███▎      | 22/67 [00:03<00:03, 14.70it/s]FID fid_flatten_na4r9vg6 :  39%|███▉      | 26/67 [00:03<00:02, 18.21it/s]FID fid_flatten_na4r9vg6 :  45%|████▍     | 30/67 [00:04<00:03, 12.28it/s]FID fid_flatten_na4r9vg6 :  51%|█████     | 34/67 [00:04<00:02, 15.32it/s]FID fid_flatten_na4r9vg6 :  55%|█████▌    | 37/67 [00:04<00:01, 16.82it/s]FID fid_flatten_na4r9vg6 :  60%|█████▉    | 40/67 [00:05<00:02,  9.13it/s]FID fid_flatten_na4r9vg6 :  66%|██████▌   | 44/67 [00:05<00:01, 12.18it/s]FID fid_flatten_na4r9vg6 :  72%|███████▏  | 48/67 [00:05<00:01, 14.52it/s]FID fid_flatten_na4r9vg6 :  76%|███████▌  | 51/67 [00:06<00:01,  9.74it/s]FID fid_flatten_na4r9vg6 :  79%|███████▉  | 53/67 [00:06<00:01,  9.61it/s]FID fid_flatten_na4r9vg6 :  85%|████████▌ | 57/67 [00:06<00:00, 13.11it/s]FID fid_flatten_na4r9vg6 :  91%|█████████ | 61/67 [00:06<00:00, 16.90it/s]FID fid_flatten_na4r9vg6 :  96%|█████████▌| 64/67 [00:07<00:00,  9.77it/s]FID fid_flatten_na4r9vg6 : 100%|██████████| 67/67 [00:07<00:00,  9.98it/s]FID fid_flatten_na4r9vg6 : 100%|██████████| 67/67 [00:07<00:00,  8.65it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_na4r9vg6
+KID fid_flatten_na4r9vg6 :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_na4r9vg6 :   1%|▏         | 1/67 [00:01<01:20,  1.21s/it]KID fid_flatten_na4r9vg6 :   3%|▎         | 2/67 [00:02<01:37,  1.50s/it]KID fid_flatten_na4r9vg6 :  10%|█         | 7/67 [00:03<00:18,  3.24it/s]KID fid_flatten_na4r9vg6 :  18%|█▊        | 12/67 [00:03<00:08,  6.39it/s]KID fid_flatten_na4r9vg6 :  24%|██▍       | 16/67 [00:03<00:05,  9.32it/s]KID fid_flatten_na4r9vg6 :  31%|███▏      | 21/67 [00:03<00:03, 13.50it/s]KID fid_flatten_na4r9vg6 :  37%|███▋      | 25/67 [00:03<00:02, 16.88it/s]KID fid_flatten_na4r9vg6 :  43%|████▎     | 29/67 [00:03<00:02, 14.44it/s]KID fid_flatten_na4r9vg6 :  49%|████▉     | 33/67 [00:03<00:01, 17.61it/s]KID fid_flatten_na4r9vg6 :  55%|█████▌    | 37/67 [00:04<00:01, 20.49it/s]KID fid_flatten_na4r9vg6 :  61%|██████    | 41/67 [00:04<00:02, 12.02it/s]KID fid_flatten_na4r9vg6 :  67%|██████▋   | 45/67 [00:04<00:01, 14.91it/s]KID fid_flatten_na4r9vg6 :  73%|███████▎  | 49/67 [00:05<00:01, 17.79it/s]KID fid_flatten_na4r9vg6 :  78%|███████▊  | 52/67 [00:05<00:01, 11.36it/s]KID fid_flatten_na4r9vg6 :  84%|████████▎ | 56/67 [00:05<00:00, 14.44it/s]KID fid_flatten_na4r9vg6 :  90%|████████▉ | 60/67 [00:05<00:00, 17.65it/s]KID fid_flatten_na4r9vg6 :  94%|█████████▍| 63/67 [00:06<00:00, 12.06it/s]KID fid_flatten_na4r9vg6 : 100%|██████████| 67/67 [00:06<00:00, 15.40it/s]KID fid_flatten_na4r9vg6 : 100%|██████████| 67/67 [00:06<00:00, 10.37it/s]
+
+============================================================
+  Gen: outputs/vkitti/ppd_r20
+  FID:  103.5383
+  KID:  0.082011
+============================================================

@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_8jay4cv4
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/ppd_r16 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/ppd_r16
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_gtu4dfa2
+FID fid_flatten_gtu4dfa2 :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_gtu4dfa2 :   1%|▏         | 1/67 [00:01<01:51,  1.68s/it]FID fid_flatten_gtu4dfa2 :   3%|▎         | 2/67 [00:03<01:46,  1.64s/it]FID fid_flatten_gtu4dfa2 :   9%|▉         | 6/67 [00:03<00:24,  2.52it/s]FID fid_flatten_gtu4dfa2 :  15%|█▍        | 10/67 [00:03<00:11,  4.93it/s]FID fid_flatten_gtu4dfa2 :  21%|██        | 14/67 [00:03<00:06,  7.80it/s]FID fid_flatten_gtu4dfa2 :  27%|██▋       | 18/67 [00:03<00:04, 11.00it/s]FID fid_flatten_gtu4dfa2 :  33%|███▎      | 22/67 [00:03<00:03, 14.53it/s]FID fid_flatten_gtu4dfa2 :  39%|███▉      | 26/67 [00:03<00:02, 18.14it/s]FID fid_flatten_gtu4dfa2 :  45%|████▍     | 30/67 [00:04<00:03, 11.89it/s]FID fid_flatten_gtu4dfa2 :  49%|████▉     | 33/67 [00:04<00:02, 13.47it/s]FID fid_flatten_gtu4dfa2 :  55%|█████▌    | 37/67 [00:04<00:01, 16.98it/s]FID fid_flatten_gtu4dfa2 :  60%|█████▉    | 40/67 [00:05<00:02,  9.22it/s]FID fid_flatten_gtu4dfa2 :  66%|██████▌   | 44/67 [00:05<00:01, 12.22it/s]FID fid_flatten_gtu4dfa2 :  70%|███████   | 47/67 [00:05<00:01, 14.21it/s]FID fid_flatten_gtu4dfa2 :  76%|███████▌  | 51/67 [00:06<00:01,  9.43it/s]FID fid_flatten_gtu4dfa2 :  79%|███████▉  | 53/67 [00:06<00:01,  9.91it/s]FID fid_flatten_gtu4dfa2 :  85%|████████▌ | 57/67 [00:06<00:00, 13.32it/s]FID fid_flatten_gtu4dfa2 :  91%|█████████ | 61/67 [00:06<00:00, 17.09it/s]FID fid_flatten_gtu4dfa2 :  96%|█████████▌| 64/67 [00:07<00:00,  9.54it/s]FID fid_flatten_gtu4dfa2 : 100%|██████████| 67/67 [00:07<00:00, 10.58it/s]FID fid_flatten_gtu4dfa2 : 100%|██████████| 67/67 [00:07<00:00,  8.57it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_gtu4dfa2
+KID fid_flatten_gtu4dfa2 :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_gtu4dfa2 :   1%|▏         | 1/67 [00:01<01:24,  1.28s/it]KID fid_flatten_gtu4dfa2 :   3%|▎         | 2/67 [00:02<01:39,  1.53s/it]KID fid_flatten_gtu4dfa2 :   7%|▋         | 5/67 [00:03<00:29,  2.12it/s]KID fid_flatten_gtu4dfa2 :  12%|█▏        | 8/67 [00:03<00:14,  3.94it/s]KID fid_flatten_gtu4dfa2 :  18%|█▊        | 12/67 [00:03<00:07,  6.95it/s]KID fid_flatten_gtu4dfa2 :  22%|██▏       | 15/67 [00:03<00:05,  9.44it/s]KID fid_flatten_gtu4dfa2 :  28%|██▊       | 19/67 [00:03<00:03, 13.27it/s]KID fid_flatten_gtu4dfa2 :  34%|███▍      | 23/67 [00:03<00:02, 17.02it/s]KID fid_flatten_gtu4dfa2 :  40%|████      | 27/67 [00:03<00:02, 19.46it/s]KID fid_flatten_gtu4dfa2 :  45%|████▍     | 30/67 [00:04<00:01, 18.88it/s]KID fid_flatten_gtu4dfa2 :  51%|█████     | 34/67 [00:04<00:01, 21.95it/s]KID fid_flatten_gtu4dfa2 :  55%|█████▌    | 37/67 [00:04<00:01, 18.37it/s]KID fid_flatten_gtu4dfa2 :  60%|█████▉    | 40/67 [00:04<00:01, 14.19it/s]KID fid_flatten_gtu4dfa2 :  63%|██████▎   | 42/67 [00:04<00:01, 14.77it/s]KID fid_flatten_gtu4dfa2 :  67%|██████▋   | 45/67 [00:04<00:01, 16.72it/s]KID fid_flatten_gtu4dfa2 :  73%|███████▎  | 49/67 [00:05<00:00, 20.80it/s]KID fid_flatten_gtu4dfa2 :  78%|███████▊  | 52/67 [00:05<00:01, 12.23it/s]KID fid_flatten_gtu4dfa2 :  81%|████████  | 54/67 [00:05<00:00, 13.18it/s]KID fid_flatten_gtu4dfa2 :  87%|████████▋ | 58/67 [00:05<00:00, 16.96it/s]KID fid_flatten_gtu4dfa2 :  93%|█████████▎| 62/67 [00:05<00:00, 20.57it/s]KID fid_flatten_gtu4dfa2 :  97%|█████████▋| 65/67 [00:06<00:00,  9.38it/s]KID fid_flatten_gtu4dfa2 : 100%|██████████| 67/67 [00:06<00:00,  9.64it/s]
+
+============================================================
+  Gen: outputs/vkitti/ppd_r16
+  FID:  102.4421
+  KID:  0.080558
+============================================================

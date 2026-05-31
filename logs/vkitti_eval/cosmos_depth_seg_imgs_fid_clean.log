@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_le2rlrah
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/cosmos_depth_seg_imgs (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/cosmos_depth_seg_imgs
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_esc79adw
+FID fid_flatten_esc79adw :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_esc79adw :   1%|▏         | 1/67 [00:01<01:21,  1.24s/it]FID fid_flatten_esc79adw :   3%|▎         | 2/67 [00:02<01:34,  1.46s/it]FID fid_flatten_esc79adw :   9%|▉         | 6/67 [00:02<00:21,  2.82it/s]FID fid_flatten_esc79adw :  15%|█▍        | 10/67 [00:03<00:10,  5.45it/s]FID fid_flatten_esc79adw :  21%|██        | 14/67 [00:03<00:06,  8.47it/s]FID fid_flatten_esc79adw :  27%|██▋       | 18/67 [00:03<00:04, 11.87it/s]FID fid_flatten_esc79adw :  33%|███▎      | 22/67 [00:03<00:02, 15.52it/s]FID fid_flatten_esc79adw :  39%|███▉      | 26/67 [00:03<00:02, 19.17it/s]FID fid_flatten_esc79adw :  45%|████▍     | 30/67 [00:03<00:01, 21.93it/s]FID fid_flatten_esc79adw :  51%|█████     | 34/67 [00:03<00:01, 23.90it/s]FID fid_flatten_esc79adw :  57%|█████▋    | 38/67 [00:03<00:01, 25.40it/s]FID fid_flatten_esc79adw :  63%|██████▎   | 42/67 [00:04<00:00, 27.20it/s]FID fid_flatten_esc79adw :  69%|██████▊   | 46/67 [00:04<00:00, 28.55it/s]FID fid_flatten_esc79adw :  75%|███████▍  | 50/67 [00:04<00:00, 30.07it/s]FID fid_flatten_esc79adw :  81%|████████  | 54/67 [00:04<00:00, 30.85it/s]FID fid_flatten_esc79adw :  87%|████████▋ | 58/67 [00:04<00:00, 31.94it/s]FID fid_flatten_esc79adw :  93%|█████████▎| 62/67 [00:04<00:00, 33.53it/s]FID fid_flatten_esc79adw :  99%|█████████▊| 66/67 [00:04<00:00, 32.75it/s]FID fid_flatten_esc79adw : 100%|██████████| 67/67 [00:04<00:00, 13.44it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_esc79adw
+KID fid_flatten_esc79adw :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_esc79adw :   1%|▏         | 1/67 [00:00<00:56,  1.16it/s]KID fid_flatten_esc79adw :   3%|▎         | 2/67 [00:02<01:32,  1.42s/it]KID fid_flatten_esc79adw :   9%|▉         | 6/67 [00:02<00:21,  2.87it/s]KID fid_flatten_esc79adw :  15%|█▍        | 10/67 [00:02<00:10,  5.53it/s]KID fid_flatten_esc79adw :  19%|█▉        | 13/67 [00:03<00:06,  7.78it/s]KID fid_flatten_esc79adw :  25%|██▌       | 17/67 [00:03<00:04, 11.23it/s]KID fid_flatten_esc79adw :  31%|███▏      | 21/67 [00:03<00:03, 14.70it/s]KID fid_flatten_esc79adw :  37%|███▋      | 25/67 [00:03<00:02, 17.88it/s]KID fid_flatten_esc79adw :  42%|████▏     | 28/67 [00:03<00:01, 19.66it/s]KID fid_flatten_esc79adw :  48%|████▊     | 32/67 [00:03<00:01, 22.29it/s]KID fid_flatten_esc79adw :  52%|█████▏    | 35/67 [00:03<00:01, 23.32it/s]KID fid_flatten_esc79adw :  58%|█████▊    | 39/67 [00:03<00:01, 25.49it/s]KID fid_flatten_esc79adw :  63%|██████▎   | 42/67 [00:03<00:00, 26.24it/s]KID fid_flatten_esc79adw :  69%|██████▊   | 46/67 [00:04<00:00, 28.27it/s]KID fid_flatten_esc79adw :  75%|███████▍  | 50/67 [00:04<00:00, 29.94it/s]KID fid_flatten_esc79adw :  81%|████████  | 54/67 [00:04<00:00, 32.08it/s]KID fid_flatten_esc79adw :  88%|████████▊ | 59/67 [00:04<00:00, 34.43it/s]KID fid_flatten_esc79adw :  94%|█████████▍| 63/67 [00:04<00:00, 34.11it/s]KID fid_flatten_esc79adw : 100%|██████████| 67/67 [00:04<00:00, 33.60it/s]KID fid_flatten_esc79adw : 100%|██████████| 67/67 [00:04<00:00, 14.02it/s]
+
+============================================================
+  Gen: outputs/vkitti/cosmos_depth_seg_imgs
+  FID:  92.3433
+  KID:  0.069380
+============================================================

@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_qwxxvo67
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/dropll_step6000_J3 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/dropll_step6000_J3
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_d8h0uwg8
+FID fid_flatten_d8h0uwg8 :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_d8h0uwg8 :   1%|▏         | 1/67 [00:01<01:55,  1.75s/it]FID fid_flatten_d8h0uwg8 :   3%|▎         | 2/67 [00:03<01:47,  1.65s/it]FID fid_flatten_d8h0uwg8 :   9%|▉         | 6/67 [00:03<00:24,  2.51it/s]FID fid_flatten_d8h0uwg8 :  15%|█▍        | 10/67 [00:03<00:11,  4.93it/s]FID fid_flatten_d8h0uwg8 :  21%|██        | 14/67 [00:03<00:06,  7.81it/s]FID fid_flatten_d8h0uwg8 :  27%|██▋       | 18/67 [00:03<00:04, 11.12it/s]FID fid_flatten_d8h0uwg8 :  34%|███▍      | 23/67 [00:03<00:02, 15.70it/s]FID fid_flatten_d8h0uwg8 :  40%|████      | 27/67 [00:04<00:03, 12.32it/s]FID fid_flatten_d8h0uwg8 :  46%|████▋     | 31/67 [00:04<00:02, 15.19it/s]FID fid_flatten_d8h0uwg8 :  52%|█████▏    | 35/67 [00:04<00:01, 18.46it/s]FID fid_flatten_d8h0uwg8 :  58%|█████▊    | 39/67 [00:05<00:02,  9.45it/s]FID fid_flatten_d8h0uwg8 :  64%|██████▍   | 43/67 [00:05<00:01, 12.18it/s]FID fid_flatten_d8h0uwg8 :  70%|███████   | 47/67 [00:05<00:01, 15.20it/s]FID fid_flatten_d8h0uwg8 :  76%|███████▌  | 51/67 [00:06<00:01,  9.79it/s]FID fid_flatten_d8h0uwg8 :  81%|████████  | 54/67 [00:06<00:01, 11.66it/s]FID fid_flatten_d8h0uwg8 :  87%|████████▋ | 58/67 [00:06<00:00, 14.80it/s]FID fid_flatten_d8h0uwg8 :  93%|█████████▎| 62/67 [00:06<00:00, 17.86it/s]FID fid_flatten_d8h0uwg8 :  97%|█████████▋| 65/67 [00:07<00:00, 10.44it/s]FID fid_flatten_d8h0uwg8 : 100%|██████████| 67/67 [00:07<00:00,  8.79it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_d8h0uwg8
+KID fid_flatten_d8h0uwg8 :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_d8h0uwg8 :   1%|▏         | 1/67 [00:01<01:16,  1.15s/it]KID fid_flatten_d8h0uwg8 :   3%|▎         | 2/67 [00:02<01:36,  1.49s/it]KID fid_flatten_d8h0uwg8 :   9%|▉         | 6/67 [00:02<00:22,  2.77it/s]KID fid_flatten_d8h0uwg8 :  15%|█▍        | 10/67 [00:03<00:10,  5.41it/s]KID fid_flatten_d8h0uwg8 :  21%|██        | 14/67 [00:03<00:06,  8.57it/s]KID fid_flatten_d8h0uwg8 :  28%|██▊       | 19/67 [00:03<00:03, 13.05it/s]KID fid_flatten_d8h0uwg8 :  36%|███▌      | 24/67 [00:03<00:02, 17.64it/s]KID fid_flatten_d8h0uwg8 :  42%|████▏     | 28/67 [00:03<00:02, 17.21it/s]KID fid_flatten_d8h0uwg8 :  48%|████▊     | 32/67 [00:03<00:01, 20.33it/s]KID fid_flatten_d8h0uwg8 :  54%|█████▎    | 36/67 [00:03<00:01, 22.15it/s]KID fid_flatten_d8h0uwg8 :  60%|█████▉    | 40/67 [00:04<00:01, 14.06it/s]KID fid_flatten_d8h0uwg8 :  66%|██████▌   | 44/67 [00:04<00:01, 17.06it/s]KID fid_flatten_d8h0uwg8 :  72%|███████▏  | 48/67 [00:04<00:00, 19.92it/s]KID fid_flatten_d8h0uwg8 :  76%|███████▌  | 51/67 [00:05<00:01, 13.16it/s]KID fid_flatten_d8h0uwg8 :  81%|████████  | 54/67 [00:05<00:00, 15.12it/s]KID fid_flatten_d8h0uwg8 :  87%|████████▋ | 58/67 [00:05<00:00, 18.80it/s]KID fid_flatten_d8h0uwg8 :  91%|█████████ | 61/67 [00:05<00:00, 20.04it/s]KID fid_flatten_d8h0uwg8 :  96%|█████████▌| 64/67 [00:05<00:00, 13.55it/s]KID fid_flatten_d8h0uwg8 : 100%|██████████| 67/67 [00:06<00:00, 11.01it/s]
+
+============================================================
+  Gen: outputs/vkitti/dropll_step6000_J3
+  FID:  73.6103
+  KID:  0.044995
+============================================================

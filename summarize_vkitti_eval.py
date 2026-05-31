@@ -102,10 +102,12 @@ def extract(path, pattern):
 
 def load_variant(v):
     base = os.path.join(LOG_DIR, v)
+    # Prefer clean-mode FID log if available, fall back to legacy
+    fid_log = f"{base}_fid_clean.log" if os.path.exists(f"{base}_fid_clean.log") else f"{base}_fid.log"
     return {
         "clip_iqa": extract(f"{base}_clipiqa.log", r"CLIP-IQA: ([\d.]+)"),
-        "fid":      extract(f"{base}_fid.log",     r"FID:\s+([\d.]+)"),
-        "kid":      extract(f"{base}_fid.log",     r"KID:\s+([\d.]+)"),
+        "fid":      extract(fid_log,               r"FID:\s+([\d.]+)"),
+        "kid":      extract(fid_log,               r"KID:\s+([\d.]+)"),
         "miou":     extract(f"{base}_miou.log",    r"mIoU: ([\d.]+)"),
         "dep_ssim": extract(f"{base}_depth.log",   r"Depth SSIM:\s+([\d.]+)"),
         "abs_rel":  extract(f"{base}_depth.log",   r"AbsRel:\s+([\d.]+)"),

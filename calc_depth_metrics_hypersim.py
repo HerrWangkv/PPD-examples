@@ -1,13 +1,13 @@
 """
 Calculate depth metrics for Hypersim sim2real experiments using GT depth.
 
-For each translated image (WPD / FlowEdit), runs Depth Anything V2 to predict
-relative disparity, aligns it to the Hypersim GT depth via least-squares in
-disparity space (standard protocol), then computes AbsRel and Depth-SSIM.
-
 GT depth: /mrtstorage/datasets_tmp/hypersim_depth/ai_*_cam*_frame*.hdf5
   - HDF5 dataset key: "dataset", float32, values in meters
-  - Invalid pixels: inf or nan (sky, missing geometry)
+  - Invalid pixels: inf or nan (missing geometry)
+
+Usage:
+    python calc_depth_metrics_hypersim.py --gen_folder outputs/hypersim/dropll_J5_r24
+    python calc_depth_metrics_hypersim.py --gen_folder outputs/hypersim/input
 """
 
 import os
@@ -23,12 +23,6 @@ from skimage.metrics import structural_similarity as ssim
 
 
 DEPTH_DIR = "/mrtstorage/datasets_tmp/hypersim_depth"
-
-EXPERIMENTS = {
-    "hypersim_original": "/mrtstorage/datasets_tmp/hypersim",
-    "hypersim_wavelet":  "/mrtstorage/users/kwang/hypersim_wavelet",
-    "hypersim_flowedit": "/mrtstorage/users/kwang/hypersim_flowedit",
-}
 
 
 def get_image_paths(folder):
@@ -92,90 +86,76 @@ def compute_metrics(pred_depth, gt_depth, valid):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", type=str, default=None,
-                        help="Run only one experiment: wavelet / flowedit")
+    parser.add_argument("--gen_folder", type=str, required=True,
+                        help="Folder of translated Hypersim images")
     parser.add_argument("--model_id", type=str,
                         default="depth-anything/Depth-Anything-V2-Large-hf")
     parser.add_argument("--depth_dir", type=str, default=DEPTH_DIR)
-    parser.add_argument("--gpu", type=int, default=0)
+    parser.add_argument("--batch_size", type=int, default=4)
     args = parser.parse_args()
 
-    device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
-
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Loading {args.model_id} on {device}...")
     processor = AutoImageProcessor.from_pretrained(args.model_id)
-    model = AutoModelForDepthEstimation.from_pretrained(args.model_id).to(device)
-    model.eval()
+    model = AutoModelForDepthEstimation.from_pretrained(args.model_id).to(device).eval()
 
-    exps = {k: v for k, v in EXPERIMENTS.items()
-            if args.only is None or args.only in k}
+    gen_paths = get_image_paths(args.gen_folder)
+    print(f"\n{'='*60}")
+    print(f"  Gen: {args.gen_folder}  ({len(gen_paths)} images)")
+    print(f"{'='*60}")
 
-    all_results = {}
-
-    for exp_name, gen_dir in exps.items():
-        if not os.path.exists(gen_dir):
-            print(f"[SKIP] {exp_name}: {gen_dir} not found")
+    # Pre-load GT depth and filter valid items
+    valid_items = []
+    missing = 0
+    for gen_path in gen_paths:
+        stem = os.path.splitext(os.path.basename(gen_path))[0]
+        depth_path = os.path.join(args.depth_dir, stem + ".hdf5")
+        if not os.path.exists(depth_path):
+            missing += 1
             continue
+        valid_items.append((gen_path, depth_path))
 
-        print(f"\n{'='*60}\n Experiment: {exp_name}\n{'='*60}")
-        gen_paths = get_image_paths(gen_dir)
-        print(f"  Found {len(gen_paths)} translated images")
+    absrel_list, ssim_list = [], []
+    BS = args.batch_size
 
-        absrel_list, ssim_list, missing = [], [], 0
+    for i in tqdm(range(0, len(valid_items), BS), desc="Inference"):
+        batch = valid_items[i:i+BS]
+        try:
+            images = [Image.open(p).convert("RGB") for p, _ in batch]
+            inputs = processor(images=images, return_tensors="pt").to(device)
+            with torch.no_grad():
+                preds = model(**inputs).predicted_depth  # (B, H', W')
 
-        for gen_path in tqdm(gen_paths):
-            stem = os.path.splitext(os.path.basename(gen_path))[0]
-            depth_path = os.path.join(args.depth_dir, stem + ".hdf5")
-            if not os.path.exists(depth_path):
-                missing += 1
-                continue
-
-            try:
+            for j, (gen_path, depth_path) in enumerate(batch):
                 gt_depth, valid = load_gt_depth(depth_path)
                 if valid.sum() < 100:
                     continue
-
-                pred_disp = predict_depth(model, processor, gen_path, device)
-
-                # Resize pred to match GT resolution
-                if pred_disp.shape != gt_depth.shape:
-                    pred_disp = cv2.resize(pred_disp, (gt_depth.shape[1], gt_depth.shape[0]),
-                                           interpolation=cv2.INTER_CUBIC)
-
-                # Convert GT depth → GT disparity (high = close)
+                gh, gw = gt_depth.shape
+                pred_disp = torch.nn.functional.interpolate(
+                    preds[j:j+1].unsqueeze(1), size=(gh, gw),
+                    mode="bicubic", align_corners=False
+                ).squeeze().cpu().numpy()
                 gt_disp = np.zeros_like(gt_depth)
                 gt_disp[valid] = 1.0 / (gt_depth[valid] + 1e-6)
-
-                # Align predicted disparity to GT disparity
                 aligned_disp = align_least_squares(pred_disp, gt_disp, valid)
                 aligned_disp = np.clip(aligned_disp, 1e-3, None)
-
-                # Back to depth space
                 pred_depth_final = 1.0 / aligned_disp
-
                 abs_rel, ssim_val = compute_metrics(pred_depth_final, gt_depth, valid)
                 if abs_rel is not None:
                     absrel_list.append(abs_rel)
                     ssim_list.append(ssim_val)
+        except Exception as e:
+            print(f"  ERROR batch {i}: {e}")
 
-            except Exception as e:
-                print(f"  ERROR {os.path.basename(gen_path)}: {e}")
+    avg_absrel = np.mean(absrel_list) if absrel_list else float("nan")
+    avg_ssim   = np.mean(ssim_list)   if ssim_list   else float("nan")
 
-        if missing:
-            print(f"  Missing GT depth: {missing}")
-
-        avg_absrel = np.mean(absrel_list) if absrel_list else float("nan")
-        avg_ssim   = np.mean(ssim_list)   if ssim_list   else float("nan")
-        all_results[exp_name] = (avg_absrel, avg_ssim)
-        print(f"  AbsRel: {avg_absrel:.4f}  Depth-SSIM: {avg_ssim:.4f}  (n={len(absrel_list)})")
-
-    print(f"\n{'='*60}")
-    print(f"{'Experiment':<30} {'AbsRel':>8} {'Depth-SSIM':>12}")
-    print(f"{'-'*60}")
-    for name, (ar, ds) in all_results.items():
-        print(f"{name:<30} {ar:>8.4f} {ds:>12.4f}")
-    print(f"{'='*60}")
-    print("AbsRel: lower is better. Depth-SSIM: higher is better.")
+    print(f"\n{'='*45}")
+    print(f"  Gen folder:  {args.gen_folder}")
+    print(f"  Images:      {len(absrel_list)}  (missing GT: {missing})")
+    print(f"  Depth SSIM:  {avg_ssim:.4f}")
+    print(f"  AbsRel:      {avg_absrel:.4f}")
+    print(f"{'='*45}")
 
 
 if __name__ == "__main__":

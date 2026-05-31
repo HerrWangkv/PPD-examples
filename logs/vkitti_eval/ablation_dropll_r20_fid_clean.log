@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_6j8mnhdq
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/ablation_dropll_r20 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/ablation_dropll_r20
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_b12l5u5s
+FID fid_flatten_b12l5u5s :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_b12l5u5s :   1%|▏         | 1/67 [00:01<01:50,  1.67s/it]FID fid_flatten_b12l5u5s :   3%|▎         | 2/67 [00:03<01:46,  1.64s/it]FID fid_flatten_b12l5u5s :   9%|▉         | 6/67 [00:03<00:24,  2.52it/s]FID fid_flatten_b12l5u5s :  15%|█▍        | 10/67 [00:03<00:11,  4.80it/s]FID fid_flatten_b12l5u5s :  19%|█▉        | 13/67 [00:03<00:08,  6.58it/s]FID fid_flatten_b12l5u5s :  24%|██▍       | 16/67 [00:03<00:06,  8.42it/s]FID fid_flatten_b12l5u5s :  30%|██▉       | 20/67 [00:03<00:03, 11.91it/s]FID fid_flatten_b12l5u5s :  36%|███▌      | 24/67 [00:04<00:02, 15.44it/s]FID fid_flatten_b12l5u5s :  42%|████▏     | 28/67 [00:04<00:02, 19.13it/s]FID fid_flatten_b12l5u5s :  48%|████▊     | 32/67 [00:04<00:01, 22.53it/s]FID fid_flatten_b12l5u5s :  54%|█████▎    | 36/67 [00:04<00:01, 22.69it/s]FID fid_flatten_b12l5u5s :  58%|█████▊    | 39/67 [00:04<00:02, 13.43it/s]FID fid_flatten_b12l5u5s :  64%|██████▍   | 43/67 [00:05<00:01, 16.87it/s]FID fid_flatten_b12l5u5s :  69%|██████▊   | 46/67 [00:05<00:01, 18.78it/s]FID fid_flatten_b12l5u5s :  75%|███████▍  | 50/67 [00:05<00:00, 22.28it/s]FID fid_flatten_b12l5u5s :  79%|███████▉  | 53/67 [00:05<00:01, 11.77it/s]FID fid_flatten_b12l5u5s :  85%|████████▌ | 57/67 [00:06<00:00, 15.07it/s]FID fid_flatten_b12l5u5s :  91%|█████████ | 61/67 [00:06<00:00, 18.50it/s]FID fid_flatten_b12l5u5s :  96%|█████████▌| 64/67 [00:06<00:00, 13.59it/s]FID fid_flatten_b12l5u5s : 100%|██████████| 67/67 [00:06<00:00, 13.64it/s]FID fid_flatten_b12l5u5s : 100%|██████████| 67/67 [00:06<00:00,  9.76it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_b12l5u5s
+KID fid_flatten_b12l5u5s :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_b12l5u5s :   1%|▏         | 1/67 [00:01<01:22,  1.25s/it]KID fid_flatten_b12l5u5s :   3%|▎         | 2/67 [00:02<01:34,  1.46s/it]KID fid_flatten_b12l5u5s :   9%|▉         | 6/67 [00:02<00:21,  2.81it/s]KID fid_flatten_b12l5u5s :  15%|█▍        | 10/67 [00:03<00:10,  5.42it/s]KID fid_flatten_b12l5u5s :  21%|██        | 14/67 [00:03<00:06,  8.48it/s]KID fid_flatten_b12l5u5s :  27%|██▋       | 18/67 [00:03<00:04, 11.98it/s]KID fid_flatten_b12l5u5s :  33%|███▎      | 22/67 [00:03<00:02, 15.49it/s]KID fid_flatten_b12l5u5s :  39%|███▉      | 26/67 [00:03<00:02, 18.62it/s]KID fid_flatten_b12l5u5s :  45%|████▍     | 30/67 [00:03<00:02, 15.15it/s]KID fid_flatten_b12l5u5s :  51%|█████     | 34/67 [00:04<00:01, 18.47it/s]KID fid_flatten_b12l5u5s :  57%|█████▋    | 38/67 [00:04<00:01, 21.51it/s]KID fid_flatten_b12l5u5s :  61%|██████    | 41/67 [00:04<00:01, 14.21it/s]KID fid_flatten_b12l5u5s :  67%|██████▋   | 45/67 [00:04<00:01, 17.21it/s]KID fid_flatten_b12l5u5s :  73%|███████▎  | 49/67 [00:04<00:00, 19.83it/s]KID fid_flatten_b12l5u5s :  78%|███████▊  | 52/67 [00:05<00:01, 12.01it/s]KID fid_flatten_b12l5u5s :  84%|████████▎ | 56/67 [00:05<00:00, 15.32it/s]KID fid_flatten_b12l5u5s :  90%|████████▉ | 60/67 [00:05<00:00, 18.47it/s]KID fid_flatten_b12l5u5s :  94%|█████████▍| 63/67 [00:06<00:00, 13.46it/s]KID fid_flatten_b12l5u5s :  99%|█████████▊| 66/67 [00:06<00:00, 13.82it/s]KID fid_flatten_b12l5u5s : 100%|██████████| 67/67 [00:06<00:00, 10.57it/s]
+
+============================================================
+  Gen: outputs/vkitti/ablation_dropll_r20
+  FID:  79.3794
+  KID:  0.049739
+============================================================

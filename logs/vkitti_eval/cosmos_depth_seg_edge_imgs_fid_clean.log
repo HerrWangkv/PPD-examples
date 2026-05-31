@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_a05gw2gq
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/cosmos_depth_seg_edge_imgs (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/cosmos_depth_seg_edge_imgs
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_ugey7nat
+FID fid_flatten_ugey7nat :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_ugey7nat :   1%|▏         | 1/67 [00:01<01:24,  1.28s/it]FID fid_flatten_ugey7nat :   3%|▎         | 2/67 [00:02<01:34,  1.46s/it]FID fid_flatten_ugey7nat :   9%|▉         | 6/67 [00:02<00:21,  2.83it/s]FID fid_flatten_ugey7nat :  15%|█▍        | 10/67 [00:03<00:10,  5.49it/s]FID fid_flatten_ugey7nat :  21%|██        | 14/67 [00:03<00:06,  8.64it/s]FID fid_flatten_ugey7nat :  27%|██▋       | 18/67 [00:03<00:04, 12.20it/s]FID fid_flatten_ugey7nat :  33%|███▎      | 22/67 [00:03<00:02, 15.94it/s]FID fid_flatten_ugey7nat :  39%|███▉      | 26/67 [00:03<00:02, 19.38it/s]FID fid_flatten_ugey7nat :  45%|████▍     | 30/67 [00:03<00:01, 21.77it/s]FID fid_flatten_ugey7nat :  51%|█████     | 34/67 [00:03<00:01, 24.05it/s]FID fid_flatten_ugey7nat :  57%|█████▋    | 38/67 [00:03<00:01, 25.31it/s]FID fid_flatten_ugey7nat :  63%|██████▎   | 42/67 [00:04<00:01, 24.21it/s]FID fid_flatten_ugey7nat :  69%|██████▊   | 46/67 [00:04<00:00, 26.01it/s]FID fid_flatten_ugey7nat :  73%|███████▎  | 49/67 [00:04<00:00, 26.51it/s]FID fid_flatten_ugey7nat :  78%|███████▊  | 52/67 [00:04<00:00, 24.53it/s]FID fid_flatten_ugey7nat :  82%|████████▏ | 55/67 [00:04<00:00, 25.66it/s]FID fid_flatten_ugey7nat :  88%|████████▊ | 59/67 [00:04<00:00, 28.46it/s]FID fid_flatten_ugey7nat :  94%|█████████▍| 63/67 [00:04<00:00, 27.07it/s]FID fid_flatten_ugey7nat : 100%|██████████| 67/67 [00:05<00:00, 24.58it/s]FID fid_flatten_ugey7nat : 100%|██████████| 67/67 [00:05<00:00, 13.15it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_ugey7nat
+KID fid_flatten_ugey7nat :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_ugey7nat :   1%|▏         | 1/67 [00:00<00:50,  1.30it/s]KID fid_flatten_ugey7nat :   3%|▎         | 2/67 [00:02<01:26,  1.33s/it]KID fid_flatten_ugey7nat :   9%|▉         | 6/67 [00:02<00:19,  3.09it/s]KID fid_flatten_ugey7nat :  15%|█▍        | 10/67 [00:02<00:09,  5.97it/s]KID fid_flatten_ugey7nat :  21%|██        | 14/67 [00:02<00:05,  9.28it/s]KID fid_flatten_ugey7nat :  27%|██▋       | 18/67 [00:02<00:03, 12.63it/s]KID fid_flatten_ugey7nat :  33%|███▎      | 22/67 [00:03<00:02, 15.83it/s]KID fid_flatten_ugey7nat :  39%|███▉      | 26/67 [00:03<00:02, 18.95it/s]KID fid_flatten_ugey7nat :  45%|████▍     | 30/67 [00:03<00:01, 21.61it/s]KID fid_flatten_ugey7nat :  51%|█████     | 34/67 [00:03<00:01, 23.80it/s]KID fid_flatten_ugey7nat :  57%|█████▋    | 38/67 [00:03<00:01, 26.22it/s]KID fid_flatten_ugey7nat :  63%|██████▎   | 42/67 [00:03<00:00, 29.05it/s]KID fid_flatten_ugey7nat :  69%|██████▊   | 46/67 [00:03<00:00, 31.47it/s]KID fid_flatten_ugey7nat :  75%|███████▍  | 50/67 [00:03<00:00, 32.99it/s]KID fid_flatten_ugey7nat :  81%|████████  | 54/67 [00:03<00:00, 33.98it/s]KID fid_flatten_ugey7nat :  87%|████████▋ | 58/67 [00:04<00:00, 35.26it/s]KID fid_flatten_ugey7nat :  93%|█████████▎| 62/67 [00:04<00:00, 35.06it/s]KID fid_flatten_ugey7nat :  99%|█████████▊| 66/67 [00:04<00:00, 35.39it/s]KID fid_flatten_ugey7nat : 100%|██████████| 67/67 [00:04<00:00, 15.15it/s]
+
+============================================================
+  Gen: outputs/vkitti/cosmos_depth_seg_edge_imgs
+  FID:  81.7962
+  KID:  0.055521
+============================================================

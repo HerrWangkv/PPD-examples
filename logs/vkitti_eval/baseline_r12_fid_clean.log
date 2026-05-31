@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_8fnaa5ho
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/baseline_r12 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/baseline_r12
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_ox0hdt4a
+FID fid_flatten_ox0hdt4a :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_ox0hdt4a :   1%|▏         | 1/67 [00:01<02:02,  1.86s/it]FID fid_flatten_ox0hdt4a :   3%|▎         | 2/67 [00:03<01:56,  1.79s/it]FID fid_flatten_ox0hdt4a :   6%|▌         | 4/67 [00:03<00:44,  1.42it/s]FID fid_flatten_ox0hdt4a :  10%|█         | 7/67 [00:03<00:19,  3.09it/s]FID fid_flatten_ox0hdt4a :  16%|█▋        | 11/67 [00:03<00:09,  5.96it/s]FID fid_flatten_ox0hdt4a :  21%|██        | 14/67 [00:04<00:06,  8.35it/s]FID fid_flatten_ox0hdt4a :  27%|██▋       | 18/67 [00:04<00:04, 12.11it/s]FID fid_flatten_ox0hdt4a :  33%|███▎      | 22/67 [00:04<00:02, 16.22it/s]FID fid_flatten_ox0hdt4a :  39%|███▉      | 26/67 [00:04<00:02, 19.84it/s]FID fid_flatten_ox0hdt4a :  45%|████▍     | 30/67 [00:04<00:02, 13.77it/s]FID fid_flatten_ox0hdt4a :  49%|████▉     | 33/67 [00:04<00:02, 15.96it/s]FID fid_flatten_ox0hdt4a :  54%|█████▎    | 36/67 [00:05<00:01, 16.11it/s]FID fid_flatten_ox0hdt4a :  58%|█████▊    | 39/67 [00:05<00:02,  9.99it/s]FID fid_flatten_ox0hdt4a :  63%|██████▎   | 42/67 [00:05<00:02, 12.12it/s]FID fid_flatten_ox0hdt4a :  69%|██████▊   | 46/67 [00:05<00:01, 14.88it/s]FID fid_flatten_ox0hdt4a :  73%|███████▎  | 49/67 [00:06<00:01, 16.63it/s]FID fid_flatten_ox0hdt4a :  78%|███████▊  | 52/67 [00:06<00:01, 10.37it/s]FID fid_flatten_ox0hdt4a :  81%|████████  | 54/67 [00:06<00:01, 11.50it/s]FID fid_flatten_ox0hdt4a :  84%|████████▎ | 56/67 [00:06<00:00, 12.71it/s]FID fid_flatten_ox0hdt4a :  88%|████████▊ | 59/67 [00:06<00:00, 15.58it/s]FID fid_flatten_ox0hdt4a :  93%|█████████▎| 62/67 [00:07<00:00, 17.85it/s]FID fid_flatten_ox0hdt4a :  97%|█████████▋| 65/67 [00:07<00:00,  9.43it/s]FID fid_flatten_ox0hdt4a : 100%|██████████| 67/67 [00:07<00:00,  9.92it/s]FID fid_flatten_ox0hdt4a : 100%|██████████| 67/67 [00:07<00:00,  8.38it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_ox0hdt4a
+KID fid_flatten_ox0hdt4a :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_ox0hdt4a :   1%|▏         | 1/67 [00:01<01:21,  1.24s/it]KID fid_flatten_ox0hdt4a :   3%|▎         | 2/67 [00:02<01:37,  1.50s/it]KID fid_flatten_ox0hdt4a :   9%|▉         | 6/67 [00:03<00:22,  2.74it/s]KID fid_flatten_ox0hdt4a :  15%|█▍        | 10/67 [00:03<00:10,  5.29it/s]KID fid_flatten_ox0hdt4a :  21%|██        | 14/67 [00:03<00:06,  8.26it/s]KID fid_flatten_ox0hdt4a :  27%|██▋       | 18/67 [00:03<00:04, 11.64it/s]KID fid_flatten_ox0hdt4a :  31%|███▏      | 21/67 [00:03<00:03, 13.89it/s]KID fid_flatten_ox0hdt4a :  36%|███▌      | 24/67 [00:03<00:02, 14.81it/s]KID fid_flatten_ox0hdt4a :  40%|████      | 27/67 [00:03<00:02, 14.33it/s]KID fid_flatten_ox0hdt4a :  45%|████▍     | 30/67 [00:04<00:02, 13.60it/s]KID fid_flatten_ox0hdt4a :  51%|█████     | 34/67 [00:04<00:02, 16.45it/s]KID fid_flatten_ox0hdt4a :  55%|█████▌    | 37/67 [00:04<00:01, 17.99it/s]KID fid_flatten_ox0hdt4a :  60%|█████▉    | 40/67 [00:05<00:02,  9.61it/s]KID fid_flatten_ox0hdt4a :  63%|██████▎   | 42/67 [00:05<00:02, 10.36it/s]KID fid_flatten_ox0hdt4a :  69%|██████▊   | 46/67 [00:05<00:01, 13.39it/s]KID fid_flatten_ox0hdt4a :  73%|███████▎  | 49/67 [00:05<00:01, 15.45it/s]KID fid_flatten_ox0hdt4a :  78%|███████▊  | 52/67 [00:05<00:01, 11.66it/s]KID fid_flatten_ox0hdt4a :  81%|████████  | 54/67 [00:06<00:01,  9.71it/s]KID fid_flatten_ox0hdt4a :  84%|████████▎ | 56/67 [00:06<00:00, 11.04it/s]KID fid_flatten_ox0hdt4a :  87%|████████▋ | 58/67 [00:06<00:00, 12.17it/s]KID fid_flatten_ox0hdt4a :  90%|████████▉ | 60/67 [00:06<00:00, 13.33it/s]KID fid_flatten_ox0hdt4a :  94%|█████████▍| 63/67 [00:06<00:00, 16.22it/s]KID fid_flatten_ox0hdt4a :  97%|█████████▋| 65/67 [00:07<00:00,  8.73it/s]KID fid_flatten_ox0hdt4a : 100%|██████████| 67/67 [00:07<00:00,  9.01it/s]
+
+============================================================
+  Gen: outputs/vkitti/baseline_r12
+  FID:  85.4103
+  KID:  0.058695
+============================================================

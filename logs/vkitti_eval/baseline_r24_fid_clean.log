@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_akvzh1vz
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/baseline_r24 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/baseline_r24
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_frbqbb3b
+FID fid_flatten_frbqbb3b :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_frbqbb3b :   1%|▏         | 1/67 [00:01<02:05,  1.90s/it]FID fid_flatten_frbqbb3b :   3%|▎         | 2/67 [00:03<01:52,  1.73s/it]FID fid_flatten_frbqbb3b :   9%|▉         | 6/67 [00:03<00:25,  2.40it/s]FID fid_flatten_frbqbb3b :  16%|█▋        | 11/67 [00:03<00:10,  5.27it/s]FID fid_flatten_frbqbb3b :  22%|██▏       | 15/67 [00:03<00:06,  8.00it/s]FID fid_flatten_frbqbb3b :  30%|██▉       | 20/67 [00:03<00:03, 12.01it/s]FID fid_flatten_frbqbb3b :  37%|███▋      | 25/67 [00:04<00:02, 16.15it/s]FID fid_flatten_frbqbb3b :  43%|████▎     | 29/67 [00:04<00:03, 11.84it/s]FID fid_flatten_frbqbb3b :  49%|████▉     | 33/67 [00:04<00:02, 14.79it/s]FID fid_flatten_frbqbb3b :  54%|█████▎    | 36/67 [00:04<00:01, 16.74it/s]FID fid_flatten_frbqbb3b :  58%|█████▊    | 39/67 [00:05<00:03,  9.30it/s]FID fid_flatten_frbqbb3b :  64%|██████▍   | 43/67 [00:05<00:01, 12.38it/s]FID fid_flatten_frbqbb3b :  70%|███████   | 47/67 [00:05<00:01, 15.77it/s]FID fid_flatten_frbqbb3b :  76%|███████▌  | 51/67 [00:06<00:01, 11.16it/s]FID fid_flatten_frbqbb3b :  82%|████████▏ | 55/67 [00:06<00:00, 14.32it/s]FID fid_flatten_frbqbb3b :  88%|████████▊ | 59/67 [00:06<00:00, 17.81it/s]FID fid_flatten_frbqbb3b :  94%|█████████▍| 63/67 [00:07<00:00, 10.39it/s]FID fid_flatten_frbqbb3b : 100%|██████████| 67/67 [00:07<00:00, 12.33it/s]FID fid_flatten_frbqbb3b : 100%|██████████| 67/67 [00:07<00:00,  8.80it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_frbqbb3b
+KID fid_flatten_frbqbb3b :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_frbqbb3b :   1%|▏         | 1/67 [00:01<01:17,  1.17s/it]KID fid_flatten_frbqbb3b :   3%|▎         | 2/67 [00:02<01:36,  1.49s/it]KID fid_flatten_frbqbb3b :   9%|▉         | 6/67 [00:02<00:22,  2.76it/s]KID fid_flatten_frbqbb3b :  15%|█▍        | 10/67 [00:03<00:10,  5.33it/s]KID fid_flatten_frbqbb3b :  21%|██        | 14/67 [00:03<00:06,  8.40it/s]KID fid_flatten_frbqbb3b :  27%|██▋       | 18/67 [00:03<00:04, 11.77it/s]KID fid_flatten_frbqbb3b :  33%|███▎      | 22/67 [00:03<00:03, 14.48it/s]KID fid_flatten_frbqbb3b :  37%|███▋      | 25/67 [00:03<00:02, 16.57it/s]KID fid_flatten_frbqbb3b :  42%|████▏     | 28/67 [00:03<00:02, 13.16it/s]KID fid_flatten_frbqbb3b :  48%|████▊     | 32/67 [00:04<00:02, 16.77it/s]KID fid_flatten_frbqbb3b :  54%|█████▎    | 36/67 [00:04<00:01, 18.92it/s]KID fid_flatten_frbqbb3b :  58%|█████▊    | 39/67 [00:04<00:02, 10.98it/s]KID fid_flatten_frbqbb3b :  63%|██████▎   | 42/67 [00:04<00:01, 12.77it/s]KID fid_flatten_frbqbb3b :  67%|██████▋   | 45/67 [00:05<00:01, 15.22it/s]KID fid_flatten_frbqbb3b :  72%|███████▏  | 48/67 [00:05<00:01, 16.84it/s]KID fid_flatten_frbqbb3b :  76%|███████▌  | 51/67 [00:05<00:01,  9.12it/s]KID fid_flatten_frbqbb3b :  82%|████████▏ | 55/67 [00:06<00:00, 12.23it/s]KID fid_flatten_frbqbb3b :  88%|████████▊ | 59/67 [00:06<00:00, 14.55it/s]KID fid_flatten_frbqbb3b :  93%|█████████▎| 62/67 [00:06<00:00, 16.73it/s]KID fid_flatten_frbqbb3b :  97%|█████████▋| 65/67 [00:06<00:00, 10.04it/s]KID fid_flatten_frbqbb3b : 100%|██████████| 67/67 [00:07<00:00,  9.50it/s]
+
+============================================================
+  Gen: outputs/vkitti/baseline_r24
+  FID:  100.9157
+  KID:  0.075925
+============================================================

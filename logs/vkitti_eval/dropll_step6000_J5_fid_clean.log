@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_c4ch1c0z
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/dropll_step6000_J5 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/dropll_step6000_J5
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_ys2_213x
+FID fid_flatten_ys2_213x :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_ys2_213x :   1%|▏         | 1/67 [00:02<02:12,  2.00s/it]FID fid_flatten_ys2_213x :   3%|▎         | 2/67 [00:03<01:55,  1.77s/it]FID fid_flatten_ys2_213x :   9%|▉         | 6/67 [00:03<00:26,  2.34it/s]FID fid_flatten_ys2_213x :  15%|█▍        | 10/67 [00:03<00:12,  4.59it/s]FID fid_flatten_ys2_213x :  21%|██        | 14/67 [00:03<00:07,  7.26it/s]FID fid_flatten_ys2_213x :  27%|██▋       | 18/67 [00:04<00:04, 10.49it/s]FID fid_flatten_ys2_213x :  33%|███▎      | 22/67 [00:04<00:03, 12.69it/s]FID fid_flatten_ys2_213x :  37%|███▋      | 25/67 [00:04<00:03, 13.90it/s]FID fid_flatten_ys2_213x :  42%|████▏     | 28/67 [00:04<00:03, 12.07it/s]FID fid_flatten_ys2_213x :  46%|████▋     | 31/67 [00:04<00:02, 14.23it/s]FID fid_flatten_ys2_213x :  52%|█████▏    | 35/67 [00:04<00:01, 17.42it/s]FID fid_flatten_ys2_213x :  58%|█████▊    | 39/67 [00:05<00:02,  9.82it/s]FID fid_flatten_ys2_213x :  64%|██████▍   | 43/67 [00:05<00:01, 12.88it/s]FID fid_flatten_ys2_213x :  70%|███████   | 47/67 [00:05<00:01, 15.83it/s]FID fid_flatten_ys2_213x :  76%|███████▌  | 51/67 [00:06<00:01, 10.27it/s]FID fid_flatten_ys2_213x :  81%|████████  | 54/67 [00:06<00:01, 11.49it/s]FID fid_flatten_ys2_213x :  87%|████████▋ | 58/67 [00:06<00:00, 14.51it/s]FID fid_flatten_ys2_213x :  93%|█████████▎| 62/67 [00:07<00:00, 17.82it/s]FID fid_flatten_ys2_213x :  97%|█████████▋| 65/67 [00:07<00:00, 10.02it/s]FID fid_flatten_ys2_213x : 100%|██████████| 67/67 [00:07<00:00,  8.39it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_ys2_213x
+KID fid_flatten_ys2_213x :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_ys2_213x :   1%|▏         | 1/67 [00:01<01:19,  1.21s/it]KID fid_flatten_ys2_213x :   3%|▎         | 2/67 [00:02<01:35,  1.47s/it]KID fid_flatten_ys2_213x :   6%|▌         | 4/67 [00:02<00:36,  1.72it/s]KID fid_flatten_ys2_213x :   9%|▉         | 6/67 [00:03<00:20,  3.01it/s]KID fid_flatten_ys2_213x :  15%|█▍        | 10/67 [00:03<00:09,  6.31it/s]KID fid_flatten_ys2_213x :  21%|██        | 14/67 [00:03<00:05,  9.87it/s]KID fid_flatten_ys2_213x :  27%|██▋       | 18/67 [00:03<00:03, 13.48it/s]KID fid_flatten_ys2_213x :  33%|███▎      | 22/67 [00:03<00:02, 16.80it/s]KID fid_flatten_ys2_213x :  39%|███▉      | 26/67 [00:03<00:02, 20.11it/s]KID fid_flatten_ys2_213x :  43%|████▎     | 29/67 [00:03<00:02, 17.30it/s]KID fid_flatten_ys2_213x :  48%|████▊     | 32/67 [00:04<00:02, 13.78it/s]KID fid_flatten_ys2_213x :  54%|█████▎    | 36/67 [00:04<00:01, 17.39it/s]KID fid_flatten_ys2_213x :  58%|█████▊    | 39/67 [00:04<00:01, 17.57it/s]KID fid_flatten_ys2_213x :  63%|██████▎   | 42/67 [00:05<00:02,  9.91it/s]KID fid_flatten_ys2_213x :  67%|██████▋   | 45/67 [00:05<00:01, 11.66it/s]KID fid_flatten_ys2_213x :  72%|███████▏  | 48/67 [00:05<00:01, 14.09it/s]KID fid_flatten_ys2_213x :  76%|███████▌  | 51/67 [00:05<00:01, 15.48it/s]KID fid_flatten_ys2_213x :  81%|████████  | 54/67 [00:06<00:01, 10.42it/s]KID fid_flatten_ys2_213x :  85%|████████▌ | 57/67 [00:06<00:00, 12.59it/s]KID fid_flatten_ys2_213x :  91%|█████████ | 61/67 [00:06<00:00, 16.11it/s]KID fid_flatten_ys2_213x :  96%|█████████▌| 64/67 [00:06<00:00, 11.49it/s]KID fid_flatten_ys2_213x :  99%|█████████▊| 66/67 [00:07<00:00, 10.54it/s]KID fid_flatten_ys2_213x : 100%|██████████| 67/67 [00:07<00:00,  9.31it/s]
+
+============================================================
+  Gen: outputs/vkitti/dropll_step6000_J5
+  FID:  85.9919
+  KID:  0.057447
+============================================================

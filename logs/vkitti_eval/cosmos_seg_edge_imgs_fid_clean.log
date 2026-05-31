@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_7ouklgy2
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/cosmos_seg_edge_imgs (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/cosmos_seg_edge_imgs
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_cx2wjhvx
+FID fid_flatten_cx2wjhvx :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_cx2wjhvx :   1%|▏         | 1/67 [00:01<01:18,  1.18s/it]FID fid_flatten_cx2wjhvx :   3%|▎         | 2/67 [00:02<01:35,  1.47s/it]FID fid_flatten_cx2wjhvx :   7%|▋         | 5/67 [00:02<00:27,  2.27it/s]FID fid_flatten_cx2wjhvx :  13%|█▎        | 9/67 [00:03<00:11,  4.96it/s]FID fid_flatten_cx2wjhvx :  19%|█▉        | 13/67 [00:03<00:06,  8.08it/s]FID fid_flatten_cx2wjhvx :  25%|██▌       | 17/67 [00:03<00:04, 11.49it/s]FID fid_flatten_cx2wjhvx :  31%|███▏      | 21/67 [00:03<00:03, 15.19it/s]FID fid_flatten_cx2wjhvx :  37%|███▋      | 25/67 [00:03<00:02, 18.79it/s]FID fid_flatten_cx2wjhvx :  43%|████▎     | 29/67 [00:03<00:01, 22.06it/s]FID fid_flatten_cx2wjhvx :  49%|████▉     | 33/67 [00:03<00:01, 23.96it/s]FID fid_flatten_cx2wjhvx :  55%|█████▌    | 37/67 [00:03<00:01, 26.09it/s]FID fid_flatten_cx2wjhvx :  61%|██████    | 41/67 [00:04<00:00, 27.36it/s]FID fid_flatten_cx2wjhvx :  67%|██████▋   | 45/67 [00:04<00:00, 28.72it/s]FID fid_flatten_cx2wjhvx :  73%|███████▎  | 49/67 [00:04<00:00, 28.33it/s]FID fid_flatten_cx2wjhvx :  79%|███████▉  | 53/67 [00:04<00:00, 29.35it/s]FID fid_flatten_cx2wjhvx :  85%|████████▌ | 57/67 [00:04<00:00, 30.31it/s]FID fid_flatten_cx2wjhvx :  91%|█████████ | 61/67 [00:04<00:00, 31.06it/s]FID fid_flatten_cx2wjhvx :  97%|█████████▋| 65/67 [00:04<00:00, 32.45it/s]FID fid_flatten_cx2wjhvx : 100%|██████████| 67/67 [00:04<00:00, 13.57it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_cx2wjhvx
+KID fid_flatten_cx2wjhvx :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_cx2wjhvx :   1%|▏         | 1/67 [00:00<00:51,  1.29it/s]KID fid_flatten_cx2wjhvx :   3%|▎         | 2/67 [00:02<01:23,  1.29s/it]KID fid_flatten_cx2wjhvx :   9%|▉         | 6/67 [00:02<00:19,  3.17it/s]KID fid_flatten_cx2wjhvx :  15%|█▍        | 10/67 [00:02<00:09,  6.07it/s]KID fid_flatten_cx2wjhvx :  21%|██        | 14/67 [00:02<00:05,  9.42it/s]KID fid_flatten_cx2wjhvx :  27%|██▋       | 18/67 [00:02<00:03, 13.17it/s]KID fid_flatten_cx2wjhvx :  33%|███▎      | 22/67 [00:02<00:02, 16.47it/s]KID fid_flatten_cx2wjhvx :  39%|███▉      | 26/67 [00:03<00:02, 19.51it/s]KID fid_flatten_cx2wjhvx :  45%|████▍     | 30/67 [00:03<00:01, 22.67it/s]KID fid_flatten_cx2wjhvx :  51%|█████     | 34/67 [00:03<00:01, 25.25it/s]KID fid_flatten_cx2wjhvx :  57%|█████▋    | 38/67 [00:03<00:01, 26.12it/s]KID fid_flatten_cx2wjhvx :  63%|██████▎   | 42/67 [00:03<00:00, 27.60it/s]KID fid_flatten_cx2wjhvx :  69%|██████▊   | 46/67 [00:03<00:00, 29.05it/s]KID fid_flatten_cx2wjhvx :  75%|███████▍  | 50/67 [00:03<00:00, 30.05it/s]KID fid_flatten_cx2wjhvx :  81%|████████  | 54/67 [00:03<00:00, 31.31it/s]KID fid_flatten_cx2wjhvx :  87%|████████▋ | 58/67 [00:04<00:00, 32.50it/s]KID fid_flatten_cx2wjhvx :  93%|█████████▎| 62/67 [00:04<00:00, 33.41it/s]KID fid_flatten_cx2wjhvx :  99%|█████████▊| 66/67 [00:04<00:00, 34.48it/s]KID fid_flatten_cx2wjhvx : 100%|██████████| 67/67 [00:04<00:00, 15.23it/s]
+
+============================================================
+  Gen: outputs/vkitti/cosmos_seg_edge_imgs
+  FID:  79.7835
+  KID:  0.055231
+============================================================

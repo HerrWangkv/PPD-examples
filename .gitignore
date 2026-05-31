@@ -8,8 +8,12 @@ data/images
 data/
 outputs/
 *.pdf
-logs/
+logs/*
+!logs/vkitti_eval/
+!logs/hypersim_eval/
 my_sim2real_*/
 *.log
+!logs/vkitti_eval/*.log
+!logs/hypersim_eval/*.log
 *.safetensors
 *.egg-info
