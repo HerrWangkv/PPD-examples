@@ -16,7 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 LOG_DIR = "logs/vkitti_eval"
-RADII   = [8, 12, 16, 20, 24, 32]
+RADII   = [8, 12, 20, 24, 32]
 
 COLORS = {
     "ppd":      "#e07b39",

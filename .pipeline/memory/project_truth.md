@@ -7,11 +7,11 @@ _最后同步：2026-06-01_
 
 DTCWT-based structured noise injection：保留 sim 输入的相位结构，通过 drop_ll 去除低频全局光照偏差，实现无额外 conditioning 的 sim-to-real 图像翻译。
 
-**论文状态**: ECCV 2026 rejected (2/4/4). Preparing strengthened resubmission.
+**论文状态**: ECCV 2026 rejected (2/4/4). Submitting to new venue (TBD).
 
 ## 当前阶段
 
-**Publication（论文写作 + 新实验补强）** — 6/10 任务完成
+**Publication（论文写作 + 新实验补强）** — 8/10 任务完成
 
 ## 已确认决策
 
@@ -24,54 +24,53 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 - [2026-06-01] 切换至 CleanFID（clean mode）
 - [2026-06-01] Hypersim→ScanNet 作为 lighting claim 第二 benchmark
 - [2026-06-01] PPD 使用 FFT 脚本（batch_sim2real_image_ppd.py），旧 DTCWT 结果作废
-- [2026-06-01] Paper table PPD 代表：r20（FID 76.29，PPD 系列最佳 FID）
+- [2026-06-01] Paper table PPD 代表：r12（direct comparison to WPD J=4 r12 at same radius）
 - [2026-06-01] Ablation 1 图：KID x 轴，3 曲线（PPD / WPD baseline / WPD J=4 drop_ll）
-- [2026-06-01] Hypersim bold 规则：排除 input；FID best = WPD baseline r20（68.22）
-- [2026-06-01] ECCV rejection confirmed; resubmission target TBD
-- [2026-06-01] 3D Noise Field Projection idea (multi-view sim2real via depth-projected noise): Novelty 5/5 — save for next paper or resubmission extension
+- [2026-06-01] ECCV rejection confirmed; new venue submission
+- [2026-06-01] Two-track strategy: Track A multi-view image sim2real (3D noise projection), Track B video fallback
+- [2026-06-01] 3D Noise Field Projection: Novelty 5/5 — save for next paper if Track A infeasible
+- [2026-06-01] dropll_step6000_J4 = dropll_J4_r16 (key alias confirmed)
+- [2026-06-01] J=5 curve removed from Ablation 1 (sits below PPD, not informative)
+- [2026-06-01] WPD baseline r10 identified as next ablation point (fills KID gap r8→r12)
 
 ## 阶段进展摘要
 
 ### Survey
-- Original baselines confirmed: FlowEdit / DNAEdit / Cosmos depth+edge / PPD r20 (FFT)
-- New 2025 literature surveyed (sim2real-baselines corpus, 12 papers OCR'd):
-  - **Driving with DINO** (2602.06159) — direct competitor, VFM features as sim2real bridge
-  - **CACTI** (2505.16360) — GTA5→Cityscapes style transfer baseline, has code
-  - **VACE** (2503.07598) — video editing baseline (reviewer wxAN requested)
-  - **DITTO** (2510.15742) — instruction-based video editing (reviewer wxAN requested)
-  - **RL3DEdit** (2603.03143) — multi-view consistent 3D editing via RL, related work
-  - **3D-Consistent MV Editing** (2511.22228) — training-free multi-view consistency, related work
-  - **Antithetic Noise** (2506.06185) — structured noise, related work to WPD noise design
+- Baselines confirmed: FlowEdit / DNAEdit / Cosmos depth+edge / PPD r20 (FFT)
+- sim2real-baselines corpus (12 papers OCR'd):
+  - DwD (2602.06159), Control-DINO (2604.01761), CACTI (2505.16360), VACE (2503.07598),
+    DITTO (2510.15742), RL3DEdit (2603.03143), 3D-Consistent MV Editing (2511.22228),
+    Antithetic Noise (2506.06185), SSB (2602.16664), ViewMask (2512.14099),
+    3D-Fixup (2505.10566), Pro3D-Editor (2506.00512)
 
 ### Ideation
 - WPD J=4 r12 as main operating point; drop_ll + DTCWT phase as core novelty
-- **3D Noise Field Projection**: user's novel idea — project Gaussian noise to 3D via sim depth, render per-view, use as WPD noise. Novelty 5/5, Feasibility 3.5/5. Decided to save for next paper (too large for current revision scope).
-- **V1 Flow-Warped Noise**: warp wavelet noise across frames using sim optical flow. Feasibility 5/5, good for video section. Pending decision.
+- **Two-track strategy for new venue**:
+  - Track A: multi-view image sim2real via 3D Noise Field Projection (inference-time, no retraining)
+  - Track B: video translation fallback using existing Wan2.2 pipeline
 
 ### Experiment
 
 **vKITTI→KITTI benchmark (complete)**
-- PPD r8–r24 (FFT), WPD baseline/drop_ll full series, FlowEdit/DNAEdit/Cosmos all evaluated
+- PPD r8–r32 (FFT), WPD baseline/drop_ll full series, FlowEdit/DNAEdit/Cosmos all evaluated
 - Paper table: Input / FlowEdit / DNAEdit / Cosmos depth+edge / PPD r20 / WPD J=4 r12
-- Ablation 1 (3 curves KID x-axis): PPD < WPD baseline < WPD drop_ll
-- Ablation 2 (J sweep): J=4 best FID, J=5 best structure
-- Ablation A (infer-only drop_ll): LL zeroing contributes ~13pt FID
-- PPD r32: in-progress (sbatch submitted)
+- Ablation 1 figure: 3 curves KID x-axis, J=4 r16 fixed, PPD r32 included
+- Ablation 2 figure: J sweep at r12/r16
+- Ablation A: LL zeroing ~13pt FID contribution
 
 **Hypersim→ScanNet benchmark (complete, DNAEdit row pending)**
-- 5 variants: input / FlowEdit / Cosmos / WPD baseline r20 / WPD J=5 r24 drop_ll
-- FID: WPD baseline 68.22 (best); KID: drop_ll 0.0448 (best)
-- DepSSIM: Cosmos 0.9259 (best); mIoU: drop_ll 0.3772 (best)
-- AbsRel: drop_ll 0.3459 (best); CLIP-IQA: FlowEdit 0.7563 (best)
-- DNAEdit row: in-progress (~43% translated)
+- 6 variants: input / FlowEdit / Cosmos / PPD r20 / WPD baseline r20 / WPD J=5 r24 drop_ll
+- PPD r20: FID 70.53 / KID 0.0484 — competitive with Cosmos without conditioning
+- FID best: WPD baseline r20 (68.22); KID/mIoU/AbsRel best: drop_ll
+- DNAEdit: in-progress on GPUs 0,2,3 (~43% → ~57% remaining)
 
 ### Publication
-- Results.md: two paper tables (vKITTI + Hypersim) at top
-- Summarize scripts: best/2nd-best bold/italic markup for both benchmarks
-- Ablation figures: paper-ready (plot_ablation_baseline_vs_ppd.py reads from logs)
+- Results.md: two paper tables (vKITTI + Hypersim) at top, PPD r32 row added
+- Summarize scripts: best/**/ + 2nd/*/ markup for both benchmarks
+- Ablation figures: paper-ready, 3-curve clean
 - **Writing not started yet**
 
-## 当前最佳实验结果
+## 当前最佳実験結果
 
 ### vKITTI→KITTI (CleanFID, translation methods only)
 
@@ -80,7 +79,7 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 | FID↓ | WPD J=4 r8 | 67.53 | WPD J=3 r16 (73.61) |
 | KID↓ | WPD J=4 r8 | 0.0361 | WPD J=3 r12 (0.0419) |
 | mIoU↑ | WPD baseline r24 | 48.46 | WPD baseline r20 (48.32) |
-| **Paper operating point** | **WPD J=4 r12** | **FID 73.84 / KID 0.0441 / mIoU 43.50** | |
+| **Paper point** | **WPD J=4 r12** | **FID 73.84 / KID 0.0441 / mIoU 43.50** | |
 | **PPD best** | **PPD r20** | **FID 76.29 / KID 0.0474 / mIoU 43.75** | |
 
 ### Hypersim→ScanNet (CleanFID, excl. input)
@@ -94,21 +93,17 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 | AbsRel↓ | WPD drop_ll | 0.3459 | Cosmos (0.3568) |
 | CLIP-IQA↑ | FlowEdit | 0.7563 | WPD drop_ll (0.7412) |
 
-## 方向调整记录
+## 方向調整記録
 
-- Benchmark: Synthia → vKITTI→KITTI (primary) + Hypersim→ScanNet (lighting claim)
+- Benchmark: Synthia → vKITTI→KITTI + Hypersim→ScanNet
 - Primary metric: CLIP-IQA → FID/KID (CleanFID)
-- PPD baseline: DTCWT results obsolete → all use FFT
-- Paper status: ECCV reject → resubmission with strengthened baselines + video section
+- PPD baseline: DTCWT obsolete → FFT
+- Paper direction: ECCV reject → new venue; add Track A (multi-view) or Track B (video)
 
-## 风险 / 阻塞项
+## 風险 / 阻塞項
 
-- **Writing not started**: data complete, can begin immediately
-- **ECCV reviewer requests (pending)**:
-  - wxAN: VACE/DITTO video baselines + FVD metric
-  - ZZKc: downstream metrics (segmentation/depth) — partially addressed by mIoU + DepSSIM
-  - FfwS: temporal coherence specification for video
-- **New baselines to run**: CACTI (has code), Driving with DINO (check code), VACE, DITTO
-- **Hypersim DNAEdit row**: ~43% translated, in-progress
-- **Hypersim PPD r20**: HPC complete, rsync pending
-- **PPD r32 vKITTI**: sbatch in-progress (extends ablation curve)
+- **Writing not started**: data complete, begin immediately
+- **Track A feasibility unknown**: need multi-camera sim data + 3D noise projection implementation
+- **New baselines TBD**: CACTI / DwD (check code), VACE / DITTO (for Track B)
+- **DNAEdit Hypersim**: ~57% remaining, in-progress
+- **WPD baseline r10**: inference not yet run (next ablation point)

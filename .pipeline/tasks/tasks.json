@@ -36,10 +36,11 @@
     {
       "id": "ppd_r32_vkitti",
       "title": "PPD r32 vKITTI（延伸 Ablation 1 曲线）",
-      "status": "in-progress",
+      "status": "done",
       "updatedAt": "2026-06-01",
-      "details": "用户希望补充 PPD r32，填充 KID≈0.055–0.065 区间，直接与 WPD baseline r12-r16 对比，证明 Pareto 优势。sbatch 已提交，正在跑。",
-      "priority": "low"
+      "details": "All 5 metrics complete. FID 88.09 / KID 0.0620 / mIoU 46.40 / DepSSIM 0.8575 / AbsRel 0.2238 / CLIP-IQA 0.8091 / LPIPS 0.7067. Extends Ablation 1 curve into KID~0.062 region.",
+      "priority": "low",
+      "output": "logs/vkitti_eval/ppd_r32_*.log, outputs/vkitti/ppd_r32"
     },
     {
       "id": "hypersim_dnaedit",
