@@ -45,10 +45,11 @@
     {
       "id": "hypersim_dnaedit",
       "title": "DNAEdit Hypersim 翻译完成",
-      "status": "in-progress",
+      "status": "done",
       "updatedAt": "2026-06-01",
-      "details": "Restarted on GPUs 0,2,3 after Docker stop. ~3185/7402 frames done previously. Complete → eval FID/depth/mIoU → add row to Hypersim table.",
-      "priority": "low"
+      "details": "7402 frames complete. CLIP-IQA 0.7637 (best on Hypersim) / FID 73.98 / KID 0.0505 / mIoU 0.3169 / DepSSIM 0.8978 / AbsRel 0.4107. Results.md updated.",
+      "priority": "low",
+      "output": "logs/hypersim_eval/dnaedit_*.log, outputs/hypersim/dnaedit"
     },
     {
       "id": "hypersim_ppd_r20",
