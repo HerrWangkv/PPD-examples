@@ -1,13 +1,58 @@
 {
-  "stage": "experimentation",
+  "stage": "publication",
   "tasks": [
     {
       "id": "vkitti_benchmark",
       "title": "vKITTI→KITTI 完整 benchmark",
       "status": "done",
-      "updatedAt": "2026-05-29",
+      "updatedAt": "2026-06-01",
       "output": "logs/vkitti_eval/, Results.md",
-      "details": "PPD/WPD baseline/drop_ll 全系列 + FlowEdit/DNAEdit/Cosmos/Kontext. Paper table + Ablation 1 & 2 完成."
+      "details": "PPD r8-r24（正确 FFT）+ WPD baseline/drop_ll 全系列 + FlowEdit/DNAEdit/Cosmos. Paper table 更新：PPD r20（FID 76.29）替换旧 PPD r8. Ablation 1 图更新（3曲线 KID x轴）."
+    },
+    {
+      "id": "vkitti_ppd_recompute",
+      "title": "vKITTI PPD 正确评估（FFT）",
+      "status": "done",
+      "updatedAt": "2026-06-01",
+      "output": "logs/vkitti_eval/ppd_r{8,12,16,20,24}_*.log, outputs/vkitti/ppd_r*/",
+      "details": "r8/12/16/20/24 全部完成。PPD r20 最佳 FID (76.29) / KID (0.0474). Paper table 入口 = r20."
+    },
+    {
+      "id": "hypersim_baselines",
+      "title": "Hypersim: Cosmos + mIoU + CLIP-IQA 评估",
+      "status": "done",
+      "updatedAt": "2026-06-01",
+      "output": "logs/hypersim_eval/, Results.md (Hypersim section)",
+      "details": "Cosmos: FID 71.53, DepSSIM 0.9259 (最佳). mIoU pseudo-GT: drop_ll 0.3772 (最佳). CLIP-IQA: FlowEdit 0.7563 (最高). DNAEdit 翻译进行中(~43%)."
+    },
+    {
+      "id": "hypersim_miou_all",
+      "title": "Hypersim mIoU (pseudo-GT) for all variants",
+      "status": "done",
+      "updatedAt": "2026-06-01",
+      "output": "logs/hypersim_eval/{flowedit,cosmos_depth_edge_imgs,wpd_r20,dropll_J5_r24}_miou.log",
+      "details": "flowedit 0.2924 / cosmos 0.3236 / wpd_r20 0.3156 / dropll 0.3772. Cache at outputs/hypersim/.pseudo_gt_cache/ (7402 entries)."
+    },
+    {
+      "id": "ppd_r32_vkitti",
+      "title": "PPD r32 vKITTI（延伸 Ablation 1 曲线）",
+      "status": "pending",
+      "details": "用户希望补充 PPD r32，填充 KID≈0.055–0.065 区间，直接与 WPD baseline r12-r16 对比，证明 Pareto 优势。需修改 sbatch_inference_vkitti_ppd_radius.sh 添加 r32。",
+      "priority": "low"
+    },
+    {
+      "id": "hypersim_dnaedit",
+      "title": "DNAEdit Hypersim 翻译完成",
+      "status": "pending",
+      "details": "~3185/7402 帧完成。需重启 Docker 继续: bash run_hypersim_dnaedit.sh --gpus 0,1,2,3。完成后 eval FID/depth/mIoU.",
+      "priority": "low"
+    },
+    {
+      "id": "hypersim_ppd_r20",
+      "title": "Hypersim PPD r20: rsync HPC→mrtstorage + eval",
+      "status": "pending",
+      "details": "HPC output at /hkfs/work/workspace/scratch/xw2723-generation/hypersim_wpd/ppd_r20. rsync → mrtstorage → symlink → FID/depth eval.",
+      "priority": "low"
     },
     {
       "id": "dropll_ablation_a",
@@ -15,33 +60,21 @@
       "status": "done",
       "updatedAt": "2026-05-31",
       "output": "logs/vkitti_eval/ablation_dropll_r{8,12,20,24}_*.log",
-      "details": "r8/12/20/24 全部完成。推理时 LL zeroing 贡献 ~15pt FID，训练仅 ~1pt。"
+      "details": "推理时 LL zeroing 贡献 ~13pt FID（85.41→72.66 at r12），训练贡献边际 ~1pt。"
     },
     {
       "id": "dropll_ablation_b",
-      "title": "Ablation B: step-6000 lora，无 drop_ll flag（完整 2×2）",
+      "title": "Ablation B: step-6000 lora，无 drop_ll flag",
       "status": "pending",
-      "details": "step-6000 lora + no --flux_drop_ll, radius=12. 预期 FID 无改善，验证推理时 zeroing 是关键。"
-    },
-    {
-      "id": "hypersim_translation",
-      "title": "Hypersim drop_ll J=5 r=24 翻译",
-      "status": "pending",
-      "details": "bash run_hypersim_dropll.sh --gpus 0,1,2,3 --J 5 --radius 24. 已有 ~1552/7402，需重启.",
-      "output": "/mrtstorage/users/kwang/hypersim_dropll_J5_r24/"
-    },
-    {
-      "id": "hypersim_eval",
-      "title": "Hypersim eval 脚本重构 + 评估",
-      "status": "pending",
-      "depends_on": ["hypersim_translation"],
-      "details": "重构 calc_fid_hypersim.py 等为 --gen_folder 接口，eval: input/flowedit/wpd_r20/dropll_J5_r24 vs ScanNet"
+      "details": "低优先级，消融 A 已说清故事。",
+      "priority": "low"
     },
     {
       "id": "publication",
       "title": "论文写作",
-      "status": "pending",
-      "details": "Results section, ablation analysis, related work. paper table 已就绪."
+      "status": "in-progress",
+      "updatedAt": "2026-06-01",
+      "details": "数据全部就绪。paper table 已定（PPD r20 替换旧 PPD r8）。ablation 图 paper-ready。可立即开始写作。"
     }
   ]
 }

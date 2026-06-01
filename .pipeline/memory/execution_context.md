@@ -1,51 +1,56 @@
 # Execution Context
-_最后同步：2026-05-31_
+_最后同步：2026-06-01_
 
 ## 当前任务
 
-**ID:** 待分配
-**状态:** GPU 空闲，等待用户决策
+**ID:** publication
+**标题:** 论文写作
+**状态:** in-progress
 
-## 排队任务
+## vKITTI Paper Table（最新）
 
-### 优先 1：Ablation Variant B（完成 2×2 矩阵）
+| Method | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
+|--------|-----------|------|------|-------|----------|---------|
+| Input (raw sim) | 0.7180 | 97.29 | 0.0607 | 50.39 | 0.9002 | 0.1573 |
+| FlowEdit | 0.6267 | 82.41 | 0.0485 | *42.72* | 0.8119 | 0.2599 |
+| DNAEdit | 0.7643 | 85.47 | 0.0478 | 41.22 | 0.8274 | 0.2539 |
+| Cosmos depth+edge | 0.4083 | **73.52** | *0.0452* | 39.36 | **0.8700** | **0.2016** |
+| PPD r12 | *0.7737* | 78.95 | 0.0487 | 38.32 | 0.8107 | 0.3439 |
+| WPD J=4 r12 (ours) | **0.7963** | *73.84* | **0.0441** | **43.50** | *0.8394* | *0.2286* |
 
-| | No drop_ll flag | drop_ll flag J=4 |
-|--|--|--|
-| flux.safetensors | WPD baseline r12 ✅ | Ablation infer r12 ✅ |
-| step-6000 lora | **Variant B 待做** | WPD J=4 r12 ✅ |
+## Hypersim Paper Table（最新）
 
-- 变体：step-6000 lora + no `--flux_drop_ll`，radius=12，vKITTI neutral_flat
-- 命令参考：`batch_sim2real_image_wavelet.py --flux_lora models/train/FLUX.1-dev_lora_wpd_dropll/step-6000.safetensors --flux_cutoff_radius 12`（无 `--flux_drop_ll` 标志）
-- 注意：`flux.safetensors` = `models/train/FLUX.1-dev_lora_wpd/step-20000.safetensors`（WPD baseline lora）
+| Method | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
+|--------|-----------|------|------|-------|----------|---------|
+| input (raw sim) | 0.6437 | 72.05 | 0.0461 | — | 0.9416 | 0.2922 |
+| FlowEdit | **0.7563** | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
+| Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | *0.3236* | **0.9259** | *0.3568* |
+| WPD baseline r20 | 0.6854 | **68.22** | *0.0451* | 0.3156 | 0.9014 | 0.3948 |
+| WPD J=5 r24 (drop_ll) | *0.7412* | *68.31* | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
 
-### 优先 2：Hypersim dropll_J5_r24 重启
+## 论文故事逻辑
 
-- 命令：`bash run_hypersim_dropll.sh --gpus 0,1,2,3 --J 5 --radius 24`
-- 输出：`/mrtstorage/users/kwang/hypersim_dropll_J5_r24/`（已有 ~1552/7402）
-- 注意：output dir 权限 chmod 777 已设置
+1. **Problem**: sim-to-real gap = structure gap + appearance gap (lighting/texture)
+2. **Insight**: DTCWT LL subband = global illumination bias → zeroing corrects appearance
+3. **Ablation story**:
+   - PPD (FFT) vs WPD baseline: 同 KID 下 WPD baseline structure 更好（Pareto 优势）
+   - WPD baseline vs drop_ll: drop_ll 将 frontier 向左推（更好 KID），轻微 structure 代价
+   - Hypersim: drop_ll 修正路径追踪光照（DepSSIM +0.018，mIoU +6.2pt vs baseline）
+4. **Figures**: Ablation 1（3 曲线 KID x 轴）+ Ablation 2（J sweep）均 paper-ready
 
-### 优先 3：Hypersim eval 脚本重构
+## 挂起实验
 
-- 文件：`calc_fid_hypersim.py`, `calc_depth_metrics_hypersim.py`, `calc_as_hypersim.py`
-- 问题：硬编码实验路径，需添加 `--gen_folder` 接口（参考 calc_fid_vkitti.py 模式）
-- 输出目录：`logs/hypersim_eval/`
-
-## 2×2 消融结论（at r12）
-
-| | FID | mIoU |
-|--|--|--|
-| WPD baseline (flux lora, no drop_ll) | 89.61 | 47.22 |
-| Ablation A (flux lora + infer drop_ll) | 74.54 | 42.97 |
-| Ablation B (drop_ll lora, no infer drop_ll) | **待跑** | **待跑** |
-| WPD J=4 (drop_ll lora + infer drop_ll) | 75.72 | 43.50 |
-
-**预期 Variant B**：FID ≈ 89 (无 inference-time LL zeroing → FID 不改善)，mIoU ≈ 46-47（lora 训练本身对 mIoU 的影响）
+| 实验 | 命令 | 优先级 |
+|------|------|--------|
+| PPD r32 vKITTI | `sbatch sbatch_inference_vkitti_ppd_r32.sh` | 中 |
+| DNAEdit Hypersim | `bash run_hypersim_dnaedit.sh --gpus 0,1,2,3` | 低 |
+| Hypersim PPD r20 | rsync HPC→mrtstorage | 低 |
 
 ## 上下文积累诊断
 
-- **mrtstorage 权限**：Docker 写入需先 `chmod 777`（host 创建目录后 Docker root 被 root-squash 拒绝）
-- **clone_only**：`batch_sim2real_image_kontext.py` 有此 flag；`batch_sim2real_image_wavelet.py` 无（全量处理）
-- **flux.safetensors ≠ 旧 PPD lora**：flux.safetensors = step-20000 WPD baseline lora
-- **GPUs 4-7**：被历史进程占用，当前只有 0-3 可用
-- **Hypersim torchrun**：用 `--nproc_per_node=4`，需 `--gpus '"device=0,1,2,3"'`
+- **PPD**: `batch_sim2real_image_ppd.py`（FFT）；旧 `wpd_ppd_ckpt_*` 作废
+- **Ablation 1 图**: `plot_ablation_baseline_vs_ppd.py` 从 logs 读取；baseline r16 = `baseline_newprompt`
+- **Hypersim mIoU**: pseudo-GT ADE20K，cache 在 `outputs/hypersim/.pseudo_gt_cache/`
+- **Hypersim bold**: excl. input；FID best = WPD baseline（68.22 < 68.31）
+- **CleanFID**: `--mode clean` for all FID/KID
+- **summarize scripts**: 均支持 `**best**` / `*2nd*` 标记

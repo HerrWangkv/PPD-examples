@@ -1,38 +1,46 @@
 # Orchestrator State
-_最后同步：2026-05-31_
+_最后同步：2026-06-01_
 
 ## 全局进度看板
 
 | 阶段 | 状态 | 备注 |
 |------|------|------|
-| Survey | ✅ done | baselines 确定：FlowEdit/DNAEdit/Cosmos/Kontext |
-| Ideation | ✅ done | WPD J=4 r12 主 operating point，J sweep 验证完毕 |
-| Experiment | 🔄 active | vKITTI + 消融 A 完成，Hypersim + 消融 B 待做 |
-| Publication | ⏳ pending | paper table 就绪，待写作 |
+| Survey | ✅ done | baselines 确定（含正确 PPD FFT） |
+| Ideation | ✅ done | WPD J=4 r12 主 operating point |
+| Experiment | ✅ done (主体) | vKITTI 全量 + Hypersim 5 variants + ablation 图 |
+| Publication | 🚀 in-progress | 数据就绪，写作未开始 |
 
 ## 当前活跃任务
 
-无正在运行的 GPU 任务（Hypersim 被 kill，待重启）
+| ID | 标题 | 状态 |
+|----|------|------|
+| publication | 论文写作 | in-progress |
+
+## 后台进行中
+
+| 实验 | 进度 | 备注 |
+|------|------|------|
+| DNAEdit Hypersim 翻译 | ~43% (3185/7402) | 需重启 Docker |
 
 ## 最近完成任务
 
 | 任务 | 完成时间 | 关键结果 |
 |------|----------|---------|
-| drop_ll 消融 A（推理贡献）| 2026-05-31 | 推理时 LL zeroing 贡献 ~15pt FID，训练 ~1pt |
-| J sweep at r12 (J=3/5) | 2026-05-30 | J=4 FID 最优，J=5 结构更好 |
-| vKITTI benchmark 全量 | 2026-05-29 | WPD J=4 r12 优于 Cosmos depth+edge |
-| Ablation 1 & 2 plots | 2026-05-29/30 | 两张消融图已生成 |
-| Pipeline docs sync | 2026-05-30 | project_truth/orchestrator/execution 更新 |
+| Hypersim bold/italic 修正 | 2026-06-01 | summarize_hypersim_eval.py 支持 **best** / *2nd* |
+| Results.md 结构优化 | 2026-06-01 | vKITTI + Hypersim paper table 置顶 |
+| vKITTI PPD r8–r24 正确评估 | 2026-06-01 | PPD r20 最佳 FID 76.29，paper table 更新 |
+| Hypersim Cosmos + mIoU + CLIP-IQA | 2026-06-01 | drop_ll wins KID/mIoU/AbsRel；Cosmos wins DepSSIM |
+| Ablation 1 图更新 | 2026-06-01 | 3 曲线 KID x 轴，从 logs 读取 |
 
-## 决策点
+## 待处理决策点
 
-1. **是否跑 Ablation Variant B**（step-6000 lora 无 drop_ll flag）— 建议：是，完整 2×2 矩阵
-2. **Hypersim 是否优先于 Ablation B** — 当前建议先跑 Ablation B（更快，用 vKITTI）
-3. **写作时机** — Ablation B + Hypersim 结束后立即开始
+1. **开始写作**：最高优先级，数据全部就绪
+2. **PPD r32**：sbatch 脚本已准备（sbatch_inference_vkitti_ppd_r32.sh），等待 HPC 提交
+3. **DNAEdit 重启**：`bash run_hypersim_dnaedit.sh --gpus 0,1,2,3`
 
-## 下一步建议（优先级）
+## 下一步建议
 
-1. **重启 Hypersim dropll_J5_r24**（GPU 0-3）
-2. **同时/之后跑 Ablation Variant B**（step-6000 lora 无 drop_ll flag，vKITTI r=12）
-3. **重构 Hypersim eval 脚本**（`--gen_folder` 接口）
-4. **开始论文 Results section**
+**立即开始论文写作** — `/omp:write`
+- vKITTI Results section（paper table + ablation）
+- Hypersim lighting claim 段落
+- Related work（DNAEdit 2506.01430, Cosmos-Transfer2.5）

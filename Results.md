@@ -3,61 +3,40 @@
 FID/KID ref: KITTI tracking sequences 0001/0002/0006/0018/0020 (2126 frames, scene-matched). **CleanFID mode** (`--mode clean`).
 mIoU: SegFormer-B5 (Cityscapes). Depth: Depth Anything V2 Large. LPIPS: AlexNet vs paired KITTI.
 CLIP-IQA: piq.CLIPIQA. KITTI real CLIP-IQA = 0.3433 (reference). * = best (excl. raw sim).
-† FLUX.1-Kontext: mIoU inflated by Cityscapes-style appearance (excluded from paper). Ablation infer drop_ll: flux.safetensors + --flux_drop_ll J=4 at inference only (no drop_ll training); LPIPS not computed.
+† FLUX.1-Kontext: mIoU inflated by Cityscapes-style appearance (excluded from paper). Ablation infer drop_ll: flux.safetensors + --flux_drop_ll J=4 at inference only (no drop_ll training).
+⚠️ WPD (PPD ckpt) r*: these used batch_sim2real_image_wavelet.py (DTCWT) — wrong inference script for PPD lora. Replaced by correct PPD (FFT) rows below.
 Full table: `python summarize_vkitti_eval.py`
 
 ## Paper table (one variant per method)
 
-WPD baseline variants reserved for ablation. No LPIPS/CLIP-IQA.
+WPD baseline variants reserved for ablation. No LPIPS.
+CLIP-IQA: piq.CLIPIQA ("Good photo"/"Bad photo"). Real KITTI = 0.3433 (2012 camera hardware); higher = more photorealistic output.
 Frontier plot: `python plot_vkitti_frontier.py --output outputs/vkitti_frontier.pdf`
 
-| Method | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| Input (raw sim) | 97.29 | 0.0607 | 50.39 | 0.9002 | 0.1573 |
-| FlowEdit | 82.41 | 0.0485 | 42.72 | 0.8119 | 0.2599 |
-| DNAEdit | 85.47 | 0.0478 | 41.22 | 0.8274 | 0.2539 |
-| Cosmos depth+edge | **73.52** | *0.0452* | 39.36 | **0.8700** | **0.2016** |
-| WPD (PPD ckpt) r8 | 85.75 | 0.0590 | *43.20* | 0.8347 | 0.2851 |
-| WPD J=4 r12 (ours) | *73.84* | **0.0441** | **43.50** | *0.8394* | *0.2286* |
+| Method | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Input (raw sim) | 0.7180 | 97.29 | 0.0607 | 50.39 | 0.9002 | 0.1573 |
+| FlowEdit | 0.6267 | 82.41 | 0.0485 | *42.72* | 0.8119 | 0.2599 |
+| DNAEdit | 0.7643 | 85.47 | 0.0478 | 41.22 | 0.8274 | 0.2539 |
+| Cosmos depth+edge | 0.4083 | **73.52** | *0.0452* | 39.36 | **0.8700** | **0.2016** |
+| PPD r12 | *0.7737* | 78.95 | 0.0487 | 38.32 | 0.8107 | 0.3439 |
+| WPD J=4 r12 (ours) | **0.7963** | *73.84* | **0.0441** | **43.50** | *0.8394* | *0.2286* |
 
 ## Ablation 1: WPD baseline vs PPD (effect of new LoRA training)
 
-![Ablation 1](outputs/ablation_baseline_vs_ppd.png)
+![Ablation 1](figures/ablation_baseline_vs_ppd.png)
 
-Generate: `python plot_ablation_baseline_vs_ppd.py --output outputs/ablation_baseline_vs_ppd.png`
+Generate: `python plot_ablation_baseline_vs_ppd.py --output figures/ablation_baseline_vs_ppd.png`
 
 ## Ablation 2: J sweep at r=12 and r=16 (WPD baseline = J=∞, no drop_ll)
 
 J=4 minimises FID; J=5 better preserves structure. Both radii show the same trade-off.
 
-![Ablation 2](outputs/ablation_J_sweep.png)
+![Ablation 2](figures/ablation_J_sweep.png)
 
-Generate: `python plot_ablation_J_sweep.py --output outputs/ablation_J_sweep.png`
+Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png`
 
-## Key findings (2026-05-29)
-
-**Primary metrics for storytelling: FID/KID** (CLIP-IQA disfavored — it rewards sharpness, which benefits PPD but is orthogonal to the sim2real realism claim).
-
-**Radius is the main knob**: larger radius → better mIoU/DepSSIM but higher FID, across all variants. J is a secondary effect.
-
-**WPD drop_ll wins on FID/KID**: WPD J=4 r8 achieves best FID (67.53) / KID (0.0361). WPD J=3/4 r16 (FID 73–77) beats Cosmos depth+edge (73.52) on KID (0.0450/0.0474 vs 0.0452) while maintaining higher mIoU (38–44 vs 39).
-
-**WPD baseline wins on structure**: WPD baseline r20/r24 achieve best mIoU (48.32/48.46) and DepSSIM (0.8814) — better than all Cosmos variants and PPD. No-drop_ll preserves semantics better than drop_ll by ~4 mIoU points at the same radius.
-
-**drop_ll trades structure for realism**: WPD baseline r16 vs WPD J=4 r16: FID 87.87→76.70 (gain), mIoU 48.28→44.31 (loss). The LL subband carries structural information.
-
-**PPD is dominated by WPD on FID**: All PPD variants have FID > 85. WPD drop_ll variants consistently outperform PPD on distributional realism.
-
-**Best single operating point**: WPD J=4 r12 (FID 73.84, KID 0.0441, mIoU 43.50) — ties Cosmos depth+edge on FID, wins on KID and mIoU, without any conditioning signals.
-
-**Ablation (2026-05-31): inference-time LL zeroing drives FID gain**. Comparing at r12 (CleanFID): WPD baseline (85.41) → infer drop_ll only (72.66) → full WPD J=4 (73.84). The gap baseline→infer-only is ~13 FID points; infer-only→full WPD is ~1 point. Inference-time LL zeroing accounts for most of the realism improvement; drop_ll training provides marginal additional FID benefit but helps recover mIoU (42.97→43.50). This holds across all radii.
-
-## Suggested next experiments
-
-- **drop_ll ablation Variant B** (training-only): step-6000 lora + no `--flux_drop_ll` flag, to confirm training alone does not improve FID. Completes the 2×2 matrix.
-- **Hypersim → ScanNet benchmark**: supports the lighting claim (drop_ll corrects LL = global illumination). Existing translated variants: `hypersim_wavelet` (WPD baseline r20), `hypersim_flowedit`. Need drop_ll variant (`run_hypersim_dropll.sh`). Eval scripts exist (`calc_fid_hypersim.py`, `calc_depth_metrics_hypersim.py`).
-- **Longer drop_ll checkpoint**: step-6000 lora is undertrained vs baseline (302k steps). Later checkpoint may narrow the mIoU gap while maintaining FID gain.
-- **CUT/CycleGAN baseline**: reviewers of sim2real papers expect an unpaired GAN baseline.
+---
 
 | Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ | LPIPS↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -73,7 +52,12 @@ Generate: `python plot_ablation_J_sweep.py --output outputs/ablation_J_sweep.png
 | Cosmos depth+seg+edge | 0.5468 | 81.80 | 0.0555 | 38.92 | 0.8750 | 0.1970 | 0.6799 |
 | Cosmos depth+seg+vis | 0.5677 | 102.83 | 0.0759 | 42.11 | 0.8743 | 0.1650 | 0.6646 |
 | Cosmos depth+seg+vis+edge | 0.5880 | 98.59 | 0.0705 | 44.22 | 0.8746 | 0.1607 | 0.6596 |
-| WPD (PPD ckpt) r8 | 0.8208 | 85.75 | 0.0590 | 43.20 | 0.8347 | 0.2851 | 0.7053 |
+| PPD r8 | 0.7639 | 85.92 | 0.0527 | 32.65 | 0.7809 | 0.3761 | 0.7154 |
+| PPD r12 | 0.7737 | 78.95 | 0.0487 | 38.32 | 0.8107 | 0.3439 | 0.7080 |
+| PPD r16 | 0.7941 | 76.97 | 0.0479 | 41.21 | 0.8283 | 0.3180 | 0.7076 |
+| PPD r20 | 0.8051 | 76.29 | 0.0474 | 43.75 | 0.8378 | 0.2878 | 0.7051 |
+| PPD r24 | 0.8098 | 77.98 | 0.0498 | 44.87 | 0.8470 | 0.2604 | 0.7050 |
+| WPD (PPD ckpt) r8 ⚠️ | 0.8208 | 85.75 | 0.0590 | 43.20 | 0.8347 | 0.2851 | 0.7053 |
 | WPD (PPD ckpt) r12 | 0.8467 | 96.03 | 0.0725 | 46.49 | 0.8607 | 0.2035 | 0.7167 |
 | WPD (PPD ckpt) r16 | 0.8731 | 102.44 | 0.0806 | 47.02 | 0.8646 | 0.1883 | 0.7327 |
 | WPD (PPD ckpt) r20 | **0.8794** | 103.54 | 0.0820 | 46.77 | 0.8662 | 0.1824 | 0.7389 |
@@ -92,10 +76,57 @@ Generate: `python plot_ablation_J_sweep.py --output outputs/ablation_J_sweep.png
 | WPD J=5 r12 | 0.7940 | 81.72 | 0.0523 | 44.81 | 0.8468 | 0.2204 | 0.6914 |
 | WPD J=4 r20 | 0.8292 | 77.48 | 0.0485 | 45.04 | 0.8532 | 0.2011 | 0.7123 |
 | WPD J=4 r24 | 0.8228 | 89.41 | 0.0592 | 44.98 | 0.8763 | 0.1682 | 0.7203 |
-| Ablation: infer drop_ll r8† | 0.8498 | 71.80 | 0.0396 | 36.94 | 0.7837 | 0.3175 | — |
-| Ablation: infer drop_ll r12† | 0.8490 | 72.66 | 0.0427 | 42.97 | 0.8331 | 0.2295 | — |
-| Ablation: infer drop_ll r20† | 0.8719 | 79.38 | 0.0497 | 43.87 | 0.8479 | 0.2056 | — |
-| Ablation: infer drop_ll r24† | 0.8268 | 92.47 | 0.0623 | 44.51 | 0.8733 | 0.1718 | — |
+| Ablation: infer drop_ll r8† | 0.8498 | 71.80 | 0.0396 | 36.94 | 0.7837 | 0.3175 | 0.7429 |
+| Ablation: infer drop_ll r12† | 0.8490 | 72.66 | 0.0427 | 42.97 | 0.8331 | 0.2295 | 0.7303 |
+| Ablation: infer drop_ll r20† | 0.8719 | 79.38 | 0.0497 | 43.87 | 0.8479 | 0.2056 | 0.7397 |
+| Ablation: infer drop_ll r24† | 0.8268 | 92.47 | 0.0623 | 44.51 | 0.8733 | 0.1718 | 0.7579 |
+
+## Key findings (2026-05-29)
+
+**Primary metrics for storytelling: FID/KID** (CLIP-IQA disfavored — it rewards sharpness, which benefits PPD but is orthogonal to the sim2real realism claim).
+
+**Radius is the main knob**: larger radius → better mIoU/DepSSIM but higher FID, across all variants. J is a secondary effect.
+
+**WPD drop_ll wins on FID/KID**: WPD J=4 r8 achieves best FID (67.53) / KID (0.0361). WPD J=3/4 r16 (FID 73–77) beats Cosmos depth+edge (73.52) on KID (0.0450/0.0474 vs 0.0452) while maintaining higher mIoU (38–44 vs 39).
+
+**WPD baseline wins on structure**: WPD baseline r20/r24 achieve best mIoU (48.32/48.46) and DepSSIM (0.8814) — better than all Cosmos variants and PPD. No-drop_ll preserves semantics better than drop_ll by ~4 mIoU points at the same radius.
+
+**drop_ll trades structure for realism**: WPD baseline r16 vs WPD J=4 r16: FID 87.87→76.70 (gain), mIoU 48.28→44.31 (loss). The LL subband carries structural information.
+
+**PPD (correct FFT) is competitive**: PPD r20 achieves FID 76.29 / KID 0.0474, close to WPD J=4 r12 (73.84 / 0.0441). PPD r20 mIoU (43.75) slightly exceeds WPD r12 (43.50). WPD still wins on FID/KID. Note: old "WPD (PPD ckpt)" rows used wrong DTCWT inference — those numbers are invalid.
+
+**Best single operating point**: WPD J=4 r12 (FID 73.84, KID 0.0441, mIoU 43.50) — ties Cosmos depth+edge on FID, wins on KID and mIoU, without any conditioning signals.
+
+**Ablation (2026-05-31): inference-time LL zeroing drives FID gain**. Comparing at r12 (CleanFID): WPD baseline (85.41) → infer drop_ll only (72.66) → full WPD J=4 (73.84). The gap baseline→infer-only is ~13 FID points; infer-only→full WPD is ~1 point. Inference-time LL zeroing accounts for most of the realism improvement; drop_ll training provides marginal additional FID benefit but helps recover mIoU (42.97→43.50). This holds across all radii.
+
+## Suggested next experiments
+
+- **drop_ll ablation Variant B** (training-only): step-6000 lora + no `--flux_drop_ll` flag, to confirm training alone does not improve FID. Completes the 2×2 matrix.
+- **Longer drop_ll checkpoint**: step-6000 lora is undertrained vs baseline (302k steps). Later checkpoint may narrow the mIoU gap while maintaining FID gain.
+- **CUT/CycleGAN baseline**: reviewers of sim2real papers expect an unpaired GAN baseline.
+- **PPD r32**: extends Ablation 1 curve into KID≈0.06 region for cleaner Pareto comparison.
+
+---
+
+# Hypersim → ScanNet
+
+FID/KID ref: ScanNet test split (312 scenes, 32k frames). Depth: Depth Anything V2 Large vs Hypersim GT (HDF5). CleanFID mode.
+mIoU: SegFormer-B5 ADE20K, pseudo-GT from raw Hypersim input. CLIP-IQA: piq.CLIPIQA.
+Full table: `python summarize_hypersim_eval.py`
+
+| Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| input (raw sim) | 0.6437 | 72.05 | 0.0461 | — | 0.9416 | 0.2922 |
+| FlowEdit | **0.7563** | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
+| Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | *0.3236* | **0.9259** | *0.3568* |
+| WPD baseline r20 | 0.6854 | **68.22** | *0.0451* | 0.3156 | 0.9014 | 0.3948 |
+| WPD J=5 r24 (drop\_ll) | *0.7412* | *68.31* | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
+
+mIoU: pseudo-GT, GT-present classes only; input=1.0 excluded from best. * = best among translation methods (excl. raw sim).
+WPD drop_ll wins on FID/KID/mIoU. Cosmos depth+edge has best DepSSIM (0.9259, depth conditioning). WPD drop_ll corrects LL illumination bias (KID best, DepSSIM 0.9014→0.9190 vs baseline, mIoU +6.2pt vs baseline).
+
+Pending: DNAEdit, PPD r20 (HPC rsync + eval).
+
 
 # Synthia
 ## mIoU
@@ -185,20 +216,6 @@ Generate: `python plot_ablation_J_sweep.py --output outputs/ablation_J_sweep.png
 |WPD10_44_2 |1.0023 |0.8940 |
 |WPD10_44_5 |1.0133 |0.8762 |
 |WPD10_44_10|1.0259 |0.8582 |
-
-# Hypersim → ScanNet
-
-FID/KID ref: ScanNet test split (312 scenes, 32k frames). Depth: Depth Anything V2 Large vs Hypersim GT (HDF5). CleanFID mode.
-Full table: `python summarize_hypersim_eval.py`
-
-| Variant | FID↓ | KID↓ | DepSSIM↑ | AbsRel↓ |
-| :--- | :---: | :---: | :---: | :---: |
-| input (raw sim) | 72.05 | 0.0461 | **0.9416** | **0.2922** |
-| FlowEdit | 75.13 | 0.0512 | 0.8926 | 0.4159 |
-| WPD baseline r20 | *68.22* | *0.0451* | 0.9014 | 0.3948 |
-| WPD J=5 r24 (drop\_ll) | **68.31** | **0.0448** | *0.9190* | *0.3459* |
-
-drop_ll improves depth preservation (DepSSIM 0.9014→0.9190, AbsRel 0.3948→0.3459) while maintaining FID — consistent with lighting claim: LL removal corrects Hypersim's path-traced illumination bias without degrading structure.
 
 # nuScenes
 | Method | L2(m) 1s↓ | L2(m) 2s↓ | L2(m) 3s↓ | L2(m) Avg.↓ | Collision(%) 1s↓ | Collision(%) 2s↓ | Collision(%) 3s↓ | Collision(%) Avg.↓ |

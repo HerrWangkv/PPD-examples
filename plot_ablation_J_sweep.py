@@ -4,7 +4,7 @@ WPD baseline (no drop_ll) = J=inf.
 x-axis: FID (lower=better, inverted), y-axis: mIoU and DepSSIM.
 
 Usage:
-    python plot_ablation_J_sweep.py --output outputs/ablation_J_sweep.png
+    python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 """
 import argparse
 import os
@@ -54,7 +54,7 @@ def plot_panel(ax, metric_key, ylabel, title):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", default="outputs/ablation_J_sweep.png")
+    parser.add_argument("--output", default="figures/ablation_J_sweep.png")
     args = parser.parse_args()
 
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(13, 4))

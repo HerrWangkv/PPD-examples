@@ -12,15 +12,21 @@ LOG_DIR = "logs/hypersim_eval"
 VARIANTS_ORDER = [
     "input",
     "flowedit",
+    "dnaedit",
+    "cosmos_depth_edge_imgs",
+    "ppd_r8",
     "wpd_r20",
     "dropll_J5_r24",
 ]
 
 DISPLAY_NAMES = {
-    "input":          "input (raw sim)",
-    "flowedit":       "FlowEdit",
-    "wpd_r20":        "WPD baseline r20",
-    "dropll_J5_r24":  "WPD J=5 r24",
+    "input":              "input (raw sim)",
+    "flowedit":           "FlowEdit",
+    "dnaedit":            "DNAEdit",
+    "cosmos_depth_edge_imgs":  "Cosmos depth+edge",
+    "ppd_r8":             "PPD r8",
+    "wpd_r20":            "WPD baseline r20",
+    "dropll_J5_r24":      "WPD J=5 r24 (drop_ll)",
 }
 
 
@@ -41,6 +47,8 @@ def load(v):
         "kid":     extract(fid_log,             r"KID:\s+([\d.]+)"),
         "dep_ssim":extract(f"{base}_depth.log", r"Depth SSIM:\s+([\d.]+)"),
         "abs_rel": extract(f"{base}_depth.log", r"AbsRel:\s+([\d.]+)"),
+        "miou":     extract(f"{base}_miou.log",    r"mIoU:\s+([\d.]+)"),
+        "clipiqa":  extract(f"{base}_clipiqa.log", r"CLIP-IQA:\s+([\d.]+)"),
     }
 
 
@@ -59,15 +67,53 @@ def main():
     ordered = [v for v in VARIANTS_ORDER if v in discovered]
     ordered += [v for v in discovered if v not in VARIANTS_ORDER]
 
-    header = f"{'Variant':<28} {'FID':>8} {'KID':>8} {'DepSSIM':>8} {'AbsRel':>8}"
+    rows = [(v, load(v)) for v in ordered]
+
+    # Find best and second-best per metric, excluding input
+    non_input = [(v, m) for v, m in rows if v != "input"]
+    METRICS = [
+        ("clipiqa",  True),
+        ("fid",      False),
+        ("kid",      False),
+        ("miou",     True),
+        ("dep_ssim", True),
+        ("abs_rel",  False),
+    ]
+    bests, seconds = {}, {}
+    for metric, higher in METRICS:
+        vals = sorted(
+            [(v, m[metric]) for v, m in non_input if m[metric] is not None],
+            key=lambda x: x[1], reverse=higher
+        )
+        if vals:
+            bests[metric] = vals[0][0]
+        if len(vals) > 1:
+            seconds[metric] = vals[1][0]
+
+    def mark(v, metric, val, decimals=4):
+        s = fmt(val, decimals)
+        if val is None:
+            return s
+        if bests.get(metric) == v:
+            return f"**{s}**"
+        if seconds.get(metric) == v:
+            return f"*{s}*"
+        return s
+
+    header = f"{'Variant':<28} {'CLIP-IQA':>11} {'FID':>8} {'KID':>8} {'mIoU':>9} {'DepSSIM':>10} {'AbsRel':>10}"
     print(header)
     print("-" * len(header))
-    for v in ordered:
-        m = load(v)
+    for v, m in rows:
         name = DISPLAY_NAMES.get(v, v)
-        print(f"{name:<28} {fmt(m['fid'], 2):>8} {fmt(m['kid']):>8} "
-              f"{fmt(m['dep_ssim']):>8} {fmt(m['abs_rel']):>8}")
+        print(f"{name:<28} "
+              f"{mark(v, 'clipiqa',  m['clipiqa'],  4):>11} "
+              f"{mark(v, 'fid',      m['fid'],      2):>8} "
+              f"{mark(v, 'kid',      m['kid'],      4):>8} "
+              f"{mark(v, 'miou',     m['miou'],     4):>9} "
+              f"{mark(v, 'dep_ssim', m['dep_ssim'], 4):>10} "
+              f"{mark(v, 'abs_rel',  m['abs_rel'],  4):>10}")
     print("-" * len(header))
+    print("** = best, * = 2nd best (excl. raw sim input)")
 
 
 if __name__ == "__main__":

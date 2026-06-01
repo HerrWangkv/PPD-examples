@@ -1,0 +1,27 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[KITTI] 2126 frames from sequences ['0001', '0002', '0006', '0018', '0020']
+[KITTI] Flat dir: /tmp/claude-53486/kitti_tracking_flat_a5xb4_de
+[Gen] 2126 images in /storage_local/kwang/repos/PPD-examples/outputs/vkitti/ppd_r8 (clone only)
+
+============================================================
+  Gen:  outputs/vkitti/ppd_r8
+  Real: KITTI tracking scenes ['0001', '0002', '0006', '0018', '0020'] (2126 frames)
+  Mode: clean
+============================================================
+
+[Cache] Using cached stats 'kitti_tracking_vkitti_scenes_clean'
+Computing FID...
+compute FID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_goj_86cw
+FID fid_flatten_goj_86cw :   0%|          | 0/67 [00:00<?, ?it/s]FID fid_flatten_goj_86cw :   1%|▏         | 1/67 [00:01<02:05,  1.91s/it]FID fid_flatten_goj_86cw :   3%|▎         | 2/67 [00:04<02:11,  2.02s/it]FID fid_flatten_goj_86cw :   7%|▋         | 5/67 [00:04<00:37,  1.67it/s]FID fid_flatten_goj_86cw :  13%|█▎        | 9/67 [00:04<00:15,  3.69it/s]FID fid_flatten_goj_86cw :  19%|█▉        | 13/67 [00:04<00:08,  6.04it/s]FID fid_flatten_goj_86cw :  24%|██▍       | 16/67 [00:04<00:06,  8.15it/s]FID fid_flatten_goj_86cw :  30%|██▉       | 20/67 [00:04<00:04, 11.19it/s]FID fid_flatten_goj_86cw :  34%|███▍      | 23/67 [00:04<00:03, 12.77it/s]FID fid_flatten_goj_86cw :  39%|███▉      | 26/67 [00:04<00:02, 15.27it/s]FID fid_flatten_goj_86cw :  43%|████▎     | 29/67 [00:05<00:02, 14.36it/s]FID fid_flatten_goj_86cw :  49%|████▉     | 33/67 [00:05<00:01, 17.90it/s]FID fid_flatten_goj_86cw :  54%|█████▎    | 36/67 [00:05<00:01, 19.12it/s]FID fid_flatten_goj_86cw :  58%|█████▊    | 39/67 [00:06<00:02,  9.53it/s]FID fid_flatten_goj_86cw :  64%|██████▍   | 43/67 [00:06<00:01, 12.55it/s]FID fid_flatten_goj_86cw :  69%|██████▊   | 46/67 [00:06<00:01, 14.47it/s]FID fid_flatten_goj_86cw :  73%|███████▎  | 49/67 [00:06<00:01, 15.89it/s]FID fid_flatten_goj_86cw :  78%|███████▊  | 52/67 [00:07<00:01, 10.61it/s]FID fid_flatten_goj_86cw :  81%|████████  | 54/67 [00:07<00:01, 11.77it/s]FID fid_flatten_goj_86cw :  87%|████████▋ | 58/67 [00:07<00:00, 15.30it/s]FID fid_flatten_goj_86cw :  91%|█████████ | 61/67 [00:07<00:00, 15.91it/s]FID fid_flatten_goj_86cw :  96%|█████████▌| 64/67 [00:07<00:00,  9.96it/s]FID fid_flatten_goj_86cw :  99%|█████████▊| 66/67 [00:08<00:00,  9.80it/s]FID fid_flatten_goj_86cw : 100%|██████████| 67/67 [00:08<00:00,  7.92it/s]
+Computing KID...
+compute KID of a folder with kitti_tracking_vkitti_scenes_clean statistics
+Found 2126 images in the folder /tmp/claude-53486/fid_flatten_goj_86cw
+KID fid_flatten_goj_86cw :   0%|          | 0/67 [00:00<?, ?it/s]KID fid_flatten_goj_86cw :   1%|▏         | 1/67 [00:01<01:50,  1.68s/it]KID fid_flatten_goj_86cw :   3%|▎         | 2/67 [00:03<02:09,  1.99s/it]KID fid_flatten_goj_86cw :   6%|▌         | 4/67 [00:03<00:48,  1.29it/s]KID fid_flatten_goj_86cw :  10%|█         | 7/67 [00:04<00:21,  2.79it/s]KID fid_flatten_goj_86cw :  15%|█▍        | 10/67 [00:04<00:12,  4.67it/s]KID fid_flatten_goj_86cw :  19%|█▉        | 13/67 [00:04<00:07,  6.90it/s]KID fid_flatten_goj_86cw :  25%|██▌       | 17/67 [00:04<00:04, 10.31it/s]KID fid_flatten_goj_86cw :  30%|██▉       | 20/67 [00:04<00:03, 12.87it/s]KID fid_flatten_goj_86cw :  34%|███▍      | 23/67 [00:04<00:02, 14.91it/s]KID fid_flatten_goj_86cw :  39%|███▉      | 26/67 [00:04<00:02, 17.13it/s]KID fid_flatten_goj_86cw :  43%|████▎     | 29/67 [00:04<00:01, 19.09it/s]KID fid_flatten_goj_86cw :  48%|████▊     | 32/67 [00:05<00:01, 18.02it/s]KID fid_flatten_goj_86cw :  52%|█████▏    | 35/67 [00:05<00:01, 19.85it/s]KID fid_flatten_goj_86cw :  57%|█████▋    | 38/67 [00:05<00:01, 22.09it/s]KID fid_flatten_goj_86cw :  61%|██████    | 41/67 [00:06<00:02, 10.19it/s]KID fid_flatten_goj_86cw :  66%|██████▌   | 44/67 [00:06<00:01, 12.40it/s]KID fid_flatten_goj_86cw :  70%|███████   | 47/67 [00:06<00:01, 13.67it/s]KID fid_flatten_goj_86cw :  75%|███████▍  | 50/67 [00:06<00:01, 16.22it/s]KID fid_flatten_goj_86cw :  79%|███████▉  | 53/67 [00:06<00:01, 11.88it/s]KID fid_flatten_goj_86cw :  84%|████████▎ | 56/67 [00:06<00:00, 14.04it/s]KID fid_flatten_goj_86cw :  87%|████████▋ | 58/67 [00:07<00:00, 13.83it/s]KID fid_flatten_goj_86cw :  93%|█████████▎| 62/67 [00:07<00:00, 17.78it/s]KID fid_flatten_goj_86cw :  97%|█████████▋| 65/67 [00:07<00:00, 11.43it/s]KID fid_flatten_goj_86cw : 100%|██████████| 67/67 [00:07<00:00,  8.49it/s]
+
+============================================================
+  Gen: outputs/vkitti/ppd_r8
+  FID:  85.9183
+  KID:  0.052747
+============================================================

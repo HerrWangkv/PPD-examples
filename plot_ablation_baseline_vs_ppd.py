@@ -1,9 +1,12 @@
 """
-Ablation 1: WPD baseline vs PPD across radius sweep.
-Shows FID and mIoU vs cutoff radius for both variants.
+Ablation 1: WPD baseline vs PPD (correct FFT) vs WPD J=4 drop_ll across radius sweep.
+Two panels, each with dual y-axes:
+  Panel 1: x=radius, left y=FID, right y=KID
+  Panel 2: x=radius, left y=mIoU, right y=DepSSIM
+Reads directly from logs/vkitti_eval/.
 
 Usage:
-    python plot_ablation_baseline_vs_ppd.py --output outputs/ablation_baseline_vs_ppd.pdf
+    python plot_ablation_baseline_vs_ppd.py --output figures/ablation_baseline_vs_ppd.png
 """
 import argparse
 import os
@@ -13,60 +16,90 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 LOG_DIR = "logs/vkitti_eval"
+RADII   = [8, 12, 16, 20, 24]
 
-RADII = [8, 12, 20, 24]
-
-PPD = {
-    8:  {"fid": 85.75, "kid": 0.0590, "miou": 43.20, "dep": 0.8347, "absrel": 0.2851},
-    12: {"fid": 96.03, "kid": 0.0725, "miou": 46.49, "dep": 0.8607, "absrel": 0.2035},
-    16: {"fid": 102.44,"kid": 0.0806, "miou": 47.02, "dep": 0.8646, "absrel": 0.1883},
-    20: {"fid": 103.54,"kid": 0.0820, "miou": 46.77, "dep": 0.8662, "absrel": 0.1824},
-    24: {"fid": 112.48,"kid": 0.0902, "miou": 47.05, "dep": 0.8789, "absrel": 0.1596},
+COLORS = {
+    "ppd":      "#e07b39",
+    "baseline": "#2ca02c",
+    "dropll":   "#1f77b4",
+}
+LABELS = {
+    "ppd":      "PPD (FFT)",
+    "baseline": "WPD baseline",
+    "dropll":   "WPD J=4 drop_ll (ours)",
 }
 
-WPD_BASELINE = {
-    8:  {"fid": 74.04, "kid": 0.0450, "miou": 44.23, "dep": 0.8335, "absrel": 0.2894},
-    12: {"fid": 85.41, "kid": 0.0587, "miou": 47.22, "dep": 0.8637, "absrel": 0.2166},
-    16: {"fid": 87.87, "kid": 0.0623, "miou": 48.28, "dep": 0.8693, "absrel": 0.1931},
-    20: {"fid": 87.81, "kid": 0.0621, "miou": 48.32, "dep": 0.8688, "absrel": 0.1850},
-    24: {"fid": 100.92,"kid": 0.0759, "miou": 48.46, "dep": 0.8814, "absrel": 0.1609},
-}
+
+def extract(path, pattern):
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        text = f.read()
+    m = re.findall(pattern, text)
+    return float(m[-1]) if m else None
+
+
+BASELINE_KEY = {8: "baseline_r8", 12: "baseline_r12", 16: "baseline_newprompt",
+                20: "baseline_r20", 24: "baseline_r24"}
+
+
+def load_variant(prefix, r):
+    key = BASELINE_KEY[r] if prefix == "baseline" else f"{prefix}_r{r}"
+    base = os.path.join(LOG_DIR, key)
+    fid_log = f"{base}_fid_clean.log" if os.path.exists(f"{base}_fid_clean.log") else f"{base}_fid.log"
+    return {
+        "fid":  extract(fid_log,               r"FID:\s+([\d.]+)"),
+        "kid":  extract(fid_log,               r"KID:\s+([\d.]+)"),
+        "miou": extract(f"{base}_miou.log",    r"mIoU\b.*?([\d.]+)%"),
+        "dep":  extract(f"{base}_depth.log",   r"Depth SSIM:\s+([\d.]+)"),
+    }
+
+
+def get_series(data, radii, key):
+    return [data[r][key] for r in radii if data[r][key] is not None]
+
+
+def valid_radii(data):
+    return [r for r in RADII if all(v is not None for v in data[r].values())]
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", default="outputs/ablation_baseline_vs_ppd.pdf")
+    parser.add_argument("--output", default="figures/ablation_baseline_vs_ppd.png")
     args = parser.parse_args()
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 4))
+    ppd      = {r: load_variant("ppd",       r) for r in RADII}
+    baseline = {r: load_variant("baseline",  r) for r in RADII}
+    dropll   = {r: load_variant("dropll_J4", r) for r in RADII}
 
-    ppd_fid  = [PPD[r]["fid"]  for r in RADII]
-    ppd_miou = [PPD[r]["miou"] for r in RADII]
-    ppd_dep  = [PPD[r]["dep"]  for r in RADII]
-    wpd_fid  = [WPD_BASELINE[r]["fid"]  for r in RADII]
-    wpd_miou = [WPD_BASELINE[r]["miou"] for r in RADII]
-    wpd_dep  = [WPD_BASELINE[r]["dep"]  for r in RADII]
+    vr_ppd  = valid_radii(ppd)
+    vr_base = valid_radii(baseline)
+    vr_drop = valid_radii(dropll)
 
-    def plot_panel(ax, ppd_y, wpd_y, ylabel, title):
-        ax.plot(ppd_fid, ppd_y,  "o--", color="#e07b39", label="PPD (old LoRA)")
-        ax.plot(wpd_fid, wpd_y,  "o-",  color="#2ca02c", label="WPD baseline (new LoRA)")
-        for r, x, y in zip(RADII, ppd_fid, ppd_y):
-            ax.annotate(f"r{r}", (x, y), textcoords="offset points",
-                        xytext=(4, 4), fontsize=7.5, color="#e07b39")
-        for r, x, y in zip(RADII, wpd_fid, wpd_y):
-            ax.annotate(f"r{r}", (x, y), textcoords="offset points",
-                        xytext=(4, -10), fontsize=7.5, color="#2ca02c")
-        ax.set_xlabel("FID↓", fontsize=11)
+    variants = [
+        ("ppd",      ppd,      vr_ppd),
+        ("baseline", baseline, vr_base),
+        ("dropll",   dropll,   vr_drop),
+    ]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
+
+    def plot_panel(ax, y_key, ylabel, title):
+        for key, data, vr in variants:
+            kid_vals = [data[r]["kid"]   for r in vr]
+            y_vals   = [data[r][y_key]  for r in vr]
+            ax.plot(kid_vals, y_vals, "o-", color=COLORS[key], label=LABELS[key])
+        ax.set_xlabel("KID↓", fontsize=11)
         ax.set_ylabel(ylabel, fontsize=11)
         ax.set_title(title, fontsize=12)
         ax.invert_xaxis()
         ax.legend(fontsize=9)
         ax.grid(True, alpha=0.25, linestyle="--")
 
-    plot_panel(ax1, ppd_miou, wpd_miou, "mIoU↑ (%)", "Realism vs Semantic Preservation")
-    plot_panel(ax2, ppd_dep,  wpd_dep,  "DepSSIM↑",  "Realism vs Depth Preservation")
+    plot_panel(ax1, "miou", "mIoU↑ (%)", "Realism vs Semantic Preservation")
+    plot_panel(ax2, "dep",  "DepSSIM↑",  "Realism vs Depth Preservation")
 
-    fig.suptitle("Ablation: WPD baseline vs PPD across radius sweep", fontsize=13)
+    fig.suptitle("Ablation: PPD vs WPD baseline vs WPD J=4 drop_ll", fontsize=13)
     fig.tight_layout()
 
     os.makedirs(os.path.dirname(args.output) if os.path.dirname(args.output) else ".", exist_ok=True)

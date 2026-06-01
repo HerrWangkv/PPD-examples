@@ -27,6 +27,11 @@ VARIANTS_ORDER = [
     "cosmos_depth_seg_edge_imgs",
     "cosmos_depth_seg_vis_imgs",
     "cosmos_depth_seg_vis_edge_imgs",
+    "ppd_r8",
+    "ppd_r12",
+    "ppd_r16",
+    "ppd_r20",
+    "ppd_r24",
     "wpd_ppd_ckpt_r8",
     "wpd_ppd_ckpt_r12",
     "wpd_ppd_ckpt_r16",
@@ -65,6 +70,11 @@ DISPLAY_NAMES = {
     "cosmos_depth_seg_edge_imgs":   "Cosmos depth+seg+edge",
     "cosmos_depth_seg_vis_imgs":    "Cosmos depth+seg+vis",
     "cosmos_depth_seg_vis_edge_imgs": "Cosmos depth+seg+vis+edge",
+    "ppd_r8":                                "PPD r8",
+    "ppd_r12":                               "PPD r12",
+    "ppd_r16":                               "PPD r16",
+    "ppd_r20":                               "PPD r20",
+    "ppd_r24":                               "PPD r24",
     "wpd_ppd_ckpt_r8":                       "WPD (PPD ckpt) r8",
     "wpd_ppd_ckpt_r12":                      "WPD (PPD ckpt) r12",
     "wpd_ppd_ckpt_r16":                      "WPD (PPD ckpt) r16",
@@ -126,9 +136,11 @@ def main():
     args = parser.parse_args()
 
     # Discover all variants from logs
-    all_logs = glob.glob(os.path.join(LOG_DIR, "*_fid.log"))
+    all_logs = (glob.glob(os.path.join(LOG_DIR, "*_fid.log")) +
+                glob.glob(os.path.join(LOG_DIR, "*_fid_clean.log")))
     discovered = sorted(set(
-        os.path.basename(p).replace("_fid.log", "") for p in all_logs
+        os.path.basename(p).replace("_fid_clean.log", "").replace("_fid.log", "")
+        for p in all_logs
         if "kitti_real" not in p
     ))
 
