@@ -81,6 +81,22 @@
       "status": "in-progress",
       "updatedAt": "2026-06-01",
       "details": "数据全部就绪。paper table 已定（PPD r20 替换旧 PPD r8）。ablation 图 paper-ready。可立即开始写作。"
+    },
+    {
+      "id": "baseline_r10_vkitti",
+      "title": "WPD baseline r10 vKITTI inference + eval",
+      "status": "in-progress",
+      "updatedAt": "2026-06-01",
+      "details": "Fills KID gap (0.045→0.059) between baseline r8 and r12 in Ablation 1. Inference running now.",
+      "priority": "medium"
+    },
+    {
+      "id": "track_a_multiview",
+      "title": "Track A: Multi-view sim2real (3D Noise Field Projection)",
+      "status": "pending",
+      "updatedAt": "2026-06-01",
+      "details": "Starting tomorrow. Need: nuCarla multi-cam data, sim depth + calibration, 3D noise projection implementation. Baselines: RL3DEdit, 3D-Consistent MV Editing, Cosmos per-view.",
+      "priority": "high"
     }
   ]
 }

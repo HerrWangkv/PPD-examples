@@ -15,17 +15,18 @@ _最后同步：2026-06-01_
 | ID | Title | Status |
 |----|-------|--------|
 | publication | 论文写作 + 新实验 | in-progress |
-| hypersim_dnaedit | DNAEdit Hypersim translation | in-progress (~57% remaining, GPUs 0,2,3) |
+| baseline_r10_vkitti | WPD baseline r10 vKITTI inference + eval | in-progress |
+| track_a_multiview | Track A: multi-view sim2real (3D noise projection) | starts tomorrow |
 
 ## 最近完成任务
 
 | Task | Date | Key result |
 |------|------|-----------|
-| ppd_r32_vkitti | 2026-06-01 | FID 88.09 / KID 0.0620 / mIoU 46.40 — extends Ablation 1 into KID~0.062 |
-| hypersim_ppd_r20 | 2026-06-01 | FID 70.53 / KID 0.0484 — competitive with Cosmos without conditioning |
-| ablation figure fix | 2026-06-01 | J=4 r16 fixed, J=5 removed, PPD r32 added, clean 3-curve |
-| sim2real-baselines survey | 2026-06-01 | 12 papers OCR'd; gap matrix; two-track baseline lists |
-| vKITTI PPD r8–r24 eval | 2026-06-01 | PPD r20 best FID 76.29 |
+| hypersim_dnaedit | 2026-06-01 | CLIP-IQA 0.7637 (best on Hypersim, beats FlowEdit); FID 73.98 |
+| ppd_r32_vkitti | 2026-06-01 | FID 88.09 / KID 0.0620 / mIoU 46.40 |
+| hypersim_ppd_r20 | 2026-06-01 | FID 70.53 / KID 0.0484 |
+| ablation figure fix | 2026-06-01 | J=4 r16 fixed, J=5 removed, r16 excluded, clean 3-curve |
+| sim2real-baselines survey | 2026-06-01 | 12 papers OCR'd; two-track baseline lists |
 
 ## 待处理决策点
 
