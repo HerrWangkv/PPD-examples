@@ -16,7 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 LOG_DIR = "logs/vkitti_eval"
-RADII   = [8, 12, 20, 24, 32]
+RADII   = [8, 10, 12, 20, 24, 32]
 
 COLORS = {
     "ppd":      "#e07b39",
@@ -39,8 +39,8 @@ def extract(path, pattern):
     return float(m[-1]) if m else None
 
 
-BASELINE_KEY  = {8: "baseline_r8", 12: "baseline_r12", 16: "baseline_newprompt",
-                 20: "baseline_r20", 24: "baseline_r24"}
+BASELINE_KEY  = {8: "baseline_r8", 10: "baseline_r10", 12: "baseline_r12",
+                 16: "baseline_newprompt", 20: "baseline_r20", 24: "baseline_r24"}
 DROPLL_J4_KEY = {16: "dropll_step6000_J4"}
 
 _KEY_OVERRIDES = {
@@ -78,16 +78,13 @@ def main():
 
     ppd      = {r: load_variant("ppd",       r) for r in RADII}
     baseline = {r: load_variant("baseline",  r) for r in RADII}
-    dropll   = {r: load_variant("dropll_J4", r) for r in RADII}
 
     vr_ppd  = valid_radii(ppd)
     vr_base = valid_radii(baseline)
-    vr_drop = valid_radii(dropll)
 
     variants = [
         ("ppd",      ppd,      vr_ppd),
         ("baseline", baseline, vr_base),
-        ("dropll",   dropll,   vr_drop),
     ]
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
@@ -111,7 +108,7 @@ def main():
     plot_panel(ax1, "miou", "mIoU↑ (%)", "Realism vs Semantic Preservation")
     plot_panel(ax2, "dep",  "DepSSIM↑",  "Realism vs Depth Preservation")
 
-    fig.suptitle("Ablation: PPD vs WPD baseline vs WPD J=4 drop_ll", fontsize=13)
+    fig.suptitle("Ablation: PPD (FFT) vs WPD baseline (DTCWT)", fontsize=13)
     fig.tight_layout()
 
     os.makedirs(os.path.dirname(args.output) if os.path.dirname(args.output) else ".", exist_ok=True)

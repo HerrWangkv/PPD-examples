@@ -15,7 +15,7 @@ Frontier plot: `python plot_vkitti_frontier.py --output outputs/vkitti_frontier.
 
 | Method | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| Input (raw sim) | 0.7180 | 97.29 | 0.0607 | 50.39 | 0.9002 | 0.1573 |
+| Input (raw sim) | 0.7180 | 97.29 | 0.0606 | 50.39 | 0.9002 | 0.1573 |
 | FlowEdit | 0.6267 | 82.41 | 0.0485 | *42.72* | 0.8119 | 0.2599 |
 | DNAEdit | 0.7643 | 85.47 | 0.0478 | 41.22 | 0.8274 | 0.2539 |
 | Cosmos depth+edge | 0.4083 | **73.52** | *0.0452* | 39.36 | **0.8700** | **0.2016** |
@@ -24,7 +24,7 @@ Frontier plot: `python plot_vkitti_frontier.py --output outputs/vkitti_frontier.
 
 ## Ablation 1: WPD baseline vs PPD (effect of new LoRA training)
 
-![Ablation 1](figures/ablation_baseline_vs_ppd.png)
+![Ablation 1](figures/ablation_baseline_vs_ppd_labeled.png)
 
 Generate: `python plot_ablation_baseline_vs_ppd.py --output figures/ablation_baseline_vs_ppd.png`
 
@@ -40,7 +40,7 @@ Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 
 | Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ | LPIPS↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| input (raw sim) | 0.7180 | 97.29 | 0.0607 | 50.39 | 0.9002 | 0.1573 | 0.6696 |
+| input (raw sim) | 0.7180 | 97.29 | 0.0606 | 50.39 | 0.9002 | 0.1573 | 0.6696 |
 | FlowEdit | 0.6267 | 82.41 | 0.0485 | 42.72 | 0.8119 | 0.2599 | 0.6921 |
 | DNAEdit | 0.7643 | 85.47 | 0.0478 | 41.22 | 0.8274 | 0.2539 | 0.6970 |
 | FLUX.1-Kontext† | 0.8069 | 80.62 | 0.0464 | 51.86 | 0.8709 | 0.1871 | 0.6831 |
@@ -57,13 +57,14 @@ Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 | PPD r16 | 0.7941 | 76.97 | 0.0479 | 41.21 | 0.8283 | 0.3180 | 0.7076 |
 | PPD r20 | 0.8051 | 76.29 | 0.0474 | 43.75 | 0.8378 | 0.2878 | 0.7051 |
 | PPD r24 | 0.8098 | 77.98 | 0.0498 | 44.87 | 0.8470 | 0.2604 | 0.7050 |
-| PPD r32 | 0.8091 | 88.09 | 0.0620 | 46.40 | 0.8575 | 0.2238 | 0.7067 |
+| PPD r32 | 0.8091 | 86.62 | 0.0588 | 46.40 | 0.8575 | 0.2238 | 0.7067 |
 | WPD (PPD ckpt) r8 ⚠️ | 0.8208 | 85.75 | 0.0590 | 43.20 | 0.8347 | 0.2851 | 0.7053 |
 | WPD (PPD ckpt) r12 | 0.8467 | 96.03 | 0.0725 | 46.49 | 0.8607 | 0.2035 | 0.7167 |
 | WPD (PPD ckpt) r16 | 0.8731 | 102.44 | 0.0806 | 47.02 | 0.8646 | 0.1883 | 0.7327 |
 | WPD (PPD ckpt) r20 | **0.8794** | 103.54 | 0.0820 | 46.77 | 0.8662 | 0.1824 | 0.7389 |
 | WPD (PPD ckpt) r24 | 0.8615 | 112.48 | 0.0902 | 47.05 | 0.8789 | **0.1596** | 0.7501 |
 | WPD baseline r8 | 0.7678 | 74.04 | 0.0450 | 44.23 | 0.8335 | 0.2894 | 0.7004 |
+| WPD baseline r10 | 0.7827 | 74.80 | 0.0455 | 45.01 | 0.8389 | 0.2784 | 0.7010 |
 | WPD baseline r12 | 0.7420 | 85.41 | 0.0587 | 47.22 | 0.8637 | 0.2166 | 0.7012 |
 | WPD baseline r16 | 0.7956 | 87.87 | 0.0623 | 48.28 | 0.8693 | 0.1931 | 0.7167 |
 | WPD baseline r20 | 0.8028 | 87.81 | 0.0621 | 48.32 | 0.8688 | 0.1850 | 0.7191 |
@@ -118,15 +119,16 @@ Full table: `python summarize_hypersim_eval.py`
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | input (raw sim) | 0.6437 | 72.05 | 0.0461 | — | 0.9416 | 0.2922 |
 | FlowEdit | *0.7563* | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
-| DNAEdit | **0.7637** | 73.98 | 0.0505 | 0.3169 | 0.8978 | 0.4107 |
+| DNAEdit | **0.7637** | *67.85* | **0.0448** | 0.3169 | 0.8978 | 0.4107 |
 | Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | *0.3236* | **0.9259** | *0.3568* |
-| PPD r20 | 0.6942 | 70.53 | 0.0484 | 0.2724 | 0.8910 | 0.4239 |
-| WPD baseline r20 | 0.6854 | **68.22** | *0.0451* | 0.3156 | 0.9014 | 0.3948 |
-| WPD J=5 r24 (drop\_ll) | 0.7412 | *68.31* | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
+| PPD r20 | 0.6942 | **67.77** | 0.0463 | 0.2724 | 0.8910 | 0.4239 |
+| WPD baseline r20 | 0.6854 | 68.22 | *0.0451* | 0.3156 | 0.9014 | 0.3948 |
+| WPD J=5 r24 (drop\_ll) | 0.7412 | 68.31 | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
 
 mIoU: pseudo-GT, GT-present classes only; input=1.0 excluded from best. ** = best, * = 2nd best (excl. raw sim).
-DNAEdit wins CLIP-IQA (0.7637). WPD drop_ll wins FID/KID/mIoU/AbsRel. Cosmos wins DepSSIM (depth conditioning). WPD drop_ll corrects LL illumination bias (KID best, DepSSIM +0.018 vs baseline, mIoU +6.2pt vs baseline).
-PPD r20: FID 70.53 / KID 0.0484 — competitive with Cosmos (71.53/0.0510) without any conditioning.
+DNAEdit wins CLIP-IQA (0.7637). PPD r20 wins FID (67.77); DNAEdit/drop_ll tied on KID (0.0448). WPD drop_ll wins mIoU/AbsRel. Cosmos wins DepSSIM (depth conditioning).
+PPD r20 best FID on Hypersim — achieves lower FID than WPD baseline without wavelet training, suggesting LL drop matters more than DTCWT for indoor lighting.
+WPD drop_ll corrects LL illumination bias: mIoU +6.2pt vs baseline, DepSSIM +0.018 vs baseline.
 
 
 # Synthia
