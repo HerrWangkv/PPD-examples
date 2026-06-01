@@ -57,6 +57,7 @@ Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 | PPD r16 | 0.7941 | 76.97 | 0.0479 | 41.21 | 0.8283 | 0.3180 | 0.7076 |
 | PPD r20 | 0.8051 | 76.29 | 0.0474 | 43.75 | 0.8378 | 0.2878 | 0.7051 |
 | PPD r24 | 0.8098 | 77.98 | 0.0498 | 44.87 | 0.8470 | 0.2604 | 0.7050 |
+| PPD r32 | 0.8091 | 88.09 | 0.0620 | 46.40 | 0.8575 | 0.2238 | 0.7067 |
 | WPD (PPD ckpt) r8 ⚠️ | 0.8208 | 85.75 | 0.0590 | 43.20 | 0.8347 | 0.2851 | 0.7053 |
 | WPD (PPD ckpt) r12 | 0.8467 | 96.03 | 0.0725 | 46.49 | 0.8607 | 0.2035 | 0.7167 |
 | WPD (PPD ckpt) r16 | 0.8731 | 102.44 | 0.0806 | 47.02 | 0.8646 | 0.1883 | 0.7327 |
@@ -101,10 +102,9 @@ Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 
 ## Suggested next experiments
 
+- **WPD baseline r10**: fills the KID gap (0.045→0.059) between baseline r8 and r12, directly in the region where J=4 drop_ll has most data points — tightens the Pareto dominance claim visually.
+- **WPD J=5 r8/r20/r24**: extend J=5 curve to 5 points matching J=4 (r12+r16 only currently).
 - **drop_ll ablation Variant B** (training-only): step-6000 lora + no `--flux_drop_ll` flag, to confirm training alone does not improve FID. Completes the 2×2 matrix.
-- **Longer drop_ll checkpoint**: step-6000 lora is undertrained vs baseline (302k steps). Later checkpoint may narrow the mIoU gap while maintaining FID gain.
-- **CUT/CycleGAN baseline**: reviewers of sim2real papers expect an unpaired GAN baseline.
-- **PPD r32**: extends Ablation 1 curve into KID≈0.06 region for cleaner Pareto comparison.
 
 ---
 

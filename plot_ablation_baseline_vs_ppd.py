@@ -19,16 +19,14 @@ LOG_DIR = "logs/vkitti_eval"
 RADII   = [8, 12, 16, 20, 24, 32]
 
 COLORS = {
-    "ppd":       "#e07b39",
-    "baseline":  "#2ca02c",
-    "dropll":    "#1f77b4",
-    "dropll_j5": "#9467bd",
+    "ppd":      "#e07b39",
+    "baseline": "#2ca02c",
+    "dropll":   "#1f77b4",
 }
 LABELS = {
-    "ppd":       "PPD (FFT)",
-    "baseline":  "WPD baseline",
-    "dropll":    "WPD J=4 drop_ll (ours)",
-    "dropll_j5": "WPD J=5 drop_ll",
+    "ppd":      "PPD (FFT)",
+    "baseline": "WPD baseline",
+    "dropll":   "WPD J=4 drop_ll (ours)",
 }
 
 
@@ -43,18 +41,17 @@ def extract(path, pattern):
 
 BASELINE_KEY  = {8: "baseline_r8", 12: "baseline_r12", 16: "baseline_newprompt",
                  20: "baseline_r20", 24: "baseline_r24"}
-DROPLL_J5_KEY = {12: "dropll_J5_r12", 16: "dropll_step6000_J5"}
+DROPLL_J4_KEY = {16: "dropll_step6000_J4"}
+
+_KEY_OVERRIDES = {
+    "baseline":  BASELINE_KEY,
+    "dropll_J4": DROPLL_J4_KEY,
+}
 
 
 def load_variant(prefix, r):
-    if prefix == "baseline":
-        key = BASELINE_KEY.get(r, f"baseline_r{r}")
-    elif prefix == "dropll_j5":
-        key = DROPLL_J5_KEY.get(r)
-        if key is None:
-            return {"fid": None, "kid": None, "miou": None, "dep": None}
-    else:
-        key = f"{prefix}_r{r}"
+    overrides = _KEY_OVERRIDES.get(prefix, {})
+    key = overrides[r] if r in overrides else f"{prefix}_r{r}"
     base = os.path.join(LOG_DIR, key)
     fid_log = f"{base}_fid_clean.log" if os.path.exists(f"{base}_fid_clean.log") else f"{base}_fid.log"
     return {
@@ -79,21 +76,18 @@ def main():
     parser.add_argument("--label-radii", action="store_true", help="Annotate each point with its radius value")
     args = parser.parse_args()
 
-    ppd       = {r: load_variant("ppd",       r) for r in RADII}
-    baseline  = {r: load_variant("baseline",  r) for r in RADII}
-    dropll    = {r: load_variant("dropll_J4", r) for r in RADII}
-    dropll_j5 = {r: load_variant("dropll_j5", r) for r in RADII}
+    ppd      = {r: load_variant("ppd",       r) for r in RADII}
+    baseline = {r: load_variant("baseline",  r) for r in RADII}
+    dropll   = {r: load_variant("dropll_J4", r) for r in RADII}
 
     vr_ppd  = valid_radii(ppd)
     vr_base = valid_radii(baseline)
     vr_drop = valid_radii(dropll)
-    vr_dj5  = valid_radii(dropll_j5)
 
     variants = [
-        ("ppd",       ppd,       vr_ppd),
-        ("baseline",  baseline,  vr_base),
-        ("dropll",    dropll,    vr_drop),
-        ("dropll_j5", dropll_j5, vr_dj5),
+        ("ppd",      ppd,      vr_ppd),
+        ("baseline", baseline, vr_base),
+        ("dropll",   dropll,   vr_drop),
     ]
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
