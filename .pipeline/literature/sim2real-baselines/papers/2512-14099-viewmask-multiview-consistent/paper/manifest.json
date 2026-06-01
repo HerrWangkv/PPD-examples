@@ -1,0 +1,12 @@
+{
+  "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2512-14099-viewmask-multiview-consistent/paper.pdf",
+  "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2512-14099-viewmask-multiview-consistent/paper",
+  "backend": "pdfminer",
+  "documents": [
+    {
+      "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2512-14099-viewmask-multiview-consistent/paper/doc_0.md",
+      "markdown_image_paths": [],
+      "output_image_paths": []
+    }
+  ]
+}

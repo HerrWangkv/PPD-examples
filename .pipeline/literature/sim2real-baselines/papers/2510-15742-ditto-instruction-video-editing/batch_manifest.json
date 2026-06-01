@@ -1,0 +1,17 @@
+{
+  "converted_files": 1,
+  "items": [
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2510-15742-ditto-instruction-video-editing/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2510-15742-ditto-instruction-video-editing/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2510-15742-ditto-instruction-video-editing/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    }
+  ]
+}

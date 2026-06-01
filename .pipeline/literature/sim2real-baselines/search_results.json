@@ -1,0 +1,17 @@
+{
+  "mode": "query",
+  "query": "image sim-to-real style transfer diffusion 2025",
+  "arxiv_ids": null,
+  "limit": 12,
+  "sources": [
+    "arxiv",
+    "semanticscholar"
+  ],
+  "sort": "relevance",
+  "min_year": null,
+  "source_errors": {
+    "arxiv": "429 Client Error: Too Many Requests for url: https://export.arxiv.org/api/query?search_query=all%3Aimage+sim-to-real+style+transfer+diffusion+2025&start=0&max_results=12&sortBy=relevance&sortOrder=descending",
+    "semanticscholar": "429 Client Error:  for url: https://api.semanticscholar.org/graph/v1/paper/search?query=image+sim-to-real+style+transfer+diffusion+2025&limit=12&fields=title%2Cyear%2Cauthors%2Cabstract%2Curl%2CopenAccessPdf%2CisOpenAccess%2CexternalIds%2Cvenue"
+  },
+  "records": []
+}

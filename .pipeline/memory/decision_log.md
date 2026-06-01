@@ -66,6 +66,11 @@ def compute_adaptive_radius_map(latent, r_min=5.0, r_max=50.0, smooth_kernel=9):
 | Cosmos-Transfer2.5 | Sim-to-real 专用世界模型 | Cosmos | 2025 | ❓ 待接入 |
 | **WPD (ours)** | 结构化 wavelet 噪声注入 | FLUX | — | ✅ 运行中 |
 
+**实现注意事项**：
+- FlowEdit 使用 diffusers FluxPipeline (0.30.3)，`encode_prompt` 无 `negative_prompt` 参数，无法添加负向提示词
+- WPD 使用 diffsynth fork，支持负向提示词（抑制仪表盘/车内遮挡等 artifact）
+- 论文中以脚注说明：FLUX guidance-distillation 架构下负向提示词效果有限，差异可接受（option 1）
+
 **排除的方法及原因**：
 - Step1X-Edit：MLLM 架构，定位不同（instruction-following），与 WPD 架构差异过大
 - DirectEdit (arxiv: 2605.02417)：与 DNAEdit 同类（RF inversion 误差修正），选 DNAEdit 作代表即可
@@ -89,3 +94,34 @@ def compute_adaptive_radius_map(latent, r_min=5.0, r_max=50.0, smooth_kernel=9):
 已排除方向：
 - ~~LL 分布非高斯替换~~: FLUX 本身从 N(0,1) 去噪，高斯替换是正确的
 - ~~magnitude 替换~~: 当前 magnitude 已完全来自噪声（leak=0），无需修改
+
+---
+
+## 2026-06-01 | New Venue Submission Strategy: Multi-view First, Video Fallback
+
+**Decision**: For the new venue submission (post-ECCV-rejection), adopt a two-track strategy:
+
+**Track A — Multi-view image sim2real (try first)**
+- Core idea: 3D Noise Field Projection — use sim depth to project Gaussian noise into 3D, render per-view, apply WPD noise replacement (LL + high-freq phase + magnitude). Inference-time only, no retraining.
+- Baselines:
+  - RL3DEdit (2603.03143) — multi-view consistent 3D editing via RL
+  - 3D-Consistent MV Editing (2511.22228) — training-free correspondence guidance
+  - Cosmos Transfer — per-view with depth conditioning
+- Removed: DwD (single-view temporal video only); FlowEdit and CACTI (single-image, no multi-view consistency); Control-DINO (video domain transfer, not multi-view image)
+
+**Track B — Video translation (fallback if Track A fails)**
+- Baselines:
+  - DNAEdit — strong image/video editing baseline
+  - Cosmos Transfer — conditioning-based sim2real (already done)
+  - DITTO (2510.15742) — instruction-based video editing
+  - VACE (2503.07598) — all-in-one video editing
+  - PPD video (sim2real_video_ppd.py / batch_sim2real_video_ppd.py) — full video pipeline, not per-frame
+  - DwD (2602.06159) — direct sim2real video competitor
+  - Control-DINO (2604.01761) — sim2real video transfer without domain-specific training
+- Note: FlowEdit is single-image only — not a video baseline.
+- Use existing Wan2.2 pipeline; no new training needed
+- Weakness: competitive against DwD without driving-specific video training
+
+**Why multi-view first**: DwD trained on driving-specific video data makes video track hard to win; multi-view sim2real is an open field with no dominant trained competitor; 3D noise projection fits WPD's "no conditioning, inference-time" philosophy.
+
+**Data needed for Track A**: multi-camera synchronized frames (nuCarla multi-cam? vKITTI stereo?), sim depth maps (available in both), camera calibration matrices.

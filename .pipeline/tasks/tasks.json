@@ -36,22 +36,25 @@
     {
       "id": "ppd_r32_vkitti",
       "title": "PPD r32 vKITTI（延伸 Ablation 1 曲线）",
-      "status": "pending",
-      "details": "用户希望补充 PPD r32，填充 KID≈0.055–0.065 区间，直接与 WPD baseline r12-r16 对比，证明 Pareto 优势。需修改 sbatch_inference_vkitti_ppd_radius.sh 添加 r32。",
+      "status": "in-progress",
+      "updatedAt": "2026-06-01",
+      "details": "用户希望补充 PPD r32，填充 KID≈0.055–0.065 区间，直接与 WPD baseline r12-r16 对比，证明 Pareto 优势。sbatch 已提交，正在跑。",
       "priority": "low"
     },
     {
       "id": "hypersim_dnaedit",
       "title": "DNAEdit Hypersim 翻译完成",
-      "status": "pending",
-      "details": "~3185/7402 帧完成。需重启 Docker 继续: bash run_hypersim_dnaedit.sh --gpus 0,1,2,3。完成后 eval FID/depth/mIoU.",
+      "status": "in-progress",
+      "updatedAt": "2026-06-01",
+      "details": "~3185/7402 帧完成，已重启 Docker 继续翻译。完成后 eval FID/depth/mIoU 补入 Hypersim 表格。",
       "priority": "low"
     },
     {
       "id": "hypersim_ppd_r20",
       "title": "Hypersim PPD r20: rsync HPC→mrtstorage + eval",
-      "status": "pending",
-      "details": "HPC output at /hkfs/work/workspace/scratch/xw2723-generation/hypersim_wpd/ppd_r20. rsync → mrtstorage → symlink → FID/depth eval.",
+      "status": "in-progress",
+      "updatedAt": "2026-06-01",
+      "details": "HPC output at /hkfs/work/workspace/scratch/xw2723-generation/hypersim_wpd/ppd_r20. rsync 进行中 → mrtstorage → symlink → FID/depth eval.",
       "priority": "low"
     },
     {

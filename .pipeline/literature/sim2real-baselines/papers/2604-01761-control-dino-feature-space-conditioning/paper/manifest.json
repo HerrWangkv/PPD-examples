@@ -1,0 +1,12 @@
+{
+  "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2604-01761-control-dino-feature-space-conditioning/paper.pdf",
+  "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2604-01761-control-dino-feature-space-conditioning/paper",
+  "backend": "pdfminer",
+  "documents": [
+    {
+      "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2604-01761-control-dino-feature-space-conditioning/paper/doc_0.md",
+      "markdown_image_paths": [],
+      "output_image_paths": []
+    }
+  ]
+}

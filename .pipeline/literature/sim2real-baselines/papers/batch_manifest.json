@@ -1,0 +1,101 @@
+{
+  "converted_files": 8,
+  "items": [
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2503-07598-vace-video-creation-editing/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    },
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2505-16360-cacti-style-transfer-sim2real/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    },
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2506-06185-antithetic-noise-diffusion/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    },
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2510-15742-ditto-instruction-video-editing/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    },
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2512-14099-viewmask-multiview-consistent/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    },
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2602-06159-driving-with-dino/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    },
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2602-16664-ssb-unpaired-translation-self-supervised-bridge/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    },
+    {
+      "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2604-01761-control-dino-feature-space-conditioning/paper.pdf",
+      "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper",
+      "backend": "pdfminer",
+      "documents": [
+        {
+          "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/paper/doc_0.md",
+          "markdown_image_paths": [],
+          "output_image_paths": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "input_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2505-16360-cacti-style-transfer-sim2real/paper.pdf",
+  "output_dir": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2505-16360-cacti-style-transfer-sim2real/paper",
+  "backend": "pdfminer",
+  "documents": [
+    {
+      "markdown_path": "/storage_local/kwang/repos/PPD-examples/.pipeline/literature/sim2real-baselines/papers/2505-16360-cacti-style-transfer-sim2real/paper/doc_0.md",
+      "markdown_image_paths": [],
+      "output_image_paths": []
+    }
+  ]
+}
