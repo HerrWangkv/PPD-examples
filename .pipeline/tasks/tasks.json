@@ -46,15 +46,16 @@
       "title": "DNAEdit Hypersim 翻译完成",
       "status": "in-progress",
       "updatedAt": "2026-06-01",
-      "details": "~3185/7402 帧完成，已重启 Docker 继续翻译。完成后 eval FID/depth/mIoU 补入 Hypersim 表格。",
+      "details": "Restarted on GPUs 0,2,3 after Docker stop. ~3185/7402 frames done previously. Complete → eval FID/depth/mIoU → add row to Hypersim table.",
       "priority": "low"
     },
     {
       "id": "hypersim_ppd_r20",
       "title": "Hypersim PPD r20: rsync HPC→mrtstorage + eval",
-      "status": "in-progress",
+      "status": "done",
       "updatedAt": "2026-06-01",
-      "details": "HPC output at /hkfs/work/workspace/scratch/xw2723-generation/hypersim_wpd/ppd_r20. rsync 进行中 → mrtstorage → symlink → FID/depth eval.",
+      "output": "logs/hypersim_eval/ppd_r20_*.log, outputs/hypersim/ppd_r20 → /mrtstorage/users/kwang/hypersim_ppd_r20",
+      "details": "7402 frames synced. FID 70.53 / KID 0.0484 / CLIP-IQA 0.6942 / mIoU 0.2724 / DepSSIM 0.8910 / AbsRel 0.4239. Results.md updated.",
       "priority": "low"
     },
     {

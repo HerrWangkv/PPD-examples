@@ -14,7 +14,7 @@ VARIANTS_ORDER = [
     "flowedit",
     "dnaedit",
     "cosmos_depth_edge_imgs",
-    "ppd_r8",
+    "ppd_r20",
     "wpd_r20",
     "dropll_J5_r24",
 ]
@@ -24,7 +24,7 @@ DISPLAY_NAMES = {
     "flowedit":           "FlowEdit",
     "dnaedit":            "DNAEdit",
     "cosmos_depth_edge_imgs":  "Cosmos depth+edge",
-    "ppd_r8":             "PPD r8",
+    "ppd_r20":            "PPD r20",
     "wpd_r20":            "WPD baseline r20",
     "dropll_J5_r24":      "WPD J=5 r24 (drop_ll)",
 }

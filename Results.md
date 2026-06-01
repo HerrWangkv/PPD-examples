@@ -119,13 +119,15 @@ Full table: `python summarize_hypersim_eval.py`
 | input (raw sim) | 0.6437 | 72.05 | 0.0461 | — | 0.9416 | 0.2922 |
 | FlowEdit | **0.7563** | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
 | Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | *0.3236* | **0.9259** | *0.3568* |
+| PPD r20 | 0.6942 | 70.53 | 0.0484 | 0.2724 | 0.8910 | 0.4239 |
 | WPD baseline r20 | 0.6854 | **68.22** | *0.0451* | 0.3156 | 0.9014 | 0.3948 |
 | WPD J=5 r24 (drop\_ll) | *0.7412* | *68.31* | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
 
 mIoU: pseudo-GT, GT-present classes only; input=1.0 excluded from best. * = best among translation methods (excl. raw sim).
 WPD drop_ll wins on FID/KID/mIoU. Cosmos depth+edge has best DepSSIM (0.9259, depth conditioning). WPD drop_ll corrects LL illumination bias (KID best, DepSSIM 0.9014→0.9190 vs baseline, mIoU +6.2pt vs baseline).
+PPD r20: FID 70.53 / KID 0.0484 — competitive with Cosmos (71.53/0.0510) without any conditioning.
 
-Pending: DNAEdit, PPD r20 (HPC rsync + eval).
+Pending: DNAEdit.
 
 
 # Synthia

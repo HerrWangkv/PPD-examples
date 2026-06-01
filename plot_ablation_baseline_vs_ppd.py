@@ -16,17 +16,19 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 LOG_DIR = "logs/vkitti_eval"
-RADII   = [8, 12, 16, 20, 24]
+RADII   = [8, 12, 16, 20, 24, 32]
 
 COLORS = {
-    "ppd":      "#e07b39",
-    "baseline": "#2ca02c",
-    "dropll":   "#1f77b4",
+    "ppd":       "#e07b39",
+    "baseline":  "#2ca02c",
+    "dropll":    "#1f77b4",
+    "dropll_j5": "#9467bd",
 }
 LABELS = {
-    "ppd":      "PPD (FFT)",
-    "baseline": "WPD baseline",
-    "dropll":   "WPD J=4 drop_ll (ours)",
+    "ppd":       "PPD (FFT)",
+    "baseline":  "WPD baseline",
+    "dropll":    "WPD J=4 drop_ll (ours)",
+    "dropll_j5": "WPD J=5 drop_ll",
 }
 
 
@@ -39,12 +41,20 @@ def extract(path, pattern):
     return float(m[-1]) if m else None
 
 
-BASELINE_KEY = {8: "baseline_r8", 12: "baseline_r12", 16: "baseline_newprompt",
-                20: "baseline_r20", 24: "baseline_r24"}
+BASELINE_KEY  = {8: "baseline_r8", 12: "baseline_r12", 16: "baseline_newprompt",
+                 20: "baseline_r20", 24: "baseline_r24"}
+DROPLL_J5_KEY = {12: "dropll_J5_r12", 16: "dropll_step6000_J5"}
 
 
 def load_variant(prefix, r):
-    key = BASELINE_KEY[r] if prefix == "baseline" else f"{prefix}_r{r}"
+    if prefix == "baseline":
+        key = BASELINE_KEY.get(r, f"baseline_r{r}")
+    elif prefix == "dropll_j5":
+        key = DROPLL_J5_KEY.get(r)
+        if key is None:
+            return {"fid": None, "kid": None, "miou": None, "dep": None}
+    else:
+        key = f"{prefix}_r{r}"
     base = os.path.join(LOG_DIR, key)
     fid_log = f"{base}_fid_clean.log" if os.path.exists(f"{base}_fid_clean.log") else f"{base}_fid.log"
     return {
@@ -66,29 +76,37 @@ def valid_radii(data):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="figures/ablation_baseline_vs_ppd.png")
+    parser.add_argument("--label-radii", action="store_true", help="Annotate each point with its radius value")
     args = parser.parse_args()
 
-    ppd      = {r: load_variant("ppd",       r) for r in RADII}
-    baseline = {r: load_variant("baseline",  r) for r in RADII}
-    dropll   = {r: load_variant("dropll_J4", r) for r in RADII}
+    ppd       = {r: load_variant("ppd",       r) for r in RADII}
+    baseline  = {r: load_variant("baseline",  r) for r in RADII}
+    dropll    = {r: load_variant("dropll_J4", r) for r in RADII}
+    dropll_j5 = {r: load_variant("dropll_j5", r) for r in RADII}
 
     vr_ppd  = valid_radii(ppd)
     vr_base = valid_radii(baseline)
     vr_drop = valid_radii(dropll)
+    vr_dj5  = valid_radii(dropll_j5)
 
     variants = [
-        ("ppd",      ppd,      vr_ppd),
-        ("baseline", baseline, vr_base),
-        ("dropll",   dropll,   vr_drop),
+        ("ppd",       ppd,       vr_ppd),
+        ("baseline",  baseline,  vr_base),
+        ("dropll",    dropll,    vr_drop),
+        ("dropll_j5", dropll_j5, vr_dj5),
     ]
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
 
     def plot_panel(ax, y_key, ylabel, title):
         for key, data, vr in variants:
-            kid_vals = [data[r]["kid"]   for r in vr]
-            y_vals   = [data[r][y_key]  for r in vr]
+            kid_vals = [data[r]["kid"]  for r in vr]
+            y_vals   = [data[r][y_key] for r in vr]
             ax.plot(kid_vals, y_vals, "o-", color=COLORS[key], label=LABELS[key])
+            if args.label_radii:
+                for r, kx, ky in zip(vr, kid_vals, y_vals):
+                    ax.annotate(f"r{r}", (kx, ky), textcoords="offset points",
+                                xytext=(4, 4), fontsize=7, color=COLORS[key])
         ax.set_xlabel("KID↓", fontsize=11)
         ax.set_ylabel(ylabel, fontsize=11)
         ax.set_title(title, fontsize=12)

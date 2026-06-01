@@ -32,6 +32,7 @@ VARIANTS_ORDER = [
     "ppd_r16",
     "ppd_r20",
     "ppd_r24",
+    "ppd_r32",
     "wpd_ppd_ckpt_r8",
     "wpd_ppd_ckpt_r12",
     "wpd_ppd_ckpt_r16",
@@ -75,6 +76,7 @@ DISPLAY_NAMES = {
     "ppd_r16":                               "PPD r16",
     "ppd_r20":                               "PPD r20",
     "ppd_r24":                               "PPD r24",
+    "ppd_r32":                               "PPD r32",
     "wpd_ppd_ckpt_r8":                       "WPD (PPD ckpt) r8",
     "wpd_ppd_ckpt_r12":                      "WPD (PPD ckpt) r12",
     "wpd_ppd_ckpt_r16":                      "WPD (PPD ckpt) r16",
@@ -160,15 +162,19 @@ def main():
         reverse = args.sort in ("clip_iqa", "miou", "dep_ssim")
         rows.sort(key=lambda x: x[1][args.sort] if x[1][args.sort] is not None else (float('-inf') if reverse else float('inf')), reverse=reverse)
 
-    # Find bests (excluding input)
+    # Find best and second-best (excluding input)
     non_input = [(v, m) for v, m in rows if v != "input"]
-    bests = {}
+    bests, seconds = {}, {}
     for metric, higher_better in [("clip_iqa", True), ("fid", False), ("kid", False),
                                    ("miou", True), ("dep_ssim", True), ("abs_rel", False), ("lpips", False)]:
-        vals = [(v, m[metric]) for v, m in non_input if m[metric] is not None]
+        vals = sorted(
+            [(v, m[metric]) for v, m in non_input if m[metric] is not None],
+            key=lambda x: x[1], reverse=higher_better
+        )
         if vals:
-            best_v = max(vals, key=lambda x: x[1]) if higher_better else min(vals, key=lambda x: x[1])
-            bests[metric] = (best_v[0], best_v[1])
+            bests[metric] = vals[0][0]
+        if len(vals) > 1:
+            seconds[metric] = vals[1][0]
 
     # Print table
     col_w = 26
@@ -181,8 +187,12 @@ def main():
 
         def mark(metric, val, decimals=4):
             s = fmt(val, decimals)
-            if val is not None and bests.get(metric, (None,))[0] == v:
-                s = f"*{s}*"
+            if val is None:
+                return s
+            if bests.get(metric) == v:
+                return f"**{s}**"
+            if seconds.get(metric) == v:
+                return f"*{s}*"
             return s
 
         print(f"{name:<{col_w}} "
@@ -195,7 +205,7 @@ def main():
               f"{mark('lpips', m['lpips']):>7}")
 
     print("-" * len(header))
-    print("* = best among translation methods (excluding raw sim input)")
+    print("** = best, * = 2nd best (excl. raw sim input)")
 
 
 if __name__ == "__main__":
