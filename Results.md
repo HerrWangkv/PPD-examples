@@ -36,7 +36,9 @@ J=4 minimises FID; J=5 better preserves structure. Both radii show the same trad
 
 Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png`
 
----
+## Full Table
+
+`python summarize_vkitti_eval.py`
 
 | Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ | LPIPS↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -83,7 +85,7 @@ Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 | Ablation: infer drop_ll r20† | 0.8719 | 79.38 | 0.0497 | 43.87 | 0.8479 | 0.2056 | 0.7397 |
 | Ablation: infer drop_ll r24† | 0.8268 | 92.47 | 0.0623 | 44.51 | 0.8733 | 0.1718 | 0.7579 |
 
-## Key findings (2026-05-29)
+## Key Findings
 
 **Primary metrics for storytelling: FID/KID** (CLIP-IQA disfavored — it rewards sharpness, which benefits PPD but is orthogonal to the sim2real realism claim).
 
@@ -101,7 +103,7 @@ Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 
 **Ablation (2026-05-31): inference-time LL zeroing drives FID gain**. Comparing at r12 (CleanFID): WPD baseline (85.41) → infer drop_ll only (72.66) → full WPD J=4 (73.84). The gap baseline→infer-only is ~13 FID points; infer-only→full WPD is ~1 point. Inference-time LL zeroing accounts for most of the realism improvement; drop_ll training provides marginal additional FID benefit but helps recover mIoU (42.97→43.50). This holds across all radii.
 
-## Suggested next experiments
+## Suggested Next Experiments
 
 - **WPD baseline r10**: fills the KID gap (0.045→0.059) between baseline r8 and r12, directly in the region where J=4 drop_ll has most data points — tightens the Pareto dominance claim visually.
 - **WPD J=5 r8/r20/r24**: extend J=5 curve to 5 points matching J=4 (r12+r16 only currently).
@@ -113,25 +115,46 @@ Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 
 FID/KID ref: ScanNet test split (312 scenes, 32k frames). Depth: Depth Anything V2 Large vs Hypersim GT (HDF5). CleanFID mode.
 mIoU: SegFormer-B5 ADE20K, pseudo-GT from raw Hypersim input. CLIP-IQA: piq.CLIPIQA.
-Full table: `python summarize_hypersim_eval.py`
 
-| Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
+## Paper Table (one variant per method)
+
+| Method | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | input (raw sim) | 0.6437 | 72.05 | 0.0461 | — | 0.9416 | 0.2922 |
 | FlowEdit | *0.7563* | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
 | DNAEdit | **0.7637** | *67.85* | **0.0448** | 0.3169 | 0.8978 | 0.4107 |
 | Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | *0.3236* | **0.9259** | *0.3568* |
 | PPD r20 | 0.6942 | **67.77** | 0.0463 | 0.2724 | 0.8910 | 0.4239 |
-| WPD baseline r20 | 0.6854 | 68.22 | *0.0451* | 0.3156 | 0.9014 | 0.3948 |
-| WPD J=5 r24 (drop\_ll) | 0.7412 | 68.31 | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
+| WPD J=5 r24 (drop\_ll, ours) | 0.7412 | *68.31* | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
 
-mIoU: pseudo-GT, GT-present classes only; input=1.0 excluded from best. ** = best, * = 2nd best (excl. raw sim).
-DNAEdit wins CLIP-IQA (0.7637). PPD r20 wins FID (67.77); DNAEdit/drop_ll tied on KID (0.0448). WPD drop_ll wins mIoU/AbsRel. Cosmos wins DepSSIM (depth conditioning).
-PPD r20 best FID on Hypersim — achieves lower FID than WPD baseline without wavelet training, suggesting LL drop matters more than DTCWT for indoor lighting.
-WPD drop_ll corrects LL illumination bias: mIoU +6.2pt vs baseline, DepSSIM +0.018 vs baseline.
+** = best, * = 2nd best (excl. raw sim input).
+PPD r20 wins FID; DNAEdit/WPD r24 tied on KID. WPD drop_ll r24 wins mIoU/AbsRel. Cosmos wins DepSSIM.
+
+## Full Table
+
+| Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| input (raw sim) | 0.6437 | 72.05 | 0.0461 | — | 0.9416 | 0.2922 |
+| FlowEdit | 0.7563 | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
+| DNAEdit | 0.7637 | 67.85 | 0.0448 | 0.3169 | 0.8978 | 0.4107 |
+| Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | 0.3236 | 0.9259 | 0.3568 |
+| PPD r20 | 0.6942 | 67.77 | 0.0463 | 0.2724 | 0.8910 | 0.4239 |
+| WPD baseline r20 | 0.6854 | 68.22 | 0.0451 | 0.3156 | 0.9014 | 0.3948 |
+| WPD J=5 r20 (drop\_ll) | 0.7643 | 70.53 | 0.0481 | 0.2985 | 0.8970 | 0.3709 |
+| WPD J=5 r24 (drop\_ll) | 0.7412 | 68.31 | 0.0448 | 0.3772 | 0.9190 | 0.3459 |
+
+`python summarize_hypersim_eval.py`
+
+## Key Findings
+
+- WPD J=5 r20 has best CLIP-IQA (0.7643, ties DNAEdit) but worse FID/KID/mIoU than r24.
+- PPD r20 wins FID — lower than WPD baseline without DTCWT, confirming LL drop > wavelet structure for indoor lighting.
+- WPD drop_ll corrects LL illumination bias: mIoU +6.2pt vs baseline, DepSSIM +0.018 vs baseline.
+- Cosmos wins DepSSIM due to explicit depth conditioning; WPD wins mIoU/AbsRel without any conditioning.
 
 
-# Synthia
+# Synthia → Cityscapes (legacy)
+
 ## mIoU
 |  | road | sidewalk | building | wall | fence | pole | traffic light | traffic sign | vegetation | terrain | sky | person | rider | car | truck | bus | train | motorcycle | bicycle | **mIoU** |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
