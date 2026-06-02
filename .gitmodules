@@ -16,3 +16,6 @@
 [submodule "CosmosTransfer"]
 	path = CosmosTransfer
 	url = https://github.com/nvidia-cosmos/cosmos-transfer2.5
+[submodule "nuCarla"]
+	path = nuCarla
+	url = https://github.com/michigan-traffic-lab/nuCarla
