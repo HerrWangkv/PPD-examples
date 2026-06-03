@@ -124,11 +124,11 @@ mIoU: SegFormer-B5 ADE20K, pseudo-GT from raw Hypersim input. CLIP-IQA: piq.CLIP
 | FlowEdit | *0.7563* | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
 | DNAEdit | **0.7637** | *67.85* | **0.0448** | 0.3169 | 0.8978 | 0.4107 |
 | Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | *0.3236* | **0.9259** | *0.3568* |
-| PPD r20 | 0.6942 | **67.77** | 0.0463 | 0.2724 | 0.8910 | 0.4239 |
+| PPD r24 | 0.6804 | **67.64** | 0.0457 | 0.3014 | 0.8978 | 0.3994 |
 | WPD J=5 r24 (drop\_ll, ours) | 0.7412 | *68.31* | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
 
 ** = best, * = 2nd best (excl. raw sim input).
-PPD r20 wins FID; DNAEdit/WPD r24 tied on KID. WPD drop_ll r24 wins mIoU/AbsRel. Cosmos wins DepSSIM.
+PPD r24 wins FID (67.64); DNAEdit/WPD r24 tied on KID. WPD drop_ll r24 wins mIoU/AbsRel. Cosmos wins DepSSIM.
 
 ## Full Table
 
@@ -139,6 +139,7 @@ PPD r20 wins FID; DNAEdit/WPD r24 tied on KID. WPD drop_ll r24 wins mIoU/AbsRel.
 | DNAEdit | 0.7637 | 67.85 | 0.0448 | 0.3169 | 0.8978 | 0.4107 |
 | Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | 0.3236 | 0.9259 | 0.3568 |
 | PPD r20 | 0.6942 | 67.77 | 0.0463 | 0.2724 | 0.8910 | 0.4239 |
+| PPD r24 | 0.6804 | 67.64 | 0.0457 | 0.3014 | 0.8978 | 0.3994 |
 | WPD baseline r20 | 0.6854 | 68.22 | 0.0451 | 0.3156 | 0.9014 | 0.3948 |
 | WPD J=5 r20 (drop\_ll) | 0.7643 | 70.53 | 0.0481 | 0.2985 | 0.8970 | 0.3709 |
 | WPD J=5 r24 (drop\_ll) | 0.7412 | 68.31 | 0.0448 | 0.3772 | 0.9190 | 0.3459 |
