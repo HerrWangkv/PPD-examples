@@ -2,7 +2,7 @@
 
 docker build -t wpd .
 
-docker run --rm --name train_wan_low_dropll --gpus all --ipc=host \
+docker run --rm --name train_wan_low_dropll --gpus '"device=0,1,2,3"' --ipc=host \
     -v "$(pwd):/workspace" \
     -e HF_TOKEN=$HUGGING_FACE_TOKEN \
     -e NCCL_P2P_DISABLE=1 \
