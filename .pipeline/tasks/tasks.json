@@ -85,17 +85,43 @@
     {
       "id": "baseline_r10_vkitti",
       "title": "WPD baseline r10 vKITTI inference + eval",
-      "status": "in-progress",
-      "updatedAt": "2026-06-01",
-      "details": "Fills KID gap (0.045→0.059) between baseline r8 and r12 in Ablation 1. Inference running now.",
+      "status": "done",
+      "updatedAt": "2026-06-03",
+      "output": "logs/vkitti_eval/baseline_r10_*.log, outputs/vkitti/baseline_r10",
+      "details": "FID 74.80 / KID 0.0455 / CLIP-IQA 0.7827 / mIoU 45.01 / DepSSIM 0.8389 / AbsRel 0.2784 / LPIPS 0.7010. Fills KID gap between baseline r8 and r12 in Ablation 1.",
       "priority": "medium"
     },
     {
       "id": "track_a_multiview",
-      "title": "Track A: Multi-view sim2real (3D Noise Field Projection)",
+      "title": "Track A: Multi-view sim2real consistency",
+      "status": "done",
+      "updatedAt": "2026-06-03",
+      "details": "5 training approaches tried (v1–v5), all failed to achieve cross-camera consistency. Root cause: drop_ll makes global color independently random per camera; 12% FOV overlap too small to overcome 88% independent context. Concluded: noise-based training cannot fix LL independence. Next: synchronized denoising (inference-time warp-and-blend) or post-hoc color matching.",
+      "priority": "high",
+      "output": "models/train/FLUX.1-dev_lora_wpd_mv_nuscenes_{v1,v2,v3,fullphase,corrphase}/"
+    },
+    {
+      "id": "track_a_sync_denoising",
+      "title": "Track A: Synchronized denoising at inference",
       "status": "pending",
-      "updatedAt": "2026-06-01",
-      "details": "Starting tomorrow. Need: nuCarla multi-cam data, sim depth + calibration, 3D noise projection implementation. Baselines: RL3DEdit, 3D-Consistent MV Editing, Cosmos per-view.",
+      "updatedAt": "2026-06-03",
+      "details": "warp_and_blend_latents() already implemented in wavelet_noise_mv.py. Need: sim2real_nucarla_mv_sync.py (one shared denoising loop, per-step latent blend). No training needed. Directly addresses both HF and global color inconsistency.",
+      "priority": "high"
+    },
+    {
+      "id": "hypersim_ppd_r24",
+      "title": "Hypersim PPD r24 eval",
+      "status": "done",
+      "updatedAt": "2026-06-03",
+      "output": "logs/hypersim_eval/ppd_r24_*.log, outputs/hypersim/ppd_r24",
+      "details": "FID 67.64 (best on Hypersim) / KID 0.0457 / CLIP-IQA 0.6804 / mIoU 0.3014 / DepSSIM 0.8978 / AbsRel 0.3994. Paper table updated: PPD r24 replaces r20."
+    },
+    {
+      "id": "wan_video_training",
+      "title": "Wan video LoRA 训练（low + high, drop_ll）",
+      "status": "in-progress",
+      "updatedAt": "2026-06-03",
+      "details": "Low: train_wan_low_dropll.sh, GPU 0-3, warm from wan2.2-14b-low-step-12400, HF streaming. High: train_wan_high_dropll.sh, GPU 4-7, warm from wan2.2-14b-high-step-12400. train.py: drop_ll prob=0.8. Output: Wan2.2-I2V-A14B_{low,high}_lora_wpd_dropll/",
       "priority": "high"
     }
   ]

@@ -1,42 +1,42 @@
 # Orchestrator State
-_最后同步：2026-06-01_
+_最后同步：2026-06-03 (sync v2)_
 
 ## 全局进度看板
 
 | Stage | Status | Notes |
 |-------|--------|-------|
-| Survey | ✅ done | sim2real-baselines corpus (12 papers OCR'd) |
-| Ideation | ✅ done | Two-track strategy decided; 3D noise projection saved for next paper |
-| Experiment | ✅ done (main) | vKITTI full (incl. r32) + Hypersim 6 variants; DNAEdit in-progress |
-| Publication | 🚀 in-progress | Writing not started; new venue submission |
+| Survey | ✅ done | 12 papers OCR'd; baselines confirmed |
+| Ideation | ✅ done | Two-track strategy; vKITTI+Hypersim operating points fixed |
+| Experiment | 🚀 in-progress | vKITTI+Hypersim complete; Track A pipeline built, training pending |
+| Publication | 🚀 in-progress | Data ready; writing not started |
 
 ## 当前活跃任务
 
-| ID | Title | Status |
-|----|-------|--------|
-| publication | 论文写作 + 新实验 | in-progress |
-| baseline_r10_vkitti | WPD baseline r10 vKITTI inference + eval | in-progress |
-| track_a_multiview | Track A: multi-view sim2real (3D noise projection) | starts tomorrow |
+| ID | Title | Status | Notes |
+|----|-------|--------|-------|
+| publication | 论文写作 | in-progress | 所有数据就绪，需立即开始 |
+| wan_video_training | Wan low/high LoRA 训练 | in-progress | Low: GPU 0-3 运行中；High: 待启动 |
+| track_a_sync_denoising | Track A: synchronized denoising | pending | warp_and_blend_latents() 已实现；需写 sim2real_nucarla_mv_sync.py |
 
-## 最近完成任务
+## 最近完成任务（最近5条）
 
 | Task | Date | Key result |
 |------|------|-----------|
-| hypersim_dnaedit | 2026-06-01 | CLIP-IQA 0.7637 (best on Hypersim, beats FlowEdit); FID 73.98 |
-| ppd_r32_vkitti | 2026-06-01 | FID 88.09 / KID 0.0620 / mIoU 46.40 |
-| hypersim_ppd_r20 | 2026-06-01 | FID 70.53 / KID 0.0484 |
-| ablation figure fix | 2026-06-01 | J=4 r16 fixed, J=5 removed, r16 excluded, clean 3-curve |
-| sim2real-baselines survey | 2026-06-01 | 12 papers OCR'd; two-track baseline lists |
+| Hypersim PPD r24 eval | 2026-06-03 | FID **67.64** (best) / KID 0.0457 / CLIP-IQA 0.6804 / mIoU 0.3014 / DepSSIM 0.8978 |
+| Results.md PPD r24 更新 | 2026-06-03 | Hypersim paper table: PPD r24 替换 r20；bold/italic 重新标注 |
+| Wan low LoRA 启动 | 2026-06-03 | train_wan_low_dropll.sh，GPU 0-3，from wan2.2-14b-low-step-12400 |
+| Track A 训练方向关闭 | 2026-06-03 | v1–v5 全部失败；根本原因：LL 独立随机 + 12% FOV 重叠不足 |
+| baseline_r10 vKITTI eval | 2026-06-03 | FID 74.80 / KID 0.0455 / CLIP-IQA 0.7827 / mIoU 45.01 |
 
-## 待处理决策点
+## 决策点
 
-1. **Track A feasibility check**: do we have multi-camera synchronized sim data? (nuCarla multi-cam?)
-2. **WPD baseline r10**: run inference + eval to fill KID gap (r8→r12) in Ablation 1
-3. **Start writing**: Results section — all image data complete
-4. **New baselines**: CACTI code available (github.com/echigot/cactif); DwD code TBD
+1. **开始写论文**: 所有实验数据就绪（vKITTI + Hypersim）；Track A 训练方向已关闭
+2. **Track A 下一步**: synchronized denoising（无需训练）或 post-hoc 颜色匹配
+3. **Hypersim PPD r24**: HPC 运行中，完成后补全 paper table
 
 ## 下一步建议
 
-1. **Write paper** — Results + ablation sections first (all data ready)
-2. **Check Track A data**: confirm nuCarla multi-camera availability
-3. **Run WPD baseline r10**: quick inference + eval, sharpens Ablation 1
+1. **最高优先级**: 开始论文写作 Method + Experiment 章节
+2. **Track A**: 实现 sim2real_nucarla_mv_sync.py（synchronized denoising，已有 warp_and_blend_latents）
+3. **快速验证**: post-hoc 颜色匹配——直接修复 seam 色调，无需训练
+</content>

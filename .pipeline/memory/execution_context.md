@@ -1,10 +1,10 @@
 # Execution Context
-_最后同步：2026-06-02_
+_最后同步：2026-06-03 (sync v2)_
 
 ## 当前任务
 
-**ID:** publication
-**标题:** 论文写作 + 新实验补强（new venue submission）
+**ID:** publication + wan_video_training
+**标题:** 论文写作 + Wan video LoRA 训练
 **状态:** in-progress
 
 ## vKITTI Paper Table（最新）
@@ -26,65 +26,65 @@ _最后同步：2026-06-02_
 | FlowEdit | *0.7563* | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
 | DNAEdit | **0.7637** | *67.85* | **0.0448** | 0.3169 | 0.8978 | 0.4107 |
 | Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | *0.3236* | **0.9259** | *0.3568* |
-| PPD r20 | 0.6942 | **67.77** | 0.0463 | 0.2724 | 0.8910 | 0.4239 |
-| WPD J=5 r24 (drop_ll, ours) | 0.7412 | *68.31* | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
+| PPD r24 | 0.6804 | **67.64** | *0.0457* | 0.3014 | 0.8978 | 0.3994 |
+| WPD J=5 r24 (drop_ll, ours) | 0.7412 | 68.31 | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
 
-## Submission Strategy: Two-Track
+## Track A: Multi-view 关键文件
 
-**Track A — Multi-view image sim2real (try first)**
-Core method: 3D Noise Field Projection — project Gaussian noise to 3D via sim depth, render per-view, apply WPD replacement (LL + high-freq phase + magnitude). Inference-time only, no retraining.
+| 文件 | 用途 |
+|------|------|
+| `wavelet_noise_mv.py` | 3D 噪声投影核心；接受 K/T/depth，不依赖 nuCarla |
+| `nucarla_utils.py` | nuCarla 标定解析 → K, T (4×4)，depth 加载，scene/frame 迭代 |
+| `sim2real_nucarla_mv.py` | 单帧 6-cam 推理（含 --independent baseline flag） |
+| `batch_sim2real_nucarla_mv.py` | 多场景分布式推理 |
+| `precompute_da3_nuscenes.py` | DA3 depth 预计算（GPU 0-3 运行中，~34k samples） |
+| `examples/flux/model_training/nuscenes_mv_dataset.py` | nuScenes 多视角对数据集（随机采样6相邻pair） |
+| `examples/flux/model_training/train_nuscenes_mv.py` | nuScenes finetune 训练脚本（Option A/B OOM自适应） |
+| `test_da3_nuscenes.py` | DA3 深度验证 + forward warp 测试脚本 |
 
-| Baseline | arXiv | Role |
-|----------|-------|------|
-| RL3DEdit | 2603.03143 | Multi-view consistent 3D editing via RL |
-| 3D-Consistent MV Editing | 2511.22228 | Training-free correspondence guidance |
-| Cosmos Transfer | — | Per-view with depth conditioning |
+## Track A: 训练启动命令（DA3 precompute 完成后）
 
-**Track B — Video translation (fallback)**
-
-| Baseline | arXiv | Role |
-|----------|-------|------|
-| DNAEdit | 2506.01430 | Strong editing baseline |
-| Cosmos Transfer | — | Already done |
-| DITTO | 2510.15742 | Instruction-based video editing |
-| VACE | 2503.07598 | All-in-one video editing |
-| PPD video | — | `sim2real_video_ppd.py` — full pipeline |
-| DwD | 2602.06159 | Direct sim2real video competitor |
-| Control-DINO | 2604.01761 | Sim2real video transfer, no domain training |
-
-## ECCV Reviewer Requests (reference for new venue)
-
-| Reviewer | Score | Key requests |
-|----------|-------|-------------|
-| wxAN | 2 (reject) | FID ✅; FlowEdit ✅; VACE+DITTO; FVD |
-| ZZKc | 4 | 2nd domain ✅ Hypersim; mIoU+DepSSIM ✅; runtime costs |
-| FfwS | 4 | Temporal coherence spec; runtime costs; prompt details |
-
-## 论文故事逻辑
-
-1. **Problem**: sim-to-real gap = structure gap + appearance gap (lighting/texture)
-2. **Insight**: DTCWT LL subband = global illumination bias → zeroing corrects appearance
-3. **Ablation story**:
-   - PPD r12 vs WPD J=4 r12: same radius, WPD wins FID/KID/mIoU (direct comparison)
-   - WPD baseline vs drop_ll: drop_ll pushes Pareto frontier left (better FID), slight structure cost
-   - Hypersim: drop_ll fixes path-traced lighting (DepSSIM +0.018, mIoU +6.2pt vs baseline)
-4. **Figures**: Ablation 1 (3-curve, J=4 r16 fixed, PPD r32 included) + Ablation 2 (J sweep)
-
-## 挂起实验
-
-| Experiment | Command | Status |
-|------------|---------|--------|
-| DNAEdit Hypersim | `bash run_hypersim_dnaedit.sh --gpus 0,2,3` | in-progress (~57% remaining) |
-| WPD baseline r10 | run inference + eval | pending (fills KID gap r8→r12 in Ablation 1) |
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6,7 accelerate launch --multi_gpu --num_processes 4 \
+  examples/flux/model_training/train_nuscenes_mv.py \
+  --nuscenes_root /tmp/nuscenes \
+  --depth_cache_dir /mrtstorage/users/kwang/nuscenes_da3_depth \
+  --model_id_with_origin_paths "black-forest-labs/FLUX.1-dev:flux1-dev.safetensors,black-forest-labs/FLUX.1-dev:text_encoder/model.safetensors,black-forest-labs/FLUX.1-dev:text_encoder_2/,black-forest-labs/FLUX.1-dev:ae.safetensors" \
+  --lora_checkpoint models/train/FLUX.1-dev_lora_wpd_dropll/step-6000.safetensors \
+  --output_path models/train/FLUX.1-dev_lora_wpd_mv_nuscenes \
+  --learning_rate 1e-5 --save_steps 500 \
+  --lora_base_model dit --lora_rank 32 \
+  --use_gradient_checkpointing
+```
 
 ## 上下文积累诊断
 
-- **PPD in paper table**: r12 (direct comparison to WPD J=4 r12 at same radius)
-- **PPD**: use `batch_sim2real_image_ppd.py` (FFT); old `wpd_ppd_ckpt_*` results obsolete
-- **Ablation 1**: `plot_ablation_baseline_vs_ppd.py`; baseline r16 = `baseline_newprompt`; dropll_J4 r16 = `dropll_step6000_J4`
-- **Hypersim mIoU**: pseudo-GT ADE20K, cache at `outputs/hypersim/.pseudo_gt_cache/`
-- **Hypersim bold**: exclude input row; FID best = WPD baseline r20 (68.22 < drop_ll 68.31)
-- **CleanFID**: `--mode clean` for all FID/KID computations
-- **3D noise projection idea**: Novelty 5/5 — saved for PhD thesis next paper
-- **J=5 on Ablation 1**: tried, found below PPD curve — removed
-- **DROPLL_J4_KEY**: r16 maps to `dropll_step6000_J4` (confirmed alias)
+**vKITTI paper table**:
+- PPD = r12（与 WPD J=4 r12 同 radius 直接对比）
+- WPD = J=4 r12（paper operating point）
+- Ablation 1: `plot_ablation_baseline_vs_ppd.py`；baseline r16 = `baseline_newprompt`；dropll J=4 r16 = `dropll_step6000_J4`
+
+**Hypersim paper table**:
+- PPD = r20；WPD = J=5 r24 drop_ll；WPD baseline r20 移除出 paper table
+- DNAEdit FID = 67.85（注意：paper 中用 67.85，不是 73.98）
+- mIoU: pseudo-GT ADE20K，cache at `outputs/hypersim/.pseudo_gt_cache/`
+
+**Track A 关键约束**:
+- wavelet_noise_mv.py 传播的是原始高斯噪声（pre-DTCWT），DTCWT 在最后每相机独立做
+- nuCarla extrinsic: q.rotation_matrix（不加 .T，不加 yaw/roll correction）
+- DA3 model: `DA3NESTED-GIANT-LARGE-1.1`（-1.1 修复了 street scene bug）
+- nuScenes depth cache: `/mrtstorage/users/kwang/nuscenes_da3_depth/<sample_token>/<cam>.npy` (float16)
+
+**通用**:
+- CleanFID: `--mode clean` for all FID/KID
+- GPU 0-3: DA3 precompute 运行中；GPU 4-7: 其他任务
+
+## 待处理实验 / 任务
+
+| 实验 | 优先级 | 状态 |
+|------|--------|------|
+| Wan low LoRA 训练 | high | 🔄 运行中（GPU 0-3） |
+| Wan high LoRA 训练 | high | ⏳ 待启动（GPU 4-7，train_wan_high_dropll.sh） |
+| 论文写作 Method + Experiment | high | ⏳ 待开始（所有数据就绪） |
+| Track A synchronized denoising | medium | ⏳ 待实现（sim2real_nucarla_mv_sync.py） |
+| Hypersim PPD r24 eval | done | ✅ FID 67.64 / KID 0.0457 / mIoU 0.3014 |
