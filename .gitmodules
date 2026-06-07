@@ -23,3 +23,6 @@
 	path = LightEMMA
 	url = https://github.com/HerrWangkv/LightEMMA.git
 	branch = main
+[submodule "eval_video"]
+	path = eval_video
+	url = https://github.com/HerrWangkv/eval_video.git

@@ -33,6 +33,18 @@
 - 脚本: `train_wan_high_dropll.sh`（已准备）
 - 状态: ⏳ 待启动
 
+### nuCarla → LightEMMA E2E eval (2026-06-07)
+- **方法**: Gemini-2.5-flash 从前视频预测 waypoints；ADE/FDE at 1s/2s/3s
+- **数据**: 60 scenes (scene_0000–0059)，每帧 3 Gemini calls
+- **结果**: WPD baseline r30 best: ADE_avg=2.2097 (−5.46%); WPD drop_ll r30 J=5: ADE_avg=2.2336 (−4.44%); PPD/Ditto/Cosmos 均使规划精度下降
+- **关键发现**: WPD 是唯一改善规划精度的方法
+- **状态**: ✅ 完成；Results.md 已更新
+
+### extension_dropll_r30_J5 翻译 + cosmos_depth_edge 翻译 (2026-06-07)
+- extension (scenes 0060–0159): ✅ 100 scenes done
+- cosmos_depth_edge (scenes 0000–0059): 🔄 50/60 done, running
+- LightEMMA eval on both: ⏳ 待 Gemini key 更新 + cosmos 完成
+
 ## 待做实验
 
 ### 定量评估 drop_ll 效果

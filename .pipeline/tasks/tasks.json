@@ -123,6 +123,38 @@
       "updatedAt": "2026-06-03",
       "details": "Low: train_wan_low_dropll.sh, GPU 0-3, warm from wan2.2-14b-low-step-12400, HF streaming. High: train_wan_high_dropll.sh, GPU 4-7, warm from wan2.2-14b-high-step-12400. train.py: drop_ll prob=0.8. Output: Wan2.2-I2V-A14B_{low,high}_lora_wpd_dropll/",
       "priority": "high"
+    },
+    {
+      "id": "nucarla_lightemma_cosmos_depth_edge",
+      "title": "nuCarla Cosmos depth+edge LightEMMA eval",
+      "status": "pending",
+      "updatedAt": "2026-06-07",
+      "details": "60 scenes translating (50/60 done, confident_pascal container). Once done: bash run_lightemma_eval.sh outputs/nucarla/cosmos_depth_edge cosmos_depth_edge. Filter: exclude _control_*.mp4. Needs Gemini key.",
+      "priority": "high"
+    },
+    {
+      "id": "nucarla_dnaedit_translate",
+      "title": "nuCarla DNAEdit 60-scene translation",
+      "status": "pending",
+      "updatedAt": "2026-06-07",
+      "details": "Fix: add pip install imageio[ffmpeg] to run_nucarla_dnaedit.sh (libx264 missing from wpd-dnaedit image). 2 scenes done as .npy (invalid). Output: outputs/nucarla/dnaedit/. Needs 4 GPUs (GPUs 0-3, after cosmos finishes).",
+      "priority": "high"
+    },
+    {
+      "id": "nucarla_dnaedit_lightemma",
+      "title": "nuCarla DNAEdit LightEMMA eval",
+      "status": "pending",
+      "updatedAt": "2026-06-07",
+      "details": "After DNAEdit translation completes. Run: bash run_lightemma_eval.sh outputs/nucarla/dnaedit dnaedit",
+      "priority": "high"
+    },
+    {
+      "id": "nucarla_eval_video",
+      "title": "nuCarla eval_video (patch-sFID + motion_smoothness) for new variants",
+      "status": "pending",
+      "updatedAt": "2026-06-07",
+      "details": "eval_video submodule added. Existing results: carla/cosmos/ppd/wavelet/ditto (motion_smoothness only in json; patch_sfid in missing log files). New variants to eval: cosmos_depth_edge (filter out _control_*.mp4), dnaedit (after translation). Uses VBench motion_smoothness + eval_patch_sfid.py (--real_dir /tmp/nuscenes --fake_dir <video_dir>). Update eval_video/eval.sh and re-run for new variants.",
+      "priority": "medium"
     }
   ]
 }
