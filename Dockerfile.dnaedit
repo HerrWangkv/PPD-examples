@@ -1,0 +1,15 @@
+FROM pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    git \
+    libgl1 \
+    libglib2.0-0 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install easydict diffusers transformers ftfy regex einops opencv-python-headless imageio torchvision
+RUN pip install flash-attn --no-build-isolation
+
+CMD ["/bin/bash"]
