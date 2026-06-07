@@ -37,12 +37,16 @@ def parse_args():
     # --- Flux Arguments ---
     parser.add_argument("--flux_lora", type=str, default="models/ppd/flux1-dev_phipd_lora_302000.safetensors")
     parser.add_argument("--flux_cutoff_radius", type=int, default=30, help="Flux: Wavelet noise radius")
-    parser.add_argument("--prompt", type=str, default="A photorealistic driving scene in a city, view from a car dashboard. Natural lighting, urban buildings, trees, cars on the street. High resolution, realistic textures.", help="Prompt for generation")
+    parser.add_argument("--flux_drop_ll", action="store_true", default=False, help="Flux: Drop LL subband")
+    parser.add_argument("--flux_J", type=int, default=None, help="Flux: DTCWT decomposition levels")
+    parser.add_argument("--prompt", type=str, default="A photorealistic driving scene filmed from a moving vehicle. Natural lighting, urban buildings, trees, cars on the street. High resolution, realistic textures.", help="Prompt for generation")
 
     # --- Wan Arguments ---
     parser.add_argument("--wan_low_lora", type=str, default="models/ppd/wan2.2-14b-low-step-12400.safetensors")
     parser.add_argument("--wan_high_lora", type=str, default="models/ppd/wan2.2-14b-high-step-12400.safetensors")
     parser.add_argument("--wan_cutoff_radius", type=int, default=30, help="Wan: Wavelet noise radius")
+    parser.add_argument("--wan_drop_ll", action="store_true", default=False, help="Wan: Drop LL subband")
+    parser.add_argument("--wan_J", type=int, default=None, help="Wan: DTCWT decomposition levels")
     parser.add_argument("--n_frames", type=int, default=49)
     
     # --- General ---
@@ -108,7 +112,9 @@ def process_video(args, rgb_video_path, output_video_path, flux_pipe, wan_pipe, 
         noise = generate_wavelet_structured_noise_batch_vectorized(
             image_batch=input_latents,
             radius_map=args.flux_cutoff_radius,
-            noise_std=1.0
+            noise_std=1.0,
+            drop_ll=args.flux_drop_ll,
+            J=args.flux_J,
         ).contiguous()
 
         # Generate
@@ -153,7 +159,9 @@ def process_video(args, rgb_video_path, output_video_path, flux_pipe, wan_pipe, 
             structured_noise = generate_wavelet_structured_noise_batch_vectorized(
                 image_batch=latents_for_noise,
                 radius_map=args.wan_cutoff_radius,
-                input_noise=torch.randn_like(latents_for_noise)
+                input_noise=torch.randn_like(latents_for_noise),
+                drop_ll=args.wan_drop_ll,
+                J=args.wan_J,
             )
             structured_noise = structured_noise.transpose(0, 1).unsqueeze(0).to(dtype=wan_pipe.torch_dtype, device=device)
 

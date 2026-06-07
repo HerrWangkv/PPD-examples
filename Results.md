@@ -124,11 +124,11 @@ mIoU: SegFormer-B5 ADE20K, pseudo-GT from raw Hypersim input. CLIP-IQA: piq.CLIP
 | FlowEdit | *0.7563* | 75.13 | 0.0512 | 0.2924 | 0.8926 | 0.4159 |
 | DNAEdit | **0.7637** | *67.85* | **0.0448** | 0.3169 | 0.8978 | 0.4107 |
 | Cosmos depth+edge | 0.6516 | 71.53 | 0.0510 | *0.3236* | **0.9259** | *0.3568* |
-| PPD r24 | 0.6804 | **67.64** | 0.0457 | 0.3014 | 0.8978 | 0.3994 |
-| WPD J=5 r24 (drop\_ll, ours) | 0.7412 | *68.31* | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
+| PPD r24 | 0.6804 | **67.64** | *0.0457* | 0.3014 | 0.8978 | 0.3994 |
+| WPD J=5 r24 (drop\_ll, ours) | 0.7412 | 68.31 | **0.0448** | **0.3772** | *0.9190* | **0.3459** |
 
 ** = best, * = 2nd best (excl. raw sim input).
-PPD r24 wins FID (67.64); DNAEdit/WPD r24 tied on KID. WPD drop_ll r24 wins mIoU/AbsRel. Cosmos wins DepSSIM.
+PPD r24 wins FID (67.64); DNAEdit/WPD r24 tied on KID (both **0.0448**, PPD r24 *0.0457* 2nd). WPD drop_ll r24 wins mIoU/AbsRel. Cosmos wins DepSSIM.
 
 ## Full Table
 
@@ -153,6 +153,31 @@ PPD r24 wins FID (67.64); DNAEdit/WPD r24 tied on KID. WPD drop_ll r24 wins mIoU
 - WPD drop_ll corrects LL illumination bias: mIoU +6.2pt vs baseline, DepSSIM +0.018 vs baseline.
 - Cosmos wins DepSSIM due to explicit depth conditioning; WPD wins mIoU/AbsRel without any conditioning.
 
+
+---
+
+# nuCarla → LightEMMA (E2E driving evaluation)
+
+**Setup**: 60 nuCarla scenes (scene_0000–0059). LightEMMA with gemini-2.5-flash predicts waypoints from front-view video vs GT global positions. Lower = better. All 60 scenes common across all methods.
+Run: `cd LightEMMA && python calculate_metrics.py`
+
+| Method | ADE_1s↓ | ADE_2s↓ | ADE_3s↓ | ADE_avg↓ | FDE↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| carla (raw sim) | 0.5200 | 2.0076 | 4.4841 | 2.3372 | 5.2234 |
+| Cosmos depth+edge+seg | **0.5197 (-0.05%)** | 2.1143 (+5.31%) | 4.7657 (+6.28%) | 2.4665 (+5.53%) | 5.5520 (+6.29%) |
+| Ditto | **0.4951 (-4.78%)** | 2.0218 (+0.70%) | 4.6345 (+3.36%) | 2.3838 (+1.99%) | 5.4236 (+3.83%) |
+| PPD r30 | 0.5315 (+2.22%) | 2.0785 (+3.53%) | 4.6298 (+3.25%) | 2.4133 (+3.25%) | 5.3885 (+3.16%) |
+| WPD drop_ll r30 J=5 (ours) | **0.4927 (-5.25%)** | **1.9165 (-4.54%)** | **4.2916 (-4.29%)** | **2.2336 (-4.44%)** | **5.0061 (-4.16%)** |
+| WPD baseline r30 (ours) | **0.4851 (-6.71%)** | **1.8972 (-5.50%)** | **4.2468 (-5.29%)** | **2.2097 (-5.46%)** | **4.9527 (-5.18%)** |
+
+## Key Findings
+
+- **WPD-translated videos improve E2E planning accuracy**: Both WPD variants reduce ADE/FDE by ~4–5% vs raw CARLA. All baselines (Cosmos, Ditto, PPD) degrade accuracy (+2–6%).
+- **WPD baseline r30 is best**; WPD drop_ll r30 J=5 is close.
+- **Cosmos and PPD make planning worse** than raw sim, suggesting they alter appearance in ways that confuse the VLM planner.
+- Supports the claim: WPD preserves semantic structure (lane markings, scene geometry) critical for downstream planning while increasing photorealism.
+
+---
 
 # Synthia → Cityscapes (legacy)
 

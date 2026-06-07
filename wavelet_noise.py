@@ -271,6 +271,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         max_packet_level: int = 4,
         eps: float = 1e-8,
         drop_ll: bool = False,
+        hf_only: bool = False,
     ):
         # freq_map: (N,1,H,W) upper cutoff (Nyquist-norm). Higher = more structure preserved.
         # drop_ll:  If True, replace LL entirely with noise.
@@ -309,7 +310,7 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
                 Cimg_merged, Cz_merged,
                 freq_low, freq_high,
                 freq_l,
-                0, max_packet_level, eps
+                0, max_packet_level, eps, hf_only
             )  # (N, C*6, H, W, 2)
 
             # reshape back to list-of-6 for pack_C_to_yh_list
@@ -322,36 +323,34 @@ class DTCWTFusePhaseMag_Recursive(nn.Module):
         x_hat = self.ifm((LL_mix, yh_mix))
         return x_hat, LL_mix, C_mix
 
-    def _process_band_recursive(self, c_img, c_nz, f_start, f_end, freq_map, level, max_level, eps):
-        # freq_map:     upper cutoff — bands below this are preserved from image.
-        # min_freq_map: lower cutoff — bands below this are replaced with noise (not preserved).
-        # print(f"Processing level {level} band [{f_start:.4f}, {f_end:.4f}]", end=".")
+    def _process_band_recursive(self, c_img, c_nz, f_start, f_end, freq_map, level, max_level, eps,
+                                hf_only: bool = False):
+        # Normal (hf_only=False): bands BELOW freq_map get image phase (structure from image).
+        # HF-only (hf_only=True): bands ABOVE freq_map get image phase (structure from image in HF only).
+        img_mask = 0.0 if hf_only else 1.0   # mask value when band is below cutoff
+        nz_mask  = 1.0 if hf_only else 0.0   # mask value when band is above cutoff
 
-        # All pixels preserve structure in this band (below upper cutoff)
         if f_end <= freq_map.min().item() + 1e-9:
-            # print(" Preserving entire band from image.")
-            return fuse_subband_generic(c_img, c_nz, mask=1.0, eps=eps)
+            return fuse_subband_generic(c_img, c_nz, mask=img_mask, eps=eps)
 
-        # All pixels use noise in this band (above upper cutoff)
         if f_start >= freq_map.max().item() - 1e-9:
-            # print(" Replacing entire band with noise.")
-            return fuse_subband_generic(c_img, c_nz, mask=0.0, eps=eps)
+            return fuse_subband_generic(c_img, c_nz, mask=nz_mask, eps=eps)
 
-        # Mixed band: per-pixel decision
         mid = (f_start + f_end) / 2
         decision_map = (mid <= freq_map).float()
+        if hf_only:
+            decision_map = 1.0 - decision_map
         if level >= max_level:
-            # print(" Reaching maximum level. Using mixed decision.")
             return fuse_subband_generic(c_img, c_nz, mask=decision_map, eps=eps)
-        # print(" Splitting band and processing recursively.")
+
         lo_img, hi_img = self.splitter.split_once(c_img)
         lo_nz, hi_nz   = self.splitter.split_once(c_nz)
 
         H_sub, W_sub = lo_img.shape[-3], lo_img.shape[-2]
         sub_freq = resize_tensor(freq_map, H_sub, W_sub, mode='bilinear')
         mid_freq = (f_start + f_end) / 2.0
-        out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_freq, level + 1, max_level, eps)
-        out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_freq, level + 1, max_level, eps)
+        out_lo = self._process_band_recursive(lo_img, lo_nz, f_start, mid_freq, sub_freq, level + 1, max_level, eps, hf_only)
+        out_hi = self._process_band_recursive(hi_img, hi_nz, mid_freq, f_end, sub_freq, level + 1, max_level, eps, hf_only)
         return out_lo + out_hi
 
 _wavelet_module_cache: dict = {}
@@ -376,6 +375,7 @@ def _generate_wavelet_noise_impl(
     qshift: str = 'qshift_b',
     drop_ll: bool = False,
     j_override: Optional[int] = None,
+    hf_only: bool = False,
 ) -> torch.Tensor:
     """
     Args:
@@ -426,6 +426,7 @@ def _generate_wavelet_noise_impl(
             freq_map=freq_map,
             pad_factor=pad_factor,
             drop_ll=drop_ll,
+            hf_only=hf_only,
         )
     clamp_mask = x_hat.abs() > 5
     structured_noise = torch.where(clamp_mask, z, x_hat)
@@ -441,6 +442,7 @@ def generate_wavelet_structured_noise_batch_vectorized(
     qshift: str = 'qshift_b',
     drop_ll: bool = False,
     J: Optional[int] = None,
+    hf_only: bool = False,
 ) -> torch.Tensor:
     """
     Generates DTCWT structured noise with a per-pixel frequency cutoff map.
@@ -474,4 +476,31 @@ def generate_wavelet_structured_noise_batch_vectorized(
         qshift=qshift,
         drop_ll=drop_ll,
         j_override=J,
+        hf_only=hf_only,
+    )
+
+
+def generate_hf_structured_noise_batch_vectorized(
+    image_batch: torch.Tensor,
+    radius_map: Union[torch.Tensor, int],
+    input_noise: Optional[torch.Tensor] = None,
+    J: Optional[int] = None,
+) -> torch.Tensor:
+    """Generate ε_approx_raw: HF subbands (above radius) get image phase, bandpass+LL stay random.
+
+    This is the complementary operation to normal WPD. Used to construct the intermediate
+    ε_approx_raw for multi-view noise propagation:
+      - ε_approx_raw[cam_a] carries cam_a's HF phase in subbands above radius
+      - When warped to cam_b and used as input_noise to standard WPD:
+        → cam_b WPD fills bandpass with cam_b's own phase (below radius)
+        → HF (above radius) retains warped cam_a phase
+      → consistent HF across views, independent bandpass per view.
+    """
+    return generate_wavelet_structured_noise_batch_vectorized(
+        image_batch=image_batch,
+        radius_map=radius_map,
+        input_noise=input_noise,
+        drop_ll=True,
+        J=J,
+        hf_only=True,
     )
