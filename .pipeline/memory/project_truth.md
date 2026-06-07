@@ -11,7 +11,7 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 
 ## 当前阶段
 
-**Publication（论文写作 + 新实验补强）** — 14/15 任务完成
+**Publication（论文写作 + 新实验补强）** — 14/16 任务完成
 
 ## 已确认决策
 
@@ -27,14 +27,14 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 - [2026-06-01] Two-track strategy: Track A multi-view AD sim2real, Track B video fallback
 - [2026-06-01] WPD J=5 r24 (drop_ll) 为 Hypersim paper operating point
 - [2026-06-03] Track A 多视角一致性训练方向已关闭（v1–v5 全部失败）
-- [2026-06-03] Hypersim PPD r24 eval 完成（FID 67.64 / KID 0.0457）
-- [2026-06-07] **LightEMMA E2E eval**: WPD baseline r30 最佳（ADE_avg −5.46% vs raw sim）；所有非 WPD 方法使规划精度下降
-- [2026-06-07] nuCarla Cosmos depth+edge 翻译：50/60 完成，运行中
+- [2026-06-07] LightEMMA E2E eval: WPD baseline r30 最佳（ADE_avg −5.46% vs raw sim）
+- [2026-06-07] DNAEdit guide_scale: 5.0 → **1.0**（官方默认；5.0 导致不真实输出）
+- [2026-06-07] DNAEdit HPC 部署：wpd-dnaedit.sif (8.3 GB) + sbatch_dnaedit_nucarla.sh 就绪
 
 ## 阶段进展摘要
 
 ### Survey
-- Baselines: FlowEdit / DNAEdit / Cosmos depth+edge / PPD r20 (FFT)
+- Baselines: FlowEdit / DNAEdit / Cosmos depth+edge / PPD r12 (vKITTI) / PPD r24 (Hypersim)
 - 12 papers OCR'd for sim2real-baselines corpus
 
 ### Ideation
@@ -51,27 +51,25 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 - Paper table: FlowEdit / DNAEdit / Cosmos / PPD r24 / WPD J=5 r24 (drop_ll, ours)
 - PPD r24 best FID (67.64); WPD J=5 r24 best mIoU (0.3772) / KID tied with DNAEdit
 
-**nuCarla → LightEMMA E2E (complete for 5 methods, cosmos pending)**
-- WPD baseline r30: ADE_avg=2.2097 (−5.46%), FDE=4.9527 (−5.18%) — best
-- WPD drop_ll r30 J=5: ADE_avg=2.2336 (−4.44%) — 2nd best
-- PPD/Cosmos d+e+s/Ditto all degrade planning vs raw sim (+2–6%)
-- cosmos_depth_edge (no seg) eval: pending (50/60 translated, running on container confident_pascal)
-- extension_dropll_r30_J5 (scenes 0060–0159) eval: pending (100 scenes done, needs Gemini key)
+**nuCarla → LightEMMA E2E**
+- 5 methods evaluated (WPD baseline r30 best: −5.46% ADE_avg)
+- cosmos_depth_edge eval: 🔄 running (tmux, scene_0053/60)
+- dnaedit eval: ⏳ pending HPC translation (guide_scale fix applied, Apptainer ready)
 
-**Track B: Video translation**
-- extension_dropll_r30_J5: 100 scenes (scene_0060–0159) complete
-- Wan low/high LoRA: status unclear
+**Infrastructure**
+- DNAEdit batch pipeline: fixed (guide_scale=1.0, /usr/bin/ffmpeg, dist.barrier)
+- Apptainer image: wpd-dnaedit.sif (8.3 GB, repo root)
+- SLURM script: sbatch_dnaedit_nucarla.sh
 
 **Track A: Multi-view (concluded 2026-06-03)**
 - 5 training variants (v1–v5) all failed
 - Root cause: LL global color independently random per camera; 12% FOV overlap insufficient
-- mv modifications stashed: `stash@{0}` = debug/test scripts, `stash@{1}` = core mv modifications
 
 ### Publication
 - Results.md: vKITTI + Hypersim + nuCarla LightEMMA sections complete
 - Writing not started
 
-## 当前最佳实验结果
+## 当前最佳実験結果
 
 ### vKITTI→KITTI (CleanFID)
 | Metric | Best | Value | Paper entry |
@@ -87,7 +85,7 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 | KID↓ | DNAEdit / WPD r24 | 0.0448 | WPD J=5 r24: 0.0448 |
 | mIoU↑ | WPD J=5 r24 | 0.3772 | WPD J=5 r24: 0.3772 |
 
-### nuCarla → LightEMMA (60 scenes, 5 methods evaluated)
+### nuCarla → LightEMMA (60 scenes, 5/7 methods evaluated)
 | Method | ADE_avg↓ | FDE↓ | vs raw sim |
 |--------|---------|------|-----------|
 | carla (raw sim) | 2.3372 | 5.2234 | baseline |
@@ -96,6 +94,8 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 | PPD r30 | 2.4133 | 5.3885 | +3.25% / +3.16% |
 | Ditto | 2.3838 | 5.4236 | +1.99% / +3.83% |
 | Cosmos d+e+s | 2.4665 | 5.5520 | +5.53% / +6.29% |
+| Cosmos depth+edge | TBD | — | running |
+| DNAEdit | TBD | — | pending HPC |
 
 ## 方向調整記録
 
@@ -103,10 +103,11 @@ DTCWT-based structured noise injection：保留 sim 输入的相位结构，通�
 - Primary metric: CLIP-IQA → FID/KID; added E2E planning metric (ADE/FDE)
 - PPD: DTCWT → FFT
 - Track A multi-view: closed (training approach failed)
+- DNAEdit guide_scale: 5.0 → 1.0 (official default; 5.0 caused unrealistic sim artifacts)
 
-## 風险 / 阻塞項
+## 风险 / 阻塞項
 
-- **Writing not started**: 所有实验数据就绪，需立即开始
-- **Cosmos depth_edge LightEMMA eval**: 等 translation 完成（50→60）
-- **Extension LightEMMA eval**: 100 scenes done，等 Gemini key 更新后运行
+- **Writing not started**: 所有主要实验数据就绪，需立即开始
+- **DNAEdit HPC**: wpd-dnaedit.sif 已就绪；需 rsync 至 HPC + 更新路径 + sbatch 提交
+- **cosmos depth+edge LightEMMA**: 等 tmux 运行完成（~scene_0059）
 - **Gemini API key**: 旧 key 暴露在 GitHub，需在 Google Cloud Console 撤销并更新 `LightEMMA/config.yaml`
