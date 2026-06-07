@@ -17,3 +17,4 @@ my_sim2real_*/
 !logs/hypersim_eval/*.log
 *.safetensors
 *.egg-info
+nucarla_cosmos_configs/

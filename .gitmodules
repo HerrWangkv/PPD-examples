@@ -19,3 +19,7 @@
 [submodule "nuCarla"]
 	path = nuCarla
 	url = https://github.com/michigan-traffic-lab/nuCarla
+[submodule "LightEMMA"]
+	path = LightEMMA
+	url = https://github.com/HerrWangkv/LightEMMA.git
+	branch = gemini-2.0-flash
