@@ -165,6 +165,7 @@ Run: `cd LightEMMA && python calculate_metrics.py`
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | carla (raw sim) | 0.5200 | 2.0076 | 4.4841 | 2.3372 | 5.2234 |
 | Cosmos depth+edge+seg | **0.5197 (-0.05%)** | 2.1143 (+5.31%) | 4.7657 (+6.28%) | 2.4665 (+5.53%) | 5.5520 (+6.29%) |
+| Cosmos depth+edge | 0.5272 (+1.39%) | 2.1182 (+5.51%) | 4.7955 (+6.94%) | 2.4803 (+6.12%) | 5.5986 (+7.18%) |
 | Ditto | **0.4951 (-4.78%)** | 2.0218 (+0.70%) | 4.6345 (+3.36%) | 2.3838 (+1.99%) | 5.4236 (+3.83%) |
 | PPD r30 | 0.5315 (+2.22%) | 2.0785 (+3.53%) | 4.6298 (+3.25%) | 2.4133 (+3.25%) | 5.3885 (+3.16%) |
 | WPD drop_ll r30 J=5 (ours) | **0.4927 (-5.25%)** | **1.9165 (-4.54%)** | **4.2916 (-4.29%)** | **2.2336 (-4.44%)** | **5.0061 (-4.16%)** |
@@ -173,7 +174,8 @@ Run: `cd LightEMMA && python calculate_metrics.py`
 ## Key Findings
 
 - **WPD-translated videos improve E2E planning accuracy**: Both WPD variants reduce ADE/FDE by ~4–5% vs raw CARLA. All baselines (Cosmos, Ditto, PPD) degrade accuracy (+2–6%).
-- **WPD baseline r30 is best**; WPD drop_ll r30 J=5 is close.
+- **WPD baseline r30 is best**; WPD drop_ll r30 J=5 is close second.
+- **Cosmos depth+edge (no seg) is worst** (+6.12% ADE_avg), slightly worse than Cosmos d+e+s (+5.53%) — adding depth+edge control without segmentation does not help planning.
 - **Cosmos and PPD make planning worse** than raw sim, suggesting they alter appearance in ways that confuse the VLM planner.
 - Supports the claim: WPD preserves semantic structure (lane markings, scene geometry) critical for downstream planning while increasing photorealism.
 
