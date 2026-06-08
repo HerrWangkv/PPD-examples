@@ -26,3 +26,6 @@
 [submodule "eval_video"]
 	path = eval_video
 	url = https://github.com/HerrWangkv/eval_video.git
+[submodule "ss26"]
+	path = ss26
+	url = git@gitlab.mrt.kit.edu:kwang/ss26.git
