@@ -1,0 +1,6 @@
+variant: input
+protocol: EPE semantically-matched patches (Richter et al. 2022), as in DwD
+source: logs/patch_sfid_nucarla.log (parallel run 2026-06-11; variant pairing
+verified against the sequential run of the same date by matching sFID values)
+sFID: 48.8940
+sKID: 0.019723

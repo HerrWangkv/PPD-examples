@@ -1,0 +1,9 @@
+variant: ditto
+prompt_set: residual_v7
+pair0: 'Realistic materials.' / 'Plastic-looking materials.' = 0.2981
+pair1: 'A sharp real photo.' / 'A blurry computer render.' = 0.8965
+pair2: 'A photo with a clean lens.' / 'An image with rendered light bloom.' = 0.6885
+pair3: 'Realistic surface materials.' / 'Artificial plastic surfaces.' = 0.0219
+pair4: 'Natural material textures.' / 'Synthetic plastic textures.' = 0.6177
+frames: 2940
+CLIP-Residual: 0.5045

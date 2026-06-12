@@ -71,8 +71,9 @@
     {
       "id": "dropll_ablation_b",
       "title": "Ablation B: step-6000 lora，无 drop_ll flag",
-      "status": "pending",
-      "details": "低优先级，消融 A 已说清故事。",
+      "status": "closed",
+      "updatedAt": "2026-06-11",
+      "details": "已关闭（2026-06-11 omp:plan）：消融 A 已说清故事，不再需要。",
       "priority": "low"
     },
     {
@@ -103,10 +104,10 @@
     {
       "id": "track_a_sync_denoising",
       "title": "Track A: Synchronized denoising at inference",
-      "status": "pending",
-      "updatedAt": "2026-06-03",
-      "details": "warp_and_blend_latents() already implemented in wavelet_noise_mv.py. Need: sim2real_nucarla_mv_sync.py (one shared denoising loop, per-step latent blend). No training needed. Directly addresses both HF and global color inconsistency.",
-      "priority": "high"
+      "status": "frozen",
+      "updatedAt": "2026-06-11",
+      "details": "已冻结（2026-06-11 omp:plan）：与本次投稿主线无关，thesis 阶段再启。原计划：warp_and_blend_latents() already implemented in wavelet_noise_mv.py. Need: sim2real_nucarla_mv_sync.py (one shared denoising loop, per-step latent blend). No training needed.",
+      "priority": "low"
     },
     {
       "id": "hypersim_ppd_r24",
@@ -127,34 +128,116 @@
     {
       "id": "nucarla_lightemma_cosmos_depth_edge",
       "title": "nuCarla Cosmos depth+edge LightEMMA eval",
-      "status": "pending",
-      "updatedAt": "2026-06-07",
-      "details": "60 scenes translating (50/60 done, confident_pascal container). Once done: bash run_lightemma_eval.sh outputs/nucarla/cosmos_depth_edge cosmos_depth_edge. Filter: exclude _control_*.mp4. Needs Gemini key.",
+      "status": "done",
+      "updatedAt": "2026-06-11",
+      "details": "Complete. Results in LightEMMA table in Results.md.",
       "priority": "high"
     },
     {
       "id": "nucarla_dnaedit_translate",
       "title": "nuCarla DNAEdit 60-scene translation",
-      "status": "pending",
-      "updatedAt": "2026-06-07",
-      "details": "Fix: add pip install imageio[ffmpeg] to run_nucarla_dnaedit.sh (libx264 missing from wpd-dnaedit image). 2 scenes done as .npy (invalid). Output: outputs/nucarla/dnaedit/. Needs 4 GPUs (GPUs 0-3, after cosmos finishes).",
+      "status": "done",
+      "updatedAt": "2026-06-11",
+      "details": "Complete. outputs/nucarla/dnaedit/. guide_scale=1.0 fix applied.",
       "priority": "high"
     },
     {
       "id": "nucarla_dnaedit_lightemma",
       "title": "nuCarla DNAEdit LightEMMA eval",
-      "status": "pending",
-      "updatedAt": "2026-06-07",
-      "details": "After DNAEdit translation completes. Run: bash run_lightemma_eval.sh outputs/nucarla/dnaedit dnaedit",
+      "status": "done",
+      "updatedAt": "2026-06-11",
+      "details": "Complete. DNAEdit ADE_avg +12.38% (worst method). Results.md updated.",
       "priority": "high"
     },
     {
-      "id": "nucarla_eval_video",
-      "title": "nuCarla eval_video (patch-sFID + motion_smoothness) for new variants",
+      "id": "nucarla_realism_metrics",
+      "title": "nuCarla realism metrics (KID / CLIP-IQA / patch-FID) all 10 variants",
+      "status": "done",
+      "updatedAt": "2026-06-11",
+      "output": "logs/kid_nucarla.log, logs/clipiqa_nucarla.log, logs/patch_sfid_nucarla.log",
+      "details": "Patch-FID: WPD drop_ll J5=42.21 (4th/10), WPD baseline=35.77 (2nd/10). KID unreliable (sensor-anchored to Basler cameras). Results.md: nuCarla Realism Metrics section added.",
+      "priority": "high"
+    },
+    {
+      "id": "theory_linear_operators",
+      "title": "FFT/DTCWT as linear operators — paper Method formulation",
+      "status": "in-progress",
+      "updatedAt": "2026-06-11",
+      "details": "Unify PPD (FFT) and WPD (DTCWT) as linear subspace selection + in-subband phase preservation. Note: transform T is linear, phase extraction is NOT — phrase as 'linear subspace selection'. Validation experiments: E1-E5 (separate tasks). Write as Method section core formulation.",
+      "priority": "high"
+    },
+    {
+      "id": "theory_e1_subband_auc",
+      "title": "E1: per-subband domain discriminability (linear classifier AUC)",
       "status": "pending",
-      "updatedAt": "2026-06-07",
-      "details": "eval_video submodule added. Existing results: carla/cosmos/ppd/wavelet/ditto (motion_smoothness only in json; patch_sfid in missing log files). New variants to eval: cosmos_depth_edge (filter out _control_*.mp4), dnaedit (after translation). Uses VBench motion_smoothness + eval_patch_sfid.py (--real_dir /tmp/nuscenes --fake_dir <video_dir>). Update eval_video/eval.sh and re-run for new variants.",
+      "updatedAt": "2026-06-11",
+      "details": "DTCWT decompose paired vKITTI clone + KITTI real frames (2126 pairs). Per subband (J levels × 6 orientations + LL): coefficient statistics → sklearn LogisticRegression → domain AUC bar chart. Prediction: LL highest AUC, HF phase ≈ 0.5. Justifies drop_ll as 'dropping the linearly domain-separable subspace'. CPU-only, ~1 day.",
+      "priority": "high"
+    },
+    {
+      "id": "theory_e2_info_budget",
+      "title": "E2: information budget re-analysis (ρ-axis tradeoff curves)",
+      "status": "pending",
+      "updatedAt": "2026-06-11",
+      "details": "Convert r/J to preserved-dimension fraction ρ (ρ_FFT ≈ πr²/(HW); ρ_DTCWT = preserved subband dims / total). Re-plot existing vKITTI FID/KID/mIoU curves from logs/vkitti_eval/ on ρ axis. If PPD and ψ-PD curves align in ρ: tradeoff is information-driven; residual gap quantifies locality/orientation benefit. Re-analysis only, ~0.5 day.",
+      "priority": "high"
+    },
+    {
+      "id": "theory_e3_trajectory",
+      "title": "E3: structure preservation along denoising trajectory",
+      "status": "pending",
+      "updatedAt": "2026-06-11",
+      "details": "Instrument inference loop: log per-step DTCWT phase similarity between x̂₀ and sim input, WPD vs SDEdit at matched strength. Prediction: WPD flat retention; SDEdit loses then partially recovers. Mechanistic figure for flow matching connection. Few scenes, ~1 day.",
       "priority": "medium"
+    },
+    {
+      "id": "theory_e4_gaussianity",
+      "title": "E4: marginal Gaussianity of structured noise",
+      "status": "pending",
+      "updatedAt": "2026-06-11",
+      "details": "QQ-plots/KS tests on ε_struct per-pixel marginals + covariance spectrum vs N(0,I). Optional: break Gaussianity (leak>0) and show FID degrades monotonically. Explains why pretrained model accepts structured noise. ~1-2 days.",
+      "priority": "medium"
+    },
+    {
+      "id": "theory_e5_third_basis",
+      "title": "E5: third linear basis (DCT or orthogonal DWT)",
+      "status": "pending",
+      "updatedAt": "2026-06-11",
+      "details": "Implement structured noise with DCT (or db4 DWT), run vKITTI at 2-3 radii, eval FID/mIoU. Prediction: lands between PPD (global basis) and ψ-PD (local basis). Strongest generality claim but most expensive: ~3-4 days GPU. Optional.",
+      "priority": "low"
+    },
+    {
+      "id": "nucarla_patch_kid",
+      "title": "nuCarla patch-KID + NN-distance (10 variants rerun)",
+      "status": "done",
+      "updatedAt": "2026-06-11",
+      "details": "Done. Renamed sFID/sKID (EPE/DwD protocol). WPD baseline sKID 0.0133 best overall (beats Ditto).",
+      "priority": "high"
+    },
+    {
+      "id": "nucarla_vlm_judge",
+      "title": "nuCarla VLM-as-judge realism scoring (Gemini)",
+      "status": "closed",
+      "updatedAt": "2026-06-12",
+      "details": "Closed: superseded by CLIP-Residual v7 prompt ensemble (cheaper, reproducible, constraint-validated).",
+      "priority": "high"
+    },
+    {
+      "id": "clip_residual_v7",
+      "title": "CLIP-Residual v7 指标选定（prompt 搜索战役）",
+      "status": "done",
+      "updatedAt": "2026-06-12",
+      "output": "calc_prompt_search_v{3,5,7}.py, calc_clipiqa_prompts_nucarla.py, figures/ablation_clip_residual_v7.png",
+      "details": "46对候选/41条约束/~150万组合。v7=[23,27,35,37,38] 全合规材质/渲染措辞；40/41；frontier 成立；双benchmark dropll 均值第一(除ditto)。nuCarla 逐scene不显著为已知代价。"
+    },
+    {
+      "id": "v7_rollout",
+      "title": "v7 收尾：Results.md 换版 + vKITTI 全表补跑 + REAL_KITTI",
+      "status": "done",
+      "updatedAt": "2026-06-13",
+      "priority": "high",
+      "details": "v7 全量正式评估完成：54 per-variant 日志；Results.md 两 benchmark paper/full 表定稿（nuCarla ours 六列全冠）；Ablation1 三观察（KID 混杂反例论证）；slides S11-S18 更新推送；MS 10/10；ψ-PD 命名统一。",
+      "output": "logs/{vkitti,nucarla}_eval/*_clipres.log (54), summarize_nucarla_eval.py, figures/ablation1_4panel.png, Results.md, ss26@48c6fdc"
     }
   ]
 }

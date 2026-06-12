@@ -1,0 +1,9 @@
+variant: cosmos_depth_seg_imgs
+prompt_set: residual_v7
+pair0: 'Realistic materials.' / 'Plastic-looking materials.' = 0.3562
+pair1: 'A sharp real photo.' / 'A blurry computer render.' = 0.8108
+pair2: 'A photo with a clean lens.' / 'An image with rendered light bloom.' = 0.5132
+pair3: 'Realistic surface materials.' / 'Artificial plastic surfaces.' = 0.0453
+pair4: 'Natural material textures.' / 'Synthetic plastic textures.' = 0.2069
+images: 2126
+CLIP-Residual: 0.3865

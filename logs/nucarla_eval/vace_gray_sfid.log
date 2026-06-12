@@ -1,0 +1,6 @@
+variant: vace_gray
+protocol: EPE semantically-matched patches (Richter et al. 2022), as in DwD
+source: logs/patch_sfid_nucarla.log (parallel run 2026-06-11; variant pairing
+verified against the sequential run of the same date by matching sFID values)
+sFID: 59.9142
+sKID: 0.028114

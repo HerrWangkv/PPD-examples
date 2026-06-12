@@ -1,0 +1,9 @@
+variant: ablation_dropll_r8
+prompt_set: residual_v7
+pair0: 'Realistic materials.' / 'Plastic-looking materials.' = 0.2956
+pair1: 'A sharp real photo.' / 'A blurry computer render.' = 0.9382
+pair2: 'A photo with a clean lens.' / 'An image with rendered light bloom.' = 0.3061
+pair3: 'Realistic surface materials.' / 'Artificial plastic surfaces.' = 0.0180
+pair4: 'Natural material textures.' / 'Synthetic plastic textures.' = 0.6547
+images: 2126
+CLIP-Residual: 0.4425

@@ -1,79 +1,45 @@
 # Execution Context
-_最后同步：2026-06-07_
+_最后同步：2026-06-13_
 
 ## 当前任务
 
-**ID:** nucarla_dnaedit_translate + cosmos_lightemma
-**标题:** DNAEdit nuCarla 60-scene 翻译（HPC）+ cosmos LightEMMA 收尾
-**状态:** 双线并行
+**ID:** repo_commit → theory_e1 + writing
+**标题:** 主仓库 commit 收尾，随后理论实验 + 写作
+**状态:** commit 进行中
 
-## DNAEdit HPC 部署步骤
+## 指标体系（定稿，勿再改动）
 
-```bash
-# 1. rsync 至 HPC（调整 USER/HOST/HPCDIR）
-rsync -av --progress wpd-dnaedit.sif USER@HPC_HOST:HPCDIR/
-rsync -av --progress batch_dnaedit_nucarla.py sbatch_dnaedit_nucarla.sh USER@HPC_HOST:HPCDIR/
+**CLIP-Residual v7**（`calc_clipiqa_prompts_nucarla.py::RESIDUAL_V7_PROMPTS`，`--prompt_set residual_v7`）：
+plastic 材质×3 + render blur + rendered bloom。Slides/论文显示名 = CLIP-IQA（+synthetic-residual prompts 脚注）。
 
-# 2. 在 HPC 上更新 sbatch_dnaedit_nucarla.sh 的两个路径变量：
-#    REPO_DIR=<HPC 上 repo 根目录>
-#    DATA_DIR=<HPC 上 nuCarla rgb 视频目录>
+**一键复现入口**：
+- `python summarize_vkitti_eval.py`（列序 KID/FID/CLIP-Res/CLIP-IQA/mIoU/DepSSIM/AbsRel/LPIPS）
+- `python summarize_nucarla_eval.py [--pct]`（12 列：KID/FID/sKID/sFID/CMMD/CLIP-Res/MS/ADE×4/FDE）
+- 图：`python plot_ablation1_4panel.py --label-radii`；`plot_ablation_clip_residual.py --set v2..v7`
 
-# 3. 提交
-sbatch sbatch_dnaedit_nucarla.sh
-```
+**日志地图**：
+- logs/vkitti_eval/<v>_clipres.log（44 含 REAL_KITTI）；logs/nucarla_eval/<v>_{clipres,sfid}.log（各10）
+- logs/kid_nucarla.log（解析时跳过 RESULTS 汇总段）；logs/cmmd_nucarla.log
+- eval_video/evaluation_results/*_eval_results.json（MS，10/10，scene<60 过滤）
+- LightEMMA/output/<m>/scene_*.json（逐帧→scene→macro 均值）
 
-**关键修复（本次会话）：**
-- `guide_scale`: 5.0 → **1.0**（官方默认；5.0 导致输出不真实）
-- frame sampling: 已确认 nuCarla 视频 49 帧 @10fps，逐帧读取 = 均匀采样，无问题
+## 待办：主仓库 commit 内容
 
-## cosmos LightEMMA 收尾
+- .gitignore（已更新：根 npy/npz、dinov2_emb、models/ppd|ufd、tmp_*带tag、nucarla_eval 白名单）
+- 新评估脚本 ~20 个（calc_*、summarize_nucarla_eval.py、plot_ablation1_4panel.py 等）
+- Results.md、figures/（7 张新图）、logs/{vkitti,nucarla}_eval 新日志
+- submodule 指针：ss26 (48c6fdc)、eval_video (3910ba4)
+- 未决：fft-vs-dtcwpt/ 目录是否入库（用户定）
 
-```bash
-# 等 tmux scene_0059 完成后：
-cd LightEMMA && python calculate_metrics.py
-# 结果自动写入 output/cosmos_depth_edge/
-```
+## 理论实验（commit 后的 P0）
 
-## LightEMMA 当前评估结果（nuCarla 60 scenes）
+E1 子带域判别性（CPU 1天，per-subband AUC → drop_ll 原理图）；E2 信息预算重分析（半天）。
+设计细节见 tasks.json theory_e1/e2 与 06-11 冲刺计划。
 
-| Method | ADE_avg↓ | FDE↓ | vs carla |
-|--------|---------|-----|---------|
-| carla (raw sim) | 2.3372 | 5.2234 | baseline |
-| Cosmos d+e+s | 2.4665 | 5.5520 | +5.53% / +6.29% |
-| Ditto | 2.3838 | 5.4236 | +1.99% / +3.83% |
-| PPD r30 | 2.4133 | 5.3885 | +3.25% / +3.16% |
-| WPD drop_ll r30 J=5 | 2.2336 | 5.0061 | −4.44% / −4.16% |
-| WPD baseline r30 | **2.2097** | **4.9527** | **−5.46% / −5.18%** |
-| Cosmos depth+edge | TBD (running) | — | — |
-| DNAEdit | TBD (HPC) | — | — |
+## 上下文积累诊断（踩坑记录）
 
-## nuCarla 翻译状态
-
-| Variant | Scenes | Status |
-|---------|--------|--------|
-| carla (input) | 0000–0059 | ✅ done |
-| ppd r30 | 0000–0059 | ✅ done |
-| wavelet (WPD baseline r30) | 0000–0059 | ✅ done |
-| extension (WPD drop_ll r30 J5) | 0000–0059 | ✅ done |
-| ditto | 0000–0059 | ✅ done |
-| cosmos d+e+s | 0000–0059 | ✅ done |
-| cosmos depth+edge | 0000–0059 | ✅ done (60/60) |
-| dnaedit | 0000–0059 | ⏳ pending HPC |
-
-## 上下文积累诊断
-
-**DNAEdit 参数：**
-- guide_scale=1.0 (source CFG), tgt_guide_scale=5.0, jmp=12, seed=42
-- nuCarla 视频：49 帧, 10fps, 1280×704 — 逐帧连续读取正确
-- FSDP 4-GPU；dist.barrier() 在 save 之后；/usr/bin/ffmpeg (libx264)
-- 已验证：skip_denoise roundtrip 保存正常；完整去噪后 scene_0000/0001/0002 已正常保存（但用的 guide_scale=5.0，需重跑）
-
-**LightEMMA：**
-- predict_and_eval_carla.py: 每 2 帧 (5Hz)，3 Gemini calls/frame；已有 JSON 则跳过
-- calculate_metrics.py: intersection of scenes across methods；macro-avg（场景数相同则等价于 micro-avg）
-- Config: LightEMMA/config.yaml → api_keys.gemini
-
-**Apptainer：**
-- wpd-dnaedit.sif: 8.3 GB，位于 repo 根目录
-- 从 docker-daemon://wpd-dnaedit:latest 构建
-- SLURM 脚本: sbatch_dnaedit_nucarla.sh（需更新 REPO_DIR / DATA_DIR）
+- conda run 缓冲 log 到进程结束；.venv 直跑可实时
+- pgrep -f 自匹配（门控脚本）；vbench 用官方原始命令、按 cwd 隔离输出
+- KITTI 真实帧混合分辨率 → batch 按尺寸分桶
+- kid log 末尾 RESULTS 汇总段会污染逐段解析
+- 指标教训与 prompt 合规标准见 project_truth 决策记录

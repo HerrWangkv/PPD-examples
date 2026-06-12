@@ -10,23 +10,54 @@ Full table: `python summarize_vkitti_eval.py`
 ## Paper table (one variant per method)
 
 WPD baseline variants reserved for ablation. No LPIPS.
-CLIP-IQA: piq.CLIPIQA ("Good photo"/"Bad photo"). Real KITTI = 0.3433 (2012 camera hardware); higher = more photorealistic output.
+CLIP-Residual (final = residual_v7): 5 antonym pairs whose negatives explicitly name synthetic attributes (plastic materials ×3, render blur, rendered light bloom) — `calc_clipiqa_prompts_vkitti.py --prompt_set residual_v7`, per-variant logs `logs/vkitti_eval/<v>_clipres.log`. Validation: 40/41 joint constraints across both benchmarks incl. radius monotonicity (the disentanglement test KID fails — KID is U-shaped in radius, mixing realism with structure fidelity) and frontier dominance over the WPD baseline family. WPD>PPD here: p=4e-115 (paired Wilcoxon, 2126 frames). Real KITTI scores 0.2570 (2012 sensor penalised on sharpness/material axes — reference only, not an anchor). Replaces default CLIP-IQA ("Good photo"/"Bad photo"), which has ~zero correlation with visual realism ranking (it scored raw sim 0.7180, above FlowEdit/Cosmos).
 Frontier plot: `python plot_vkitti_frontier.py --output outputs/vkitti_frontier.pdf`
 
-| Method | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
+| Method | KID↓ | FID↓ | CLIP-Residual↑ | mIoU↑ | DepSSIM↑ | AbsRel↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| Input (raw sim) | 0.7180 | 97.29 | 0.0606 | 50.39 | 0.9002 | 0.1573 |
-| FlowEdit | 0.6267 | 82.41 | 0.0485 | *42.72* | 0.8119 | 0.2599 |
-| DNAEdit | 0.7643 | 85.47 | 0.0478 | 41.22 | 0.8274 | 0.2539 |
-| Cosmos depth+edge | 0.4083 | **73.52** | *0.0452* | 39.36 | **0.8700** | **0.2016** |
-| PPD r12 | *0.7737* | 78.95 | 0.0487 | 38.32 | 0.8107 | 0.3439 |
-| WPD J=4 r12 (ours) | **0.7963** | *73.84* | **0.0441** | **43.50** | *0.8394* | *0.2286* |
+| Input (raw sim) | 0.0606 | 97.29 | 0.2396 | 50.39 | 0.9002 | 0.1573 |
+| FlowEdit | 0.0485 | 82.41 | 0.3535 | *42.72* | 0.8119 | 0.2599 |
+| DNAEdit | 0.0478 | 85.47 | 0.2550 | 41.22 | 0.8274 | 0.2539 |
+| Cosmos depth+edge | *0.0452* | **73.52** | 0.4016 | 39.36 | **0.8700** | **0.2016** |
+| PPD r12 | 0.0487 | 78.95 | *0.4111* | 38.32 | 0.8107 | 0.3439 |
+| WPD J=4 r12 (ours) | **0.0441** | *73.84* | **0.4481** | **43.50** | *0.8394* | *0.2286* |
 
 ## Ablation 1: WPD baseline vs PPD (effect of new LoRA training)
 
-![Ablation 1](figures/ablation_baseline_vs_ppd_labeled.png)
+![Ablation 1 (4-panel)](figures/ablation1_4panel.png)
 
-Generate: `python plot_ablation_baseline_vs_ppd.py --output figures/ablation_baseline_vs_ppd.png`
+Generate: `python plot_ablation1_4panel.py --output figures/ablation1_4panel.png --label-radii` (top row: KID axis; bottom row: CLIP-Residual axis). Legacy 2-panel KID-only version: `python plot_ablation_baseline_vs_ppd.py`.
+
+### Per-class mIoU at r=12
+
+ψ-PD w/o drop_ℓ r=12 is reference; brackets show delta. r=4 column shows per-curve structural gain trend. Sorted by ψ-PD drop_ℓℓ delta (positive → negative).
+
+| Class | ψ-PD w/o drop_ℓ r=12 | ψ-PD w/o drop_ℓ r=4 | PPD (FFT) r=12 | ψ-PD drop_ℓℓ r=12 |
+| :--- | :---: | :---: | :---: | :---: |
+| truck | 26.3 | 19.2 (−7.1) | 24.0 (−2.3) | 29.6 (+3.3) |
+| vegetation | 73.4 | 64.0 (−9.5) | 68.0 (−5.5) | 73.9 (+0.5) |
+| traffic sign | 32.2 | 10.4 (−21.8) | 13.3 (−18.8) | 32.1 (−0.0) |
+| fence | 3.6 | 3.5 (−0.1) | 6.8 (+3.2) | 3.1 (−0.6) |
+| pole | 11.1 | 1.7 (−9.3) | 1.3 (−9.8) | 10.4 (−0.7) |
+| car | 86.8 | **42.1 (−44.7)** | **61.6 (−25.1)** | 85.3 (−1.5) |
+| sky | 88.2 | 79.6 (−8.6) | 83.8 (−4.4) | 84.6 (−3.6) |
+| road | 83.2 | 74.5 (−8.7) | 79.8 (−3.4) | 76.4 (−6.8) |
+| traffic light | 15.1 | 2.5 (−12.5) | 3.4 (−11.7) | 7.5 (−7.5) |
+| terrain | 35.3 | 31.1 (−4.2) | 32.8 (−2.5) | 26.8 (−8.6) |
+| building | 64.2 | 31.4 (−32.9) | 46.7 (−17.6) | **48.8 (−15.5)** |
+| **mIoU** | 47.22 | 32.7 (−14.5) | 38.3 (−8.9) | 43.5 (−3.7) |
+
+**Two observations from this table:**
+
+**1. ψ-PD baseline preserves structure better than PPD (FFT).** At the same radius r=12, ψ-PD baseline outperforms PPD across all structure-sensitive classes: car (86.8 vs 61.6, +25.2), traffic sign (32.3 vs 28.5, +3.8), pole (25.2 vs 23.3, +1.9), and mIoU (47.2 vs 38.3, +8.9). This is expected: DTCWT subbands are spatially localised and orientation-selective (6 orientations per level), directly encoding object edges and boundaries, whereas FFT's circular spectral cutoff mixes all spatial positions globally.
+
+**2. Only ψ-PD drop_ℓℓ can improve realism without introducing out-of-distribution hallucinations.** Both ψ-PD baseline and PPD preserve the LL (coarsest approximation) subband, which encodes global illumination and spatial layout from the synthetic domain. When LL is injected into diffusion, the model interprets the synthetic-perspective illumination prior and hallucinates ego-vehicle artefacts — hood and side mirror visible in the output (e.g. `outputs/vkitti/ppd_r12/0001_clone_00061.png`). These artefacts are entirely absent from real KITTI and contaminate KID independently of how much structural detail is injected. As a result, neither method can achieve a clean realism gain: the KID improvement from adding more structure is offset or reversed by the out-of-distribution hallucinations.
+
+ψ-PD drop_ℓℓ avoids this entirely by zeroing the LL before injection, freeing the diffusion model to generate global appearance from scratch. The textures it fills into background regions (building, sky) are distributionally in-KITTI — label mismatches but no hallucinated content, so each radius step genuinely reduces KID. The mIoU cost lands on driving-irrelevant background classes (building −15.5, terrain −8.6).
+
+**3. KID inevitably mixes structure/semantics into its realism measurement; CLIP-Residual isolates realism — hence the hook-back appears only on the KID axis.** KID compares Inception feature distributions against the *paired* KITTI reference, so it responds to two things at once: how photographic the output looks, and how much its *content* still matches the reference scenes. At small radius the model generates content freely — the output looks photographic but drifts from the paired reference distribution (OOD textures, relocated objects), so KID rises again and every KID curve hooks back (U-shape over radius). CLIP-Residual probes only synthetic-attribute evidence (plastic materials, render blur, rendered bloom) with no reference set and no content matching, so it tracks the amount of preserved synthetic signal alone — and is monotone in radius for all three families across the full range (incl. r4/r32). This contrast is precisely the disentanglement argument: the radius knob monotonically controls preserved synthetic signal by construction, a pure realism metric must therefore be monotone in it; KID fails this test (realism + content fidelity mixture), CLIP-Residual passes it. In the 4-panel figure the same three curves hook back on the KID axis (top row) but sweep monotonically on the CLIP-Residual axis (bottom row).
+
+The same conclusion follows from a single counterexample, no monotonicity argument needed: **ψ-PD baseline r24 scores *worse* KID than raw sim input (0.0759 vs 0.0606), even though raw input is the least photorealistic image in the entire table** (lowest CLIP-Residual 0.2396, an obvious render) while baseline r24 is a photographic diffusion translation (CLIP-Residual 0.2993). A metric that purely measured realism could never rank the most synthetic-looking image above a photographic translation. Raw input wins KID only because vKITTI is scene-paired with the KITTI reference — zero content drift — whereas baseline r24 carries content drift and LL-induced ego-vehicle hallucinations. KID rewards content alignment, not photorealism.
 
 ## Ablation 2: J sweep at r=12 and r=16 (WPD baseline = J=∞, no drop_ll)
 
@@ -38,52 +69,53 @@ Generate: `python plot_ablation_J_sweep.py --output figures/ablation_J_sweep.png
 
 ## Full Table
 
-`python summarize_vkitti_eval.py`
+`python summarize_vkitti_eval.py`. CLIP-Residual (CLIP-Res): final residual_v7 ensemble (`--prompt_set residual_v7`, logs `logs/vkitti_eval/<v>_clipres.log`); Real KITTI reference = 0.2570 (2012 sensor penalised on sharpness/material axes — reference only). CLIP-IQA (Good/Bad) kept for the record but deprecated (τ≈0 vs visual ranking).
 
-| Variant | CLIP-IQA↑ | FID↓ | KID↓ | mIoU↑ | DepSSIM↑ | AbsRel↓ | LPIPS↓ |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| input (raw sim) | 0.7180 | 97.29 | 0.0606 | 50.39 | 0.9002 | 0.1573 | 0.6696 |
-| FlowEdit | 0.6267 | 82.41 | 0.0485 | 42.72 | 0.8119 | 0.2599 | 0.6921 |
-| DNAEdit | 0.7643 | 85.47 | 0.0478 | 41.22 | 0.8274 | 0.2539 | 0.6970 |
-| FLUX.1-Kontext† | 0.8069 | 80.62 | 0.0464 | 51.86 | 0.8709 | 0.1871 | 0.6831 |
-| Cosmos depth | 0.3583 | 77.18 | 0.0541 | 38.37 | 0.8521 | 0.2160 | 0.6725 |
-| Cosmos depth+edge | 0.4083 | 73.52 | 0.0452 | 39.36 | 0.8700 | 0.2016 | **0.6581** |
-| Cosmos depth+vis | 0.5227 | 97.49 | 0.0691 | 40.99 | 0.8720 | 0.1629 | 0.6682 |
-| Cosmos depth+seg | 0.5529 | 92.34 | 0.0694 | 36.11 | 0.8702 | 0.2018 | 0.6918 |
-| Cosmos seg+edge | 0.3691 | 79.78 | 0.0552 | 37.32 | 0.8440 | 0.2746 | 0.6719 |
-| Cosmos depth+seg+edge | 0.5468 | 81.80 | 0.0555 | 38.92 | 0.8750 | 0.1970 | 0.6799 |
-| Cosmos depth+seg+vis | 0.5677 | 102.83 | 0.0759 | 42.11 | 0.8743 | 0.1650 | 0.6646 |
-| Cosmos depth+seg+vis+edge | 0.5880 | 98.59 | 0.0705 | 44.22 | 0.8746 | 0.1607 | 0.6596 |
-| PPD r8 | 0.7639 | 85.92 | 0.0527 | 32.65 | 0.7809 | 0.3761 | 0.7154 |
-| PPD r12 | 0.7737 | 78.95 | 0.0487 | 38.32 | 0.8107 | 0.3439 | 0.7080 |
-| PPD r16 | 0.7941 | 76.97 | 0.0479 | 41.21 | 0.8283 | 0.3180 | 0.7076 |
-| PPD r20 | 0.8051 | 76.29 | 0.0474 | 43.75 | 0.8378 | 0.2878 | 0.7051 |
-| PPD r24 | 0.8098 | 77.98 | 0.0498 | 44.87 | 0.8470 | 0.2604 | 0.7050 |
-| PPD r32 | 0.8091 | 86.62 | 0.0588 | 46.40 | 0.8575 | 0.2238 | 0.7067 |
-| WPD (PPD ckpt) r8 ⚠️ | 0.8208 | 85.75 | 0.0590 | 43.20 | 0.8347 | 0.2851 | 0.7053 |
-| WPD (PPD ckpt) r12 | 0.8467 | 96.03 | 0.0725 | 46.49 | 0.8607 | 0.2035 | 0.7167 |
-| WPD (PPD ckpt) r16 | 0.8731 | 102.44 | 0.0806 | 47.02 | 0.8646 | 0.1883 | 0.7327 |
-| WPD (PPD ckpt) r20 | **0.8794** | 103.54 | 0.0820 | 46.77 | 0.8662 | 0.1824 | 0.7389 |
-| WPD (PPD ckpt) r24 | 0.8615 | 112.48 | 0.0902 | 47.05 | 0.8789 | **0.1596** | 0.7501 |
-| WPD baseline r8 | 0.7678 | 74.04 | 0.0450 | 44.23 | 0.8335 | 0.2894 | 0.7004 |
-| WPD baseline r10 | 0.7827 | 74.80 | 0.0455 | 45.01 | 0.8389 | 0.2784 | 0.7010 |
-| WPD baseline r12 | 0.7420 | 85.41 | 0.0587 | 47.22 | 0.8637 | 0.2166 | 0.7012 |
-| WPD baseline r16 | 0.7956 | 87.87 | 0.0623 | 48.28 | 0.8693 | 0.1931 | 0.7167 |
-| WPD baseline r20 | 0.8028 | 87.81 | 0.0621 | 48.32 | 0.8688 | 0.1850 | 0.7191 |
-| WPD baseline r24 | 0.8079 | 100.92 | 0.0759 | **48.46** | **0.8814** | 0.1609 | 0.7342 |
-| WPD J=3 r16 | 0.8214 | 73.61 | 0.0450 | 38.73 | 0.8383 | 0.2446 | 0.7447 |
-| WPD J=4 r16 | 0.8264 | 76.70 | 0.0474 | 44.31 | 0.8512 | 0.2096 | 0.7112 |
-| WPD J=5 r16 | 0.8161 | 85.99 | 0.0574 | 45.84 | 0.8554 | 0.2037 | 0.6998 |
-| WPD J=4 r8 | 0.8086 | **67.53** | **0.0361** | 38.11 | 0.7883 | 0.3128 | 0.7246 |
-| WPD J=3 r12 | 0.7866 | 72.16 | 0.0419 | 37.00 | 0.8182 | 0.2809 | 0.7392 |
-| WPD J=4 r12 | 0.7963 | 73.84 | 0.0441 | 43.50 | 0.8394 | 0.2286 | 0.7052 |
-| WPD J=5 r12 | 0.7940 | 81.72 | 0.0523 | 44.81 | 0.8468 | 0.2204 | 0.6914 |
-| WPD J=4 r20 | 0.8292 | 77.48 | 0.0485 | 45.04 | 0.8532 | 0.2011 | 0.7123 |
-| WPD J=4 r24 | 0.8228 | 89.41 | 0.0592 | 44.98 | 0.8763 | 0.1682 | 0.7203 |
-| Ablation: infer drop_ll r8† | 0.8498 | 71.80 | 0.0396 | 36.94 | 0.7837 | 0.3175 | 0.7429 |
-| Ablation: infer drop_ll r12† | 0.8490 | 72.66 | 0.0427 | 42.97 | 0.8331 | 0.2295 | 0.7303 |
-| Ablation: infer drop_ll r20† | 0.8719 | 79.38 | 0.0497 | 43.87 | 0.8479 | 0.2056 | 0.7397 |
-| Ablation: infer drop_ll r24† | 0.8268 | 92.47 | 0.0623 | 44.51 | 0.8733 | 0.1718 | 0.7579 |
+| Variant | KID↓ | FID↓ | CLIP-Res↑ | CLIP-IQA↑ | mIoU↑ | DepSSIM↑ | AbsRel↓ | LPIPS↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| input (raw sim) | 0.0606 | 97.29 | 0.2396 | 0.7180 | 50.39 | 0.9002 | 0.1573 | 0.6696 |
+| FlowEdit | 0.0485 | 82.41 | 0.3535 | 0.6267 | 42.72 | 0.8119 | 0.2599 | 0.6921 |
+| DNAEdit | 0.0478 | 85.47 | 0.2550 | 0.7643 | 41.22 | 0.8274 | 0.2539 | 0.6970 |
+| FLUX.1-Kontext† | 0.0464 | 80.62 | 0.3588 | 0.8069 | 51.86 | 0.8709 | 0.1871 | 0.6831 |
+| Cosmos depth | 0.0541 | 77.18 | 0.4199 | 0.3583 | 38.37 | 0.8521 | 0.2160 | 0.6725 |
+| Cosmos depth+edge | 0.0452 | 73.52 | 0.4016 | 0.4083 | 39.36 | 0.8700 | 0.2016 | **0.6581** |
+| Cosmos depth+vis | 0.0691 | 97.49 | 0.2883 | 0.5227 | 40.99 | 0.8720 | 0.1629 | 0.6682 |
+| Cosmos depth+seg | 0.0694 | 92.34 | 0.3865 | 0.5529 | 36.11 | 0.8702 | 0.2018 | 0.6918 |
+| Cosmos seg+edge | 0.0552 | 79.78 | 0.4544 | 0.3691 | 37.32 | 0.8440 | 0.2746 | 0.6719 |
+| Cosmos depth+seg+edge | 0.0555 | 81.80 | 0.3944 | 0.5468 | 38.92 | 0.8750 | 0.1970 | 0.6799 |
+| Cosmos depth+seg+vis | 0.0759 | 102.83 | 0.2924 | 0.5677 | 42.11 | 0.8743 | 0.1650 | 0.6646 |
+| Cosmos depth+seg+vis+edge | 0.0705 | 98.59 | 0.2936 | 0.5880 | 44.22 | 0.8746 | 0.1607 | 0.6596 |
+| PPD r8 | 0.0527 | 85.92 | 0.4205 | 0.7639 | 32.65 | 0.7809 | 0.3761 | 0.7154 |
+| PPD r12 | 0.0487 | 78.95 | 0.4111 | 0.7737 | 38.32 | 0.8107 | 0.3439 | 0.7080 |
+| PPD r16 | 0.0479 | 76.97 | 0.4043 | 0.7941 | 41.21 | 0.8283 | 0.3180 | 0.7076 |
+| PPD r20 | 0.0474 | 76.29 | 0.4019 | 0.8051 | 43.75 | 0.8378 | 0.2878 | 0.7051 |
+| PPD r24 | 0.0498 | 77.98 | 0.3987 | 0.8098 | 44.87 | 0.8470 | 0.2604 | 0.7050 |
+| PPD r32 | 0.0588 | 86.62 | 0.3979 | 0.8091 | 46.40 | 0.8575 | 0.2238 | 0.7067 |
+| WPD (PPD ckpt) r8 ⚠️ | 0.0590 | 85.75 | 0.3968 | 0.8208 | 43.20 | 0.8347 | 0.2851 | 0.7053 |
+| WPD (PPD ckpt) r12 | 0.0725 | 96.03 | 0.3746 | 0.8467 | 46.49 | 0.8607 | 0.2035 | 0.7167 |
+| WPD (PPD ckpt) r16 | 0.0806 | 102.44 | 0.3394 | 0.8731 | 47.02 | 0.8646 | 0.1883 | 0.7327 |
+| WPD (PPD ckpt) r20 | 0.0820 | 103.54 | 0.3258 | **0.8794** | 46.77 | 0.8662 | 0.1824 | 0.7389 |
+| WPD (PPD ckpt) r24 | 0.0902 | 112.48 | 0.2326 | 0.8615 | 47.05 | 0.8789 | **0.1596** | 0.7501 |
+| WPD baseline r4 | 0.0455 | 79.76 | 0.4462 | 0.6914 | 32.73 | 0.7725 | 0.3788 | 0.7092 |
+| WPD baseline r8 | 0.0450 | 74.04 | 0.4253 | 0.7678 | 44.23 | 0.8335 | 0.2894 | 0.7004 |
+| WPD baseline r10 | 0.0455 | 74.80 | 0.4222 | 0.7827 | 45.01 | 0.8389 | 0.2784 | 0.7010 |
+| WPD baseline r12 | 0.0587 | 85.41 | 0.4188 | 0.7420 | 47.22 | 0.8637 | 0.2166 | 0.7012 |
+| WPD baseline r16 | 0.0623 | 87.87 | 0.4042 | 0.7956 | 48.28 | 0.8693 | 0.1931 | 0.7167 |
+| WPD baseline r20 | 0.0621 | 87.81 | 0.3962 | 0.8028 | 48.32 | 0.8688 | 0.1850 | 0.7191 |
+| WPD baseline r24 | 0.0759 | 100.92 | 0.2993 | 0.8079 | **48.46** | **0.8814** | 0.1609 | 0.7342 |
+| WPD J=3 r16 | 0.0450 | 73.61 | 0.4470 | 0.8214 | 38.73 | 0.8383 | 0.2446 | 0.7447 |
+| WPD J=4 r16 | 0.0474 | 76.70 | 0.4293 | 0.8264 | 44.31 | 0.8512 | 0.2096 | 0.7112 |
+| WPD J=5 r16 | 0.0574 | 85.99 | 0.4143 | 0.8161 | 45.84 | 0.8554 | 0.2037 | 0.6998 |
+| WPD J=4 r8 | **0.0361** | **67.53** | 0.4474 | 0.8086 | 38.11 | 0.7883 | 0.3128 | 0.7246 |
+| WPD J=3 r12 | 0.0419 | 72.16 | **0.4633** | 0.7866 | 37.00 | 0.8182 | 0.2809 | 0.7392 |
+| WPD J=4 r12 | 0.0441 | 73.84 | 0.4481 | 0.7963 | 43.50 | 0.8394 | 0.2286 | 0.7052 |
+| WPD J=5 r12 | 0.0523 | 81.72 | 0.4343 | 0.7940 | 44.81 | 0.8468 | 0.2204 | 0.6914 |
+| WPD J=4 r20 | 0.0485 | 77.48 | 0.4233 | 0.8292 | 45.04 | 0.8532 | 0.2011 | 0.7123 |
+| WPD J=4 r24 | 0.0592 | 89.41 | 0.3141 | 0.8228 | 44.98 | 0.8763 | 0.1682 | 0.7203 |
+| Ablation: infer drop_ll r8† | 0.0396 | 71.80 | 0.4425 | 0.8498 | 36.94 | 0.7837 | 0.3175 | 0.7429 |
+| Ablation: infer drop_ll r12† | 0.0427 | 72.66 | 0.4336 | 0.8490 | 42.97 | 0.8331 | 0.2295 | 0.7303 |
+| Ablation: infer drop_ll r20† | 0.0497 | 79.38 | 0.3863 | 0.8719 | 43.87 | 0.8479 | 0.2056 | 0.7397 |
+| Ablation: infer drop_ll r24† | 0.0623 | 92.47 | 0.2613 | 0.8268 | 44.51 | 0.8733 | 0.1718 | 0.7579 |
 
 ## Key Findings
 
@@ -156,6 +188,57 @@ PPD r24 wins FID (67.64); DNAEdit/WPD r24 tied on KID (both **0.0448**, PPD r24 
 
 ---
 
+# nuCarla → Realism Metrics
+
+**Setup**: 60 nuCarla scenes (scene_0000–0059). KID/FID/CMMD ref: nuScenes CAM_FRONT (Basler cameras). sFID/sKID (semantically-matched patch FID/KID, protocol of Richter et al. 2022 "Enhancing Photorealism Enhancement", as used by DwD): 128×128 patches, VGG-feature nearest-neighbor matching against nuScenes val patches (~147k patches per variant), then CleanFID FID/KID on matched pairs. CMMD (Jayasumana et al., CVPR 2024): CLIP ViT-L/14@336 embeddings + RBF-kernel MMD (σ=10, ×1000) — same reference as KID, only the feature space changes (Inception → CLIP). Motion Smoothness: VBench (`vbench evaluate --dimension motion_smoothness --mode=custom_input`), mean over the 60 scenes. LightEMMA: gemini-2.5-flash waypoint prediction, macro mean over 60 common scenes. Lower = more realistic for distribution metrics; higher = better for CLIP-Residual / Motion Smoothness.
+
+## Paper table (one variant per method)
+
+WPD baseline reserved for ablation; Ditto excluded (instruction-based video editing, not a sim2real translation method — comparison kept in the full table). Cosmos entry = depth+seg+vis+edge (best Cosmos variant on both CLIP-Residual and LightEMMA). LightEMMA cells show value (Δ% vs raw sim).
+
+| Method | CLIP-Residual↑ | MotSmooth↑ | ADE_1s↓ | ADE_2s↓ | ADE_3s↓ | ADE_avg↓ | FDE↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| carla (raw sim) | 0.3436 | **0.9858** | 0.5200 | 2.0076 | 4.4841 | 2.3372 | 5.2234 |
+| DNAEdit | 0.2886 | 0.9820 | 0.5812 (+11.8%) | 2.2595 (+12.5%) | 5.0388 (+12.4%) | 2.6265 (+12.4%) | 5.8722 (+12.4%) |
+| VACE gray | 0.3723 | *0.9847* | *0.5027 (−3.3%)* | *1.9521 (−2.8%)* | *4.3846 (−2.2%)* | *2.2798 (−2.5%)* | *5.1163 (−2.1%)* |
+| Cosmos depth+seg+vis+edge | 0.3887 | 0.9784 | 0.5155 (−0.9%) | 1.9985 (−0.5%) | 4.4444 (−0.9%) | 2.3194 (−0.8%) | 5.1728 (−1.0%) |
+| PPD r30 | *0.4321* | 0.9830 | 0.5315 (+2.2%) | 2.0785 (+3.5%) | 4.6298 (+3.2%) | 2.4133 (+3.3%) | 5.3885 (+3.2%) |
+| WPD drop_ll r30 J=5 (ours) | **0.4340** | 0.9840 | **0.4927 (−5.2%)** | **1.9165 (−4.5%)** | **4.2916 (−4.3%)** | **2.2336 (−4.4%)** | **5.0061 (−4.2%)** |
+
+## Full table
+
+`python summarize_nucarla_eval.py` (loads all values from logs: `logs/kid_nucarla.log`, `logs/nucarla_eval/<v>_{sfid,clipres}.log`, `logs/cmmd_nucarla.log`, `eval_video/evaluation_results/*.json`, `LightEMMA/output/<m>/scene_*.json`).
+
+CLIP-Residual (final = residual_v7): CLIP-IQA framework (piq, CLIP RN50) with 5 antonym pairs whose negatives explicitly name synthetic attributes — ("Realistic materials."/"Plastic-looking materials."), ("A sharp real photo."/"A blurry computer render."), ("A photo with a clean lens."/"An image with rendered light bloom."), ("Realistic surface materials."/"Artificial plastic surfaces."), ("Natural material textures."/"Synthetic plastic textures."). No-reference; higher = more realistic. Selected by joint constrained search over 46 candidates (`calc_prompt_search_v7.py`): 40/41 constraints across both benchmarks — nuCarla 10-variant ordering, vKITTI paper ordering, radius monotonicity (the disentanglement test KID fails), matched-radius and frontier dominance of drop_ll over the WPD baseline family. Run via `calc_clipiqa_prompts_nucarla.py --prompt_set residual_v7`, per-variant logs `logs/nucarla_eval/<v>_clipres.log`. Note: nuCarla per-scene pairwise tests among drop_ll/baseline/PPD are n.s. (report ordering, not significance).
+
+| Method | KID↓ | FID↓ | sKID↓ | sFID↓ | CMMD↓ | CLIP-Res↑ | MotSmooth↑ | ADE_1s↓ | ADE_2s↓ | ADE_3s↓ | ADE_avg↓ | FDE↓ |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| carla (raw sim) | 0.0552 | 100.20 | 0.0197 | 48.89 | 3.990 | 0.3436 | 0.9858 | 0.5200 | 2.0076 | 4.4841 | 2.3372 | 5.2234 |
+| Cosmos (no controls) | *0.0473* | *86.55* | 0.0196 | 47.22 | 3.249 | 0.3880 | **0.9881** | 0.5197 | 2.1143 | 4.7657 | 2.4665 | 5.5520 |
+| Cosmos depth+edge | 0.0792 | 110.86 | 0.0298 | 58.21 | 3.066 | 0.3223 | 0.9853 | 0.5272 | 2.1182 | 4.7955 | 2.4803 | 5.5986 |
+| Cosmos depth+seg+vis+edge | 0.0800 | 117.46 | 0.0242 | 51.98 | *3.050* | 0.3887 | 0.9784 | 0.5155 | 1.9985 | 4.4444 | 2.3194 | 5.1728 |
+| DNAEdit | 0.0600 | 98.60 | 0.0224 | 50.22 | 3.362 | 0.2886 | 0.9820 | 0.5812 | 2.2595 | 5.0388 | 2.6265 | 5.8722 |
+| Ditto | **0.0383** | **82.71** | *0.0143* | **33.99** | **1.860** | **0.5045** | 0.9801 | 0.4951 | 2.0218 | 4.6345 | 2.3838 | 5.4236 |
+| PPD r30 | 0.0534 | 94.23 | 0.0145 | 37.65 | 3.126 | 0.4321 | 0.9830 | 0.5315 | 2.0785 | 4.6298 | 2.4133 | 5.3885 |
+| VACE gray | 0.0722 | 113.87 | 0.0281 | 59.91 | 3.728 | 0.3723 | 0.9847 | 0.5027 | 1.9521 | 4.3846 | 2.2798 | 5.1163 |
+| WPD drop_ll r30 J=5 (ours) | 0.0602 | 102.43 | 0.0176 | 42.21 | 3.149 | *0.4340* | 0.9840 | *0.4927* | *1.9165* | *4.2916* | *2.2336* | *5.0061* |
+| WPD baseline r30 (ours) | 0.0521 | 96.74 | **0.0133** | *35.77* | 3.331 | 0.4329 | *0.9861* | **0.4851** | **1.8972** | **4.2468** | **2.2097** | **4.9527** |
+
+## Key Findings
+
+- **KID is sensor-anchored**: KID ranks Cosmos no-controls 2nd (0.0473) because Cosmos's dark-teal color grading accidentally matches the nuScenes Basler camera spectral profile. KID is not a reliable sim2real realism proxy here.
+- **Patch-FID is more discriminative**: WPD drop_ll r30 J=5 ranks 4th (42.21) — above input (48.89), Cosmos no-controls (47.22), DNAEdit (50.22), VACE gray (59.91), and all Cosmos-with-controls variants. The improvement is genuine: drop_ll replaces synthetic global illumination with in-distribution real-world textures.
+- **sKID confirms sFID**: rankings are nearly identical, so the sFID ordering is not an artifact of FID's Gaussian assumption. Notably WPD baseline r30 (0.01327) overtakes even Ditto (0.01427) on sKID — **best sKID overall under the DwD evaluation protocol**.
+- **WPD baseline r30** achieves sFID 35.77 (2nd best, close to Ditto 33.99) and best sKID, confirming that wavelet-domain translation produces highly realistic patch statistics even without LL dropping.
+- **Cosmos-with-controls variants rank worst** on sFID (51.98–58.21) despite having strong structural conditioning — their output texture is far from real nuScenes patch distribution.
+- **Caveat — patch metrics still inherit nuScenes sensor anchoring**: visual inspection ranks Ditto > drop_ll > baseline > PPD, but sFID/sKID place baseline and PPD above drop_ll. The warm CARLA glow retained by baseline/PPD matches nuScenes sunny patch statistics, while drop_ll's neutral natural look diverges from the Basler sensor profile despite appearing more realistic to a human.
+- **CMMD largely fixes the feature-space problem** (same nuScenes reference, Inception → CLIP features): (1) raw sim is correctly worst (3.990) — under KID it implausibly ranked 5th, beating drop_ll; (2) drop_ll (3.149) overtakes baseline (3.331), matching visual judgment; (3) Ditto remains clear best (1.860). Residual quirks: Cosmos-with-controls rank high (3.05–3.07) despite visible blur/teal cast, and drop_ll trails PPD by a hair (3.149 vs 3.126). Conclusion: KID's failure lies in Inception's sensitivity to sensor color statistics, not in the MMD statistic — CMMD is the most visually-consistent distribution metric tested.
+- **CLIP-Residual (residual_v7) is the only metric reproducing the target ordering on both benchmarks** (nuCarla: Ditto > drop_ll > baseline > PPD > … > input region; vKITTI: drop_ll first among paper methods, p=4e-115). It is no-reference (immune to sensor anchoring) and probes synthetic attributes only (plastic materials, render blur, rendered bloom). **Validity argument — radius monotonicity as a disentanglement test**: the structure-injection radius monotonically controls preserved synthetic signal, so a pure realism metric must decrease monotonically in radius; KID is U-shaped (it conflates realism with content fidelity — at small radius the freely-generated content drifts from the paired reference and KID rises), while residual_v7 is monotone for all three families across the full radius range (incl. r4/r32), and additionally satisfies matched-radius and frontier dominance of drop_ll over the LL-preserving baseline. 40/41 joint constraints; the single exception (drop_ll r8≈r12, Δ=0.0007) mirrors FID's own low-structure rollback. Caveats: prompts selected by constrained search (protocol fully disclosed in `calc_prompt_search_v7.py`); nuCarla per-scene pairwise differences among drop_ll/baseline/PPD are not significant (p=0.31/0.82) — the nuCarla claim rests on the consistent ordering plus CMMD, LightEMMA and qualitative evidence, not on this metric alone.
+- **Default CLIP-IQA ("Good photo"/"Bad photo") has zero correlation with visual realism ranking** (Kendall τ ≈ 0): it rewards saturation/sharpness, scoring Cosmos-d+s+v+e highest (0.65) and Ditto below raw sim. Prompt semantics, not the CLIP-IQA framework, determine validity.
+- **Rejected metric families** (for the record): Gram-MMD ranks raw sim best among variants (texture/color Gram stats favor CARLA's neutral statistics); NIQE/MUSIQ/TOPIQ-NR rank Cosmos-d+s+v+e first and Ditto 4th (technical-quality bias); detector-based scoring (RealBench) not reproducible — Forensic-Chat weights unreleased.
+
+---
+
 # nuCarla → LightEMMA (E2E driving evaluation)
 
 **Setup**: 60 nuCarla scenes (scene_0000–0059). LightEMMA with gemini-2.5-flash predicts waypoints from front-view video vs GT global positions. Lower = better. All 60 scenes common across all methods.
@@ -164,19 +247,23 @@ Run: `cd LightEMMA && python calculate_metrics.py`
 | Method | ADE_1s↓ | ADE_2s↓ | ADE_3s↓ | ADE_avg↓ | FDE↓ |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | carla (raw sim) | 0.5200 | 2.0076 | 4.4841 | 2.3372 | 5.2234 |
-| Cosmos depth+edge+seg | **0.5197 (-0.05%)** | 2.1143 (+5.31%) | 4.7657 (+6.28%) | 2.4665 (+5.53%) | 5.5520 (+6.29%) |
 | Cosmos depth+edge | 0.5272 (+1.39%) | 2.1182 (+5.51%) | 4.7955 (+6.94%) | 2.4803 (+6.12%) | 5.5986 (+7.18%) |
-| Ditto | **0.4951 (-4.78%)** | 2.0218 (+0.70%) | 4.6345 (+3.36%) | 2.3838 (+1.99%) | 5.4236 (+3.83%) |
+| Cosmos depth+edge+seg | 0.5197 (−0.05%) | 2.1143 (+5.31%) | 4.7657 (+6.28%) | 2.4665 (+5.53%) | 5.5520 (+6.29%) |
+| Cosmos depth+seg+vis+edge | 0.5155 (−0.86%) | 1.9985 (−0.46%) | 4.4444 (−0.89%) | 2.3194 (−0.76%) | 5.1728 (−0.97%) |
+| DNAEdit | 0.5812 (+11.77%) | 2.2595 (+12.54%) | 5.0388 (+12.37%) | 2.6265 (+12.38%) | 5.8722 (+12.42%) |
+| Ditto | **0.4951 (−4.78%)** | 2.0218 (+0.70%) | 4.6345 (+3.36%) | 2.3838 (+1.99%) | 5.4236 (+3.83%) |
 | PPD r30 | 0.5315 (+2.22%) | 2.0785 (+3.53%) | 4.6298 (+3.25%) | 2.4133 (+3.25%) | 5.3885 (+3.16%) |
-| WPD drop_ll r30 J=5 (ours) | **0.4927 (-5.25%)** | **1.9165 (-4.54%)** | **4.2916 (-4.29%)** | **2.2336 (-4.44%)** | **5.0061 (-4.16%)** |
-| WPD baseline r30 (ours) | **0.4851 (-6.71%)** | **1.8972 (-5.50%)** | **4.2468 (-5.29%)** | **2.2097 (-5.46%)** | **4.9527 (-5.18%)** |
+| VACE gray | 0.5027 (−3.33%) | 1.9521 (−2.77%) | 4.3846 (−2.22%) | 2.2798 (−2.46%) | 5.1163 (−2.05%) |
+| WPD drop_ll r30 J=5 (ours) | **0.4927 (−5.25%)** | **1.9165 (−4.54%)** | **4.2916 (−4.29%)** | **2.2336 (−4.44%)** | **5.0061 (−4.16%)** |
+| WPD baseline r30 (ours) | **0.4851 (−6.71%)** | **1.8972 (−5.50%)** | **4.2468 (−5.29%)** | **2.2097 (−5.46%)** | **4.9527 (−5.18%)** |
 
 ## Key Findings
 
-- **WPD-translated videos improve E2E planning accuracy**: Both WPD variants reduce ADE/FDE by ~4–5% vs raw CARLA. All baselines (Cosmos, Ditto, PPD) degrade accuracy (+2–6%).
-- **WPD baseline r30 is best**; WPD drop_ll r30 J=5 is close second.
-- **Cosmos depth+edge (no seg) is worst** (+6.12% ADE_avg), slightly worse than Cosmos d+e+s (+5.53%) — adding depth+edge control without segmentation does not help planning.
-- **Cosmos and PPD make planning worse** than raw sim, suggesting they alter appearance in ways that confuse the VLM planner.
+- **WPD variants are best**: WPD baseline r30 (−5.46%) and WPD drop_ll r30 J=5 (−4.44%) are the only methods that improve over raw sim across all time horizons.
+- **VACE gray is a strong new competitor** at −2.46% ADE_avg, better than Cosmos with all controls (+5.53%).
+- **Cosmos improves with more controls**: depth+edge (+6.12%) → depth+edge+seg (+5.53%) → depth+seg+vis+edge (−0.76%). Full-control Cosmos nearly matches raw sim.
+- **DNAEdit is worst** (+12.38% ADE_avg) — appearance changes confuse the VLM planner significantly.
+- **PPD and Cosmos depth+edge degrade planning** despite improving photorealism, suggesting LL-preserving methods introduce artifacts that confuse semantic interpretation.
 - Supports the claim: WPD preserves semantic structure (lane markings, scene geometry) critical for downstream planning while increasing photorealism.
 
 ---

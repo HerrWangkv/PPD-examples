@@ -38,6 +38,7 @@ VARIANTS_ORDER = [
     "wpd_ppd_ckpt_r16",
     "wpd_ppd_ckpt_r20",
     "wpd_ppd_ckpt_r24",
+    "baseline_r4",
     "baseline_r8",
     "baseline_r10",
     "baseline_r12",
@@ -83,6 +84,7 @@ DISPLAY_NAMES = {
     "wpd_ppd_ckpt_r16":                      "WPD (PPD ckpt) r16",
     "wpd_ppd_ckpt_r20":                      "WPD (PPD ckpt) r20",
     "wpd_ppd_ckpt_r24":                      "WPD (PPD ckpt) r24",
+    "baseline_r4":                  "WPD baseline r4",
     "baseline_r8":                  "WPD baseline r8",
     "baseline_r10":                 "WPD baseline r10",
     "baseline_r12":                 "WPD baseline r12",
@@ -120,6 +122,7 @@ def load_variant(v):
     fid_log = f"{base}_fid_clean.log" if os.path.exists(f"{base}_fid_clean.log") else f"{base}_fid.log"
     return {
         "clip_iqa": extract(f"{base}_clipiqa.log", r"CLIP-IQA: ([\d.]+)"),
+        "clip_res": extract(f"{base}_clipres.log",  r"CLIP-Residual: ([\d.]+)"),
         "fid":      extract(fid_log,               r"FID:\s+([\d.]+)"),
         "kid":      extract(fid_log,               r"KID:\s+([\d.]+)"),
         "miou":     extract(f"{base}_miou.log",    r"mIoU: ([\d.]+)"),
@@ -135,7 +138,7 @@ def fmt(val, decimals=4):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sort", choices=["clip_iqa", "fid", "kid", "miou", "dep_ssim", "abs_rel", "lpips"], default=None)
+    parser.add_argument("--sort", choices=["clip_res", "clip_iqa", "fid", "kid", "miou", "dep_ssim", "abs_rel", "lpips"], default=None)
     parser.add_argument("--variants", nargs="+", default=None, help="Filter variants by substring")
     args = parser.parse_args()
 
@@ -167,7 +170,7 @@ def main():
     # Find best and second-best (excluding input)
     non_input = [(v, m) for v, m in rows if v != "input"]
     bests, seconds = {}, {}
-    for metric, higher_better in [("clip_iqa", True), ("fid", False), ("kid", False),
+    for metric, higher_better in [("clip_res", True), ("clip_iqa", True), ("fid", False), ("kid", False),
                                    ("miou", True), ("dep_ssim", True), ("abs_rel", False), ("lpips", False)]:
         vals = sorted(
             [(v, m[metric]) for v, m in non_input if m[metric] is not None],
@@ -180,7 +183,7 @@ def main():
 
     # Print table
     col_w = 26
-    header = f"{'Variant':<{col_w}} {'CLIP-IQA':>9} {'FID':>8} {'KID':>8} {'mIoU':>7} {'DepSSIM':>8} {'AbsRel':>8} {'LPIPS':>7}"
+    header = f"{'Variant':<{col_w}} {'KID':>8} {'FID':>8} {'CLIP-Res':>9} {'CLIP-IQA':>9} {'mIoU':>7} {'DepSSIM':>8} {'AbsRel':>8} {'LPIPS':>7}"
     print(header)
     print("-" * len(header))
 
@@ -198,9 +201,10 @@ def main():
             return s
 
         print(f"{name:<{col_w}} "
-              f"{mark('clip_iqa', m['clip_iqa']):>9} "
-              f"{mark('fid', m['fid'], 2):>8} "
               f"{mark('kid', m['kid']):>8} "
+              f"{mark('fid', m['fid'], 2):>8} "
+              f"{mark('clip_res', m['clip_res']):>9} "
+              f"{mark('clip_iqa', m['clip_iqa']):>9} "
               f"{mark('miou', m['miou'], 2):>7} "
               f"{mark('dep_ssim', m['dep_ssim']):>8} "
               f"{mark('abs_rel', m['abs_rel']):>8} "

@@ -1,0 +1,9 @@
+variant: vace_gray
+prompt_set: residual_v7
+pair0: 'Realistic materials.' / 'Plastic-looking materials.' = 0.2158
+pair1: 'A sharp real photo.' / 'A blurry computer render.' = 0.5988
+pair2: 'A photo with a clean lens.' / 'An image with rendered light bloom.' = 0.5471
+pair3: 'Realistic surface materials.' / 'Artificial plastic surfaces.' = 0.0145
+pair4: 'Natural material textures.' / 'Synthetic plastic textures.' = 0.4853
+frames: 2940
+CLIP-Residual: 0.3723

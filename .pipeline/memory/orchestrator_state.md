@@ -1,43 +1,38 @@
 # Orchestrator State
-_最后同步：2026-06-07_
+_最后同步：2026-06-13_
 
 ## 全局进度看板
 
-| Stage | Status | Notes |
-|-------|--------|-------|
-| Survey | ✅ done | 12 papers OCR'd; baselines confirmed |
-| Ideation | ✅ done | Two-track strategy; vKITTI+Hypersim operating points fixed |
-| Experiment | 🔄 in-progress | vKITTI+Hypersim+LightEMMA 5-method done; cosmos d+e eval running; dnaedit pending HPC |
-| Publication | 🚀 in-progress | Data nearly complete; writing not started |
+| 阶段 | 状态 | 备注 |
+|------|------|------|
+| Survey / Ideation | ✅ done | |
+| Experiment | ✅ done | v7 全量正式评估完成；三 benchmark 全指标定稿 |
+| Results/Slides | ✅ done | Results.md 定稿；ss26 已推送 (48c6fdc)；eval_video 已推送 (3910ba4) |
+| Publication 正文 | 🚀 待启动 | 理论实验 E1–E5 + Method/Experiment 写作 |
 
 ## 当前活跃任务
 
-| ID | Title | Status | Notes |
-|----|-------|--------|-------|
-| nucarla_lightemma_cosmos_depth_edge | Cosmos depth+edge LightEMMA eval | 🔄 running | tmux session; ~88% done (scene_0053/60) |
-| nucarla_dnaedit_translate | DNAEdit 60-scene translation | ⏳ blocked | guide_scale fixed to 1.0; wpd-dnaedit.sif ready; needs HPC transfer + sbatch submit |
-| nucarla_dnaedit_lightemma | DNAEdit LightEMMA eval | ⏳ pending | After translation |
-| nucarla_eval_video | eval_video (patch-sFID + motion_smoothness) new variants | ⏳ pending | cosmos_depth_edge + dnaedit |
-| publication | 论文写作 | 🚀 in-progress | 所有数据就绪，需立即开始 |
+| 任务 | 状态 |
+|------|------|
+| 主仓库 commit（gitignore + 评估脚本 + 日志 + Results.md + figures + submodule 指针）| 🔄 进行中（被 sync 打断）|
+| 理论实验 E1 子带域判别性 / E2 信息预算重分析 | ⏳ P0 |
+| Method/Experiment 正文写作 | ⏳ P0 |
 
 ## 最近完成任务（最近5条）
 
 | Task | Date | Key result |
 |------|------|-----------|
-| DNAEdit guide_scale fix + Apptainer 打包 | 2026-06-07 | guide_scale 5.0→1.0；wpd-dnaedit.sif (8.3 GB) 构建完成 |
-| nuCarla LightEMMA eval (5 methods) | 2026-06-07 | WPD baseline r30 best: ADE_avg −5.46%, FDE −5.18% vs raw sim |
-| extension_dropll_r30_J5 translation | 2026-06-07 | 100 scenes (0060–0159) complete |
-| Cosmos depth+edge translation | 2026-06-07 | 60/60 done |
-| Hypersim PPD r24 eval | 2026-06-03 | FID **67.64** (best on Hypersim) / KID 0.0457 / mIoU 0.3014 |
+| v7 全量正式评估 + per-variant 日志体系 | 06-13 | 54 logs；summarize_{vkitti,nucarla}_eval.py 一键复现 |
+| nuCarla paper/full table 定稿 | 06-13 | ours 六列全冠（CLIP+ADE×4+FDE）；MS 10/10 补齐 |
+| Ablation 1 三观察 + 4-panel 图 | 06-13 | KID 混杂论证（r24 反例 + 单调性）vs CLIP 解耦 |
+| Slides 全面更新推送 | 06-13 | S11–S18 + ψ-PD 命名（ss26 48c6fdc）|
+| eval_video 推送 | 06-13 | sFID/sKID + --tag + MS 结果（3910ba4）|
 
 ## 决策点
 
-1. **DNAEdit HPC**: 将 wpd-dnaedit.sif + repo rsync 至 HPC，更新 sbatch_dnaedit_nucarla.sh 中 REPO_DIR/DATA_DIR，提交 sbatch
-2. **开始写论文**: vKITTI + Hypersim benchmark 数据全部就绪；nuCarla LightEMMA 5/7 methods done（cosmos d+e + dnaedit 待补）
-3. **Gemini key**: 旧 key `AIzaSyC6I2igYAcvR9Uhyhz4wKURh0Su5lUJr9I` 暴露 — 需撤销
+无待决 — v7 口径、表格结构、slides 命名均已拍板。
 
 ## 下一步建议
 
-1. **立即**: rsync `wpd-dnaedit.sif` + repo → HPC，更新路径，`sbatch sbatch_dnaedit_nucarla.sh`
-2. **cosmos LightEMMA 完成后**: 运行 `cd LightEMMA && python calculate_metrics.py` 更新结果表
-3. **论文写作**: Method + Experiment 章节，三个 benchmark 数据全部就绪
+1. 完成主仓库 commit（继续被打断的操作）
+2. 启动 E1（CPU）+ Method 骨架写作 — 唯一剩余主线

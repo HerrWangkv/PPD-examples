@@ -18,3 +18,24 @@ my_sim2real_*/
 *.safetensors
 *.egg-info
 nucarla_cosmos_configs/
+nusc_val_cache/
+tmp_fake_all/
+tmp_fid_fake/
+tmp_fid_real/
+# metric caches (reproducible from scripts)
+/*.npy
+/*.npz
+dinov2_emb/
+models/ppd/
+models/ufd/
+debug_*.png
+
+# parallel patch-sfid temp dirs (--tag suffixed)
+tmp_fake_all*/
+tmp_fid_fake*/
+tmp_fid_real*/
+
+# keep per-variant nuCarla eval logs (like vkitti_eval/hypersim_eval)
+!logs/nucarla_eval/
+!logs/nucarla_eval/*.log
+*.sif

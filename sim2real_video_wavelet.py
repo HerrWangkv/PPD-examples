@@ -20,7 +20,7 @@ def parse_args():
     # --- Input/Output ---
     parser.add_argument("--rgb_video", type=str, required=True, help="Path to input RGB video")
     parser.add_argument("--output_video", type=str, default="output_wpd.mp4", help="Path for final output video")
-    parser.add_argument("--prompt", type=str, default="A photorealistic photograph taken from a forward-facing vehicle-mounted camera. Natural outdoor lighting, authentic surface textures, real-world colors.", help="Prompt for generation")
+    parser.add_argument("--prompt", type=str, default="A photorealistic driving scene filmed from a moving vehicle. Natural lighting, urban buildings, trees, cars on the street. High resolution, realistic textures.", help="Prompt for generation")
     parser.add_argument("--image-only", action="store_true", help="If set, only runs the Flux stage and saves the first frame image.")
 
     # --- Flux Arguments ---
