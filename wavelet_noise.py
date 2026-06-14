@@ -11,9 +11,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from pytorch_wavelets import DTCWTForward, DTCWTInverse
 from structured_noise import generate_structured_noise_batch_vectorized
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 def split_yh_to_C(yh_list, o_dim=2):
     """
