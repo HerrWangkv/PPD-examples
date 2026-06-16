@@ -1,9 +1,9 @@
 variant: cosmos_depth_seg_vis_edge_imgs
-prompt_set: residual_v7
-pair0: 'Realistic materials.' / 'Plastic-looking materials.' = 0.4997
-pair1: 'A sharp real photo.' / 'A blurry computer render.' = 0.4292
-pair2: 'A photo with a clean lens.' / 'An image with rendered light bloom.' = 0.2471
-pair3: 'Realistic surface materials.' / 'Artificial plastic surfaces.' = 0.0657
-pair4: 'Natural material textures.' / 'Synthetic plastic textures.' = 0.2265
+prompt_set: residual_v15
+pair0: 'A photo taken by a camera.' / 'A screenshot from a video game.' = 0.0264
+pair1: 'Realistic materials.' / 'Plastic-looking materials.' = 0.4997
+pair2: 'A crisp real photo.' / 'A soft computer render.' = 0.8542
+pair3: 'Photographic light gradients.' / 'CGI light gradients.' = 0.0678
+pair4: 'Atmospheric haze and aerial perspective.' / 'Clear, unscattered synthetic atmosphere.' = 0.3368
 images: 2126
-CLIP-Residual: 0.2936
+CLIP-Residual: 0.3570

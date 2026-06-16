@@ -1,0 +1,12 @@
+/storage_local/kwang/repos/PPD-examples/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[Cache] Using cached stats 'nuscenes_camfront_clean'
+
+=== dropll_r22_J4 ===
+  Extracted 2940 frames, computing FID and KID...
+Found 2940 images in the folder /tmp/kid_dropll_r22_J4_8ngsn5z5
+  0%|          | 0/6 [00:00<?, ?it/s] 17%|█▋        | 1/6 [00:12<01:03, 12.71s/it] 33%|███▎      | 2/6 [00:15<00:26,  6.72s/it] 50%|█████     | 3/6 [00:15<00:11,  4.00s/it] 67%|██████▋   | 4/6 [00:16<00:05,  2.60s/it] 83%|████████▎ | 5/6 [00:17<00:01,  1.97s/it]100%|██████████| 6/6 [00:18<00:00,  1.55s/it]100%|██████████| 6/6 [00:18<00:00,  3.02s/it]
+  FID = 94.4350  KID = 0.053290
+
+=== RESULTS (sorted by KID) ===
+  dropll_r22_J4                  FID = 94.4350  KID = 0.053290
