@@ -26,7 +26,7 @@ Frontier plot: `python plot_vkitti_frontier.py --output outputs/vkitti_frontier.
 
 ![Ablation 1 (4-panel)](figures/ablation1_4panel.png)
 
-Generate: `python plot_ablation1_4panel.py --output figures/ablation1_4panel.png --label-radii` (top row: KID axis; bottom row: CLIP-Residual axis). Legacy 2-panel KID-only version: `python plot_ablation_baseline_vs_ppd.py`.
+Generate: `python plot_ablation1_4panel.py --output figures/ablation1_4panel.png --label-radii` (top row: KID axis; bottom row: CLIP-Residual v15 axis). Legacy 2-panel KID-only version: `python plot_ablation_baseline_vs_ppd.py`.
 
 ### Per-class mIoU at r=12
 

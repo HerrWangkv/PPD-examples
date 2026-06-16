@@ -2,11 +2,11 @@
 Ablation 1, 4-panel version: PPD (FFT) vs ψ-PD baseline vs ψ-PD J=4 drop_ll.
 
 Top row    — x = KID (paired-reference distribution realism, inverted axis)
-Bottom row — x = CLIP-Residual v7 (no-reference perceptual realism)
+Bottom row — x = CLIP-Residual v15 (no-reference perceptual realism)
 Columns    — y = mIoU (left), Depth-SSIM (right)
 
-KID/mIoU/DepSSIM parsed from logs/vkitti_eval/; CLIP-Residual v7 values from
-plot_ablation_clip_residual.SCORES_V7 (logs/vkitti_eval/<v>_clipres.log).
+KID/mIoU/DepSSIM parsed from logs/vkitti_eval/; CLIP-Residual v15 values from
+plot_ablation_clip_residual.SCORES_V15 (logs/vkitti_eval/<v>_clipres.log).
 
 Usage:
     python plot_ablation1_4panel.py --output figures/ablation1_4panel.png --label-radii
@@ -20,9 +20,9 @@ import matplotlib.pyplot as plt
 from plot_ablation_baseline_vs_ppd import (
     COLORS, LABELS, MARKERS, RADII, INPUT, load_variant,
 )
-from plot_ablation_clip_residual import SCORES_V7, INPUT_CLIP_SETS
+from plot_ablation_clip_residual import SCORES_V15, INPUT_CLIP_SETS
 
-INPUT_CLIP = INPUT_CLIP_SETS["v7"]
+INPUT_CLIP = INPUT_CLIP_SETS["v15"]
 
 
 def style_ax(ax):
@@ -69,7 +69,7 @@ def main():
         return kid if kid is not None and kid < INPUT["kid"] else None
 
     def x_clip(key, r, data):
-        return SCORES_V7[key].get(r)
+        return SCORES_V15[key].get(r)
 
     fig, axes = plt.subplots(2, 2, figsize=(11, 9))
     fig.patch.set_facecolor("#0d0d1a")
