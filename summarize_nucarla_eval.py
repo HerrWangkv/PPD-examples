@@ -35,6 +35,7 @@ VARIANTS = [
     ("ppd_r30",                   "PPD r30",                "ppd",                       "ppd"),
     ("vace_gray",                 "VACE gray",              "vace_gray",                 "vace_gray"),
     ("dropll_r30_J5",             "WPD drop_ll r30 J=5 (ours)", "dropll_r30_J5",         "dropll_r30_J5"),
+    ("dropll_r22_J4",             "WPD drop_ll r22 J=4 (ours)", "dropll_r22_J4",         "dropll_r22_J4"),
     ("wavelet_r30",               "WPD baseline r30 (ours)", "wavelet",                  "wavelet"),
 ]
 
@@ -150,10 +151,13 @@ def main():
         m = {
             "fid":  kidfid.get(canon, (None, None))[0],
             "kid":  kidfid.get(canon, (None, None))[1],
-            "sfid": extract(f"{base}_sfid.log", r"sFID: ([\d.]+)"),
-            "skid": extract(f"{base}_sfid.log", r"sKID: ([\d.]+)"),
+            "sfid": (extract(f"{base}_patchfid.log", r"Score: ([\d.]+)") or
+                     extract(f"{base}_sfid.log",    r"sFID: ([\d.]+)")),
+            "skid": (extract(f"{base}_patchfid.log", r"KID: ([\d.]+)") or
+                     extract(f"{base}_sfid.log",    r"sKID: ([\d.]+)")),
             "cmmd": cmmd.get(canon),
-            "clip_res": extract(f"{base}_clipres.log", r"CLIP-Residual: ([\d.]+)"),
+            "clip_res": (extract(f"{base}_clipres.log", r"CLIP-Residual: ([\d.]+)") or
+                         extract(f"{base}_clipiqa.log", r"CLIP-IQA: ([\d.]+)")),
             "ms":   load_motion_smoothness(vb),
         }
         for key, lk in LIGHTEMMA_KEYS.items():

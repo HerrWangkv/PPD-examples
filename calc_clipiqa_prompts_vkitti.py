@@ -102,7 +102,7 @@ def main():
         results[v] = (s.mean(), s.mean(axis=0), len(s))
         pair_str = "  ".join(f"p{i}={x:.4f}" for i, x in enumerate(s.mean(axis=0)))
         print(f"  {v:<32} ensemble={s.mean():.4f}  {pair_str}  ({len(s)} imgs)")
-        if args.prompt_set == "residual_v7":
+        if args.prompt_set in ("residual_v7", "residual_v11", "residual_v13", "residual_v15", "residual_v19"):
             os.makedirs("logs/vkitti_eval", exist_ok=True)
             with open(f"logs/vkitti_eval/{v}_clipres.log", "w") as f:
                 f.write(f"variant: {v}\nprompt_set: {args.prompt_set}\n")

@@ -1,9 +1,9 @@
 variant: baseline_r10
-prompt_set: residual_v15
-pair0: 'A photo taken by a camera.' / 'A screenshot from a video game.' = 0.3382
+prompt_set: residual_v19
+pair0: 'A photo of real cars on a road.' / 'Computer graphics of cars on a road.' = 0.5161
 pair1: 'Realistic materials.' / 'Plastic-looking materials.' = 0.2165
-pair2: 'A crisp real photo.' / 'A soft computer render.' = 0.9936
-pair3: 'Photographic light gradients.' / 'CGI light gradients.' = 0.4536
-pair4: 'Atmospheric haze and aerial perspective.' / 'Clear, unscattered synthetic atmosphere.' = 0.0786
+pair2: 'A sharp real photo.' / 'A blurry computer render.' = 0.9493
+pair3: 'A photograph of a real place.' / 'A CGI scene.' = 0.1335
+pair4: 'A photo with natural colors.' / 'An image with artificial colors.' = 0.9239
 images: 2126
-CLIP-Residual: 0.4161
+CLIP-Residual: 0.5479

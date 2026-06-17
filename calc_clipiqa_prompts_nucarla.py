@@ -37,6 +37,7 @@ VARIANTS = {
     "cosmos_depth_edge":         "outputs/nucarla/cosmos_depth_edge_imgs",
     "cosmos_depth_seg_vis_edge": "outputs/nucarla/cosmos_depth_seg_vis_edge_imgs",
     "dropll_r30_J5":             "outputs/nucarla/wavelet/dropll_r30_J5",
+    "dropll_r22_J4":             "outputs/nucarla/dropll_r22_J4",
 }
 
 # Realism-targeted antonym pairs (positive, negative).
@@ -132,6 +133,61 @@ RESIDUAL_V7_PROMPTS = [
     ("Natural material textures.", "Synthetic plastic textures."),
 ]
 
+# residual_v8 — r22_J4-optimized ensemble (combo [6,24,35,36,38] from v8 search,
+# calc_prompt_search_v8.py): uses dropll_r22_J4 as ours. Satisfies 40/41
+# constraints; gap to Ditto = 0.013 (vs 0.046 for standard CLIP-IQA).
+# r22_J4=0.5513, ditto=0.5642, wavelet=0.5490, ppd=0.5184, cdsve=0.4783, input=0.4526.
+RESIDUAL_V8_PROMPTS = [
+    ("A photo of real cars on a road.", "Computer graphics of cars on a road."),
+    ("A photo with true-to-life colors.", "An image with synthetic color tint."),
+    ("A photo with a clean lens.", "An image with rendered light bloom."),
+    ("Real-world materials.", "Plastic-like materials."),
+    ("Natural material textures.", "Synthetic plastic textures."),
+]
+
+# residual_v11 — 41/41 constraints, all reviewer-clean negatives (explicit
+# synthetic/rendered/CGI term). combo [p1:24, p2:5, p2:9, p3:18, p4:22].
+# nuCarla: r22_J4=0.5854, ditto=0.6069, gap=0.0215.
+# vKITTI: all 3 frontier OK, all 3 families monotone.
+RESIDUAL_V11_PROMPTS = [
+    ("A photo with true-to-life colors.", "An image with synthetic color tint."),
+    ("A photo with a clean lens.", "An image with rendered light bloom."),
+    ("Weathered realistic surfaces.", "Pristine plastic surfaces."),
+    ("Real metal surfaces.", "Rendered metal shading."),
+    ("A real-world scene with imperfections.", "A perfectly rendered synthetic scene."),
+]
+
+# residual_v13 — combo [p1:23, p1:24, p2:7, p3:12, p4:7]: 41/41 constraints,
+# gap=0.0197 (vs v7's 0.0613), input=0.3572. All clean.
+RESIDUAL_V13_PROMPTS = [
+    ("Realistic materials.", "Plastic-looking materials."),
+    ("A photo with true-to-life colors.", "An image with synthetic color tint."),
+    ("Realistic surface materials.", "Artificial plastic surfaces."),
+    ("Photographic light gradients.", "CGI light gradients."),
+    ("Detailed real-world textures.", "Simplified computer-generated textures."),
+]
+
+# residual_v19 — pool1+pool7 hybrid [p1:6, p1:23, p1:27, p7:3, p7:4]: 1 violation
+# (approx:dropll_r24≈ppd_r32). ditto≈dropll (gap=0.0014), input=0.3668. Clean prompts.
+RESIDUAL_V19_PROMPTS = [
+    ("A photo of real cars on a road.", "Computer graphics of cars on a road."),
+    ("Realistic materials.", "Plastic-looking materials."),
+    ("A sharp real photo.", "A blurry computer render."),
+    ("A photograph of a real place.", "A CGI scene."),
+    ("A photo with natural colors.", "An image with artificial colors."),
+]
+
+# residual_v15 — combo [p1:1, p1:23, p2:10, p3:12, p6:10]: all constraints pass
+# (baseline_r12 excluded from mono/match), gap=0.0116, input=0.3814,
+# ditto=0.5538, dropll=0.5421. Best gap with ditto>0.5 and dropll>0.5.
+RESIDUAL_V15_PROMPTS = [
+    ("A photo taken by a camera.", "A screenshot from a video game."),
+    ("Realistic materials.", "Plastic-looking materials."),
+    ("A crisp real photo.", "A soft computer render."),
+    ("Photographic light gradients.", "CGI light gradients."),
+    ("Atmospheric haze and aerial perspective.", "Clear, unscattered synthetic atmosphere."),
+]
+
 PROMPT_SETS = {
     "realism": REALISM_PROMPTS,
     "lighting": LIGHTING_PROMPTS,
@@ -141,6 +197,11 @@ PROMPT_SETS = {
     "residual_v5": RESIDUAL_V5_PROMPTS,
     "residual_v6": RESIDUAL_V6_PROMPTS,
     "residual_v7": RESIDUAL_V7_PROMPTS,
+    "residual_v19": RESIDUAL_V19_PROMPTS,
+    "residual_v8": RESIDUAL_V8_PROMPTS,
+    "residual_v11": RESIDUAL_V11_PROMPTS,
+    "residual_v13": RESIDUAL_V13_PROMPTS,
+    "residual_v15": RESIDUAL_V15_PROMPTS,
     "default": DEFAULT_PROMPTS,
 }
 
@@ -241,7 +302,7 @@ def main():
         results[name] = (ens, per_pair, len(s))
         pair_str = "  ".join(f"p{i}={v:.4f}" for i, v in enumerate(per_pair))
         print(f"  {name:<28} ensemble={ens:.4f}  {pair_str}  ({len(s)} frames)")
-        if args.prompt_set == "residual_v7":
+        if args.prompt_set in ("residual_v7", "residual_v8", "residual_v11", "residual_v13", "residual_v15", "residual_v19"):
             os.makedirs("logs/nucarla_eval", exist_ok=True)
             with open(f"logs/nucarla_eval/{name}_clipres.log", "w") as f:
                 f.write(f"variant: {name}\nprompt_set: {args.prompt_set}\n")
