@@ -29,3 +29,6 @@
 [submodule "ss26"]
 	path = ss26
 	url = git@gitlab.mrt.kit.edu:kwang/ss26.git
+[submodule "WACV-2027-WPD"]
+	path = WACV-2027-WPD
+	url = https://github.com/HerrWangkv/WACV-2027-WPD
