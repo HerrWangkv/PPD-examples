@@ -98,10 +98,8 @@ def run_flux_stage(args, first_frame_pil, device):
     with torch.no_grad():
         # Encode original image to get content structure (Phase)
         image_tensor = pipe.preprocess_image(first_frame_pil).to(device=device, dtype=pipe.torch_dtype)
-        input_latents = pipe.vae_encoder(image_tensor, tiled=False)
-        
-        # Generate PPD Noise
-        # Using Disparity directly (no inversion needed if input is Disparity)
+        input_latents = pipe.vae_encoder(image_tensor, tiled=False).to(device)
+
         noise = generate_structured_noise_batch_vectorized(
             image_batch=input_latents,
             cutoff_radius=args.flux_cutoff_radius,
@@ -199,7 +197,7 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, device):
             # input_latents[0] is (C, T, H, W). 
             # Wavelet function expects (Batch, C, H, W). We treat T as Batch.
             # Transpose to (T, C, H, W)
-            latents_for_noise = input_latents[0].transpose(0, 1).float()
+            latents_for_noise = input_latents[0].transpose(0, 1).float().to(device)
             
             input_noise_random = torch.randn_like(latents_for_noise)
             

@@ -151,7 +151,7 @@ def process_video(args, rgb_video_path, output_video_path, flux_pipe, wan_pipe, 
             pixel_values = wan_pipe.preprocess_video(chunk_frames).to(device=device, dtype=torch.bfloat16)
             input_latents = wan_pipe.vae.encode(pixel_values, device=device, tiled=True)
             
-            latents_for_noise = input_latents[0].transpose(0, 1).float()
+            latents_for_noise = input_latents[0].transpose(0, 1).float().to(device=device)  # (C, T, H, W)
             input_noise_random = torch.randn_like(latents_for_noise)
             
             structured_noise = generate_structured_noise_batch_vectorized(

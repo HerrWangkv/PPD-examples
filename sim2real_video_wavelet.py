@@ -97,7 +97,7 @@ def run_flux_stage(args, first_frame_pil, device):
 
     with torch.no_grad():
         image_tensor = pipe.preprocess_image(first_frame_pil).to(device=device, dtype=pipe.torch_dtype)
-        input_latents = pipe.vae_encoder(image_tensor, tiled=False)
+        input_latents = pipe.vae_encoder(image_tensor, tiled=False).to(device)
 
         noise = generate_wavelet_structured_noise_batch_vectorized(
             image_batch=input_latents,
@@ -174,8 +174,7 @@ def run_wan_stage(args, first_frame_gen, rgb_frames_pil, device):
             input_latents = pipe.vae.encode(pixel_values, device=device, tiled=True)
 
             # (T, C, H, W) — treat temporal frames as batch for noise generation
-            latents_for_noise = input_latents[0].transpose(0, 1).float()
-
+            latents_for_noise = input_latents[0].transpose(0, 1).float().to(device)
             structured_noise = generate_wavelet_structured_noise_batch_vectorized(
                 image_batch=latents_for_noise,
                 radius_map=args.wan_cutoff_radius,
