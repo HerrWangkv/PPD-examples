@@ -15,7 +15,7 @@ run_variant() {
     local WAN_R=$3
     local TAG="fr${FLUX_R}_wr${WAN_R}_J4"
     echo "=== [GPU $GPU] $TAG ==="
-    docker run --rm --gpus "\"device=$GPU\"" \
+    docker run -it --rm --gpus "\"device=$GPU\"" \
         --name "asym_${TAG}" \
         -v "$(pwd):/workspace" \
         -v /mrtstorage:/mrtstorage \
@@ -30,15 +30,12 @@ run_variant() {
                 --wan_low_lora $WAN_LOW \
                 --wan_high_lora $WAN_HIGH \
                 --wan_cutoff_radius $WAN_R --wan_drop_ll --wan_J 4
-        " &
+        "
 }
 
 mkdir -p "$OUT"
 
-run_variant 0 30 8
-run_variant 1 30 16
-run_variant 2 24 8
-run_variant 3 24 16
+run_variant 1 22 22
 
 wait
 echo "=== All done. Results in $OUT/ ==="

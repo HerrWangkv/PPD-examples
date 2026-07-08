@@ -63,6 +63,8 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--skip_denoise", action="store_true",
                         help="VAE encode+decode only, skip denoising (for testing save pipeline)")
+    parser.add_argument("--src_prompt", type=str, default=None)
+    parser.add_argument("--tgt_prompt", type=str, default=None)
     return parser.parse_args()
 
 
@@ -123,10 +125,12 @@ def main():
             else:
                 result = None
         else:
+            src_prompt = args.src_prompt if args.src_prompt else SRC_PROMPT
+            tgt_prompt = args.tgt_prompt if args.tgt_prompt else TGT_PROMPT
             result = model.edit_DNAEdit(
                 video_tensor,
-                SRC_PROMPT,
-                TGT_PROMPT,
+                src_prompt,
+                tgt_prompt,
                 size=size_tuple,
                 frame_num=args.frame_num,
                 sampling_steps=args.sample_steps,

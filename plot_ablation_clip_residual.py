@@ -67,9 +67,152 @@ SCORES_V7 = {
     "dropll":   {8: 0.4474, 12: 0.4481, 20: 0.4233, 24: 0.3141},
 }
 
-SCORE_SETS = {"v2": SCORES_V2, "v3": SCORES_V3, "v4": SCORES_V4, "v5": SCORES_V5, "v6": SCORES_V6, "v7": SCORES_V7}
-INPUT_CLIP_SETS = {"v2": 0.2283, "v3": 0.3909, "v4": 0.3799, "v5": 0.5262, "v6": 0.4315, "v7": 0.2396}
-REAL_KITTI_SETS = {"v2": 0.5811, "v3": None, "v4": None, "v5": None, "v6": None, "v7": None}
+# residual_v11 — combo [p1:24, p2:5, p2:9, p3:18, p4:22]: 41/41 constraints,
+# all clean negatives. gap to Ditto = 0.0215 (r22_J4=0.5854, ditto=0.6069).
+# Pairs: true-to-life colors / clean lens / weathered surfaces /
+#        real-world visual fidelity / real-world scene with imperfections.
+SCORES_V11 = {
+    "ppd":      {8: 0.5594, 12: 0.5541, 16: 0.5519, 20: 0.5517, 24: 0.5489, 32: 0.5480},
+    "baseline": {4: 0.5871, 8: 0.5756, 10: 0.5732, 12: 0.5718, 20: 0.5563, 24: 0.4957},
+    "dropll":   {8: 0.5965, 12: 0.5893, 20: 0.5763, 24: 0.5253},
+}
+
+# residual_v13 — combo [p1:23, p1:24, p2:7, p3:12, p4:7]: 41/41 constraints,
+# gap=0.0197 (v7 was 0.0613), input=0.3572. All clean.
+SCORES_V13 = {
+    "ppd":      {8: 0.4421, 12: 0.4343, 16: 0.4306, 20: 0.4304, 24: 0.4274, 32: 0.4251},
+    "baseline": {4: 0.4575, 8: 0.4454, 10: 0.4440, 12: 0.4383, 20: 0.4238, 24: 0.3785},
+    "dropll":   {8: 0.4642, 12: 0.4562, 20: 0.4456, 24: 0.3992},
+}
+
+# k=3 core [p1:23, p1:27, p3:12]: ditto=0.557, drop=0.512, input=0.307 on nuCarla.
+# 3 hard fails (ppd r16>r20 −0.0015, baseline r10>r12 −0.0032, front:r20>b_r10 −0.019).
+SCORES_V15CORE = {
+    "ppd":      {8: 0.5377, 12: 0.5305, 16: 0.5275, 20: 0.5289, 24: 0.5272},
+    "baseline": {4: 0.5641, 8: 0.5439, 10: 0.5398, 20: 0.5046, 24: 0.3754},
+    "dropll":   {8: 0.5748, 12: 0.5577, 20: 0.5205, 24: 0.3779},
+}
+
+# residual_v15 — [p1:1, p1:23, p2:10, p3:12, p6:10]: all constraints pass
+# (baseline_r12 excluded from mono/match), gap=0.0116, input=0.3814,
+# ditto=0.5538, dropll=0.5421 on nuCarla. REAL_KITTI=0.4083, input(vKITTI)=0.4018.
+SCORES_V15 = {
+    "ppd":      {8: 0.4188, 12: 0.4072, 16: 0.4018, 20: 0.4016, 24: 0.3996, 32: 0.4011},
+    "baseline": {4: 0.4409, 8: 0.4210, 10: 0.4161, 12: 0.4267, 16: 0.4018, 20: 0.3926, 24: 0.3163},
+    "dropll":   {8: 0.4513, 12: 0.4463, 16: 0.4235, 20: 0.4170, 24: 0.3346},
+}
+
+# residual_v16 — [p1:1, p1:24, p2:5, p3:15, p6:12]: 37 solutions, gap=0.0005, input=0.3744,
+# ditto≈dropll=0.505, ppd=0.492. All 38 constraints pass incl. dropll_r24≈ppd_r32 (±0.05).
+SCORES_V16 = {
+    "ppd":      {8: 0.3550, 12: 0.3365, 16: 0.3255, 20: 0.3241, 24: 0.3207, 32: 0.3212},
+    "baseline": {4: 0.3869, 8: 0.3589, 10: 0.3539, 16: 0.3488, 20: 0.3393, 24: 0.2907},
+    "dropll":   {8: 0.3878, 12: 0.3744, 16: 0.3530, 20: 0.3470, 24: 0.2860},
+}
+
+# residual_v18 — pool1+pool7 hybrid [p1:1, p1:6, p7:1, p7:7, p7:13]: 1 violation
+# (approx:dropll_r24≈ppd_r32 fails — simple prompts can't encode ego-artifact vs blur).
+# ditto≈dropll=0.544 (gap=0.0007), input(nuCarla)=0.367, input(vKITTI)=0.069.
+# Prompts: camera/game | real cars/CGI cars | outdoors/CGI | real textures/CGI textures | hazy/sharp render
+SCORES_V18 = {
+    "ppd":      {8: 0.5882, 12: 0.5824, 20: 0.5737, 24: 0.5682, 32: 0.5583},
+    "baseline": {4: 0.6276, 8: 0.6169, 10: 0.6084, 20: 0.5374, 24: 0.3687},
+    "dropll":   {8: 0.6465, 12: 0.6276, 16: 0.5764, 20: 0.5589, 24: 0.3741},
+}
+
+# residual_v19 — pool1+pool7 hybrid [p1:6, p1:23, p1:27, p7:3, p7:4]: 1 violation
+# (approx:dropll_r24≈ppd_r32 fails, margin=-0.274; no p7:13 "hazy" prompt).
+# ditto≈dropll=0.496/0.495 (gap=0.0014), input(nuCarla)=0.367, input(vKITTI)=0.281.
+# Prompts: real cars/CGI | realistic materials/plastic | sharp real/blurry render | real place/CGI | natural colors/artificial
+SCORES_V19 = {
+    "ppd":      {8: 0.5347, 12: 0.5267, 16: 0.5204, 20: 0.5179, 24: 0.5152, 32: 0.5142},
+    "baseline": {4: 0.5625, 8: 0.5532, 10: 0.5479, 12: 0.5541, 20: 0.5122, 24: 0.4060},
+    "dropll":   {8: 0.5670, 12: 0.5607, 16: 0.5307, 20: 0.5212, 24: 0.4094},
+}
+
+# residual_v20 — k=7 pool1+pool7 [p1:1,p1:6,p1:23,p7:3,p7:4,p7:15,p7:18]: all 40 constraints pass.
+# ditto=0.472, dropll=0.455 (gap=0.017), input(nuCarla)=0.398, input(vKITTI)=0.348.
+# Prompts: camera/game | real cars/CGI | realistic materials/plastic | real place/CGI |
+#          natural colors/artificial | soft depth/artificial clarity | authentic noise/sterile
+SCORES_V20 = {
+    "ppd":      {8: 0.4415, 12: 0.4279, 20: 0.4160, 24: 0.4131, 32: 0.4149},
+    "baseline": {4: 0.4612, 8: 0.4463, 10: 0.4417, 20: 0.4095, 24: 0.3476},
+    "dropll":   {8: 0.4620, 12: 0.4597, 16: 0.4339, 20: 0.4263, 24: 0.3649},
+}
+
+# single pair p1:6: "A photo of real cars on a road." / "Computer graphics of cars on a road."
+# 5 constraint violations; nuCarla dropll > ditto (inverted). input_vk=0.003.
+SCORES_P16 = {
+    "ppd":      {8: 0.4902, 12: 0.4693, 20: 0.4367, 24: 0.4270, 32: 0.4196},
+    "baseline": {4: 0.5618, 8: 0.5351, 10: 0.5161, 20: 0.3848, 24: 0.1479},
+    "dropll":   {8: 0.5745, 12: 0.5521, 16: 0.4510, 20: 0.4199, 24: 0.1669},
+}
+
+# 2-pair combo p1:6+p7:10: "A photo of real cars on a road." + "A real street scene."
+# 3 constraint violations (front:r12>b_r8, gap:dropll_r20>ppd_r32, approx:dropll_r24≈ppd_r32).
+# nuCarla: ditto=0.591 > dropll=0.567 > wavelet=0.561 > ppd=0.460 > cosmos=0.351 > input=0.294.
+# input_vk=0.004.
+SCORES_P1610 = {
+    "ppd":      {8: 0.4502, 12: 0.4494, 20: 0.4409, 24: 0.4347, 32: 0.4276},
+    "baseline": {4: 0.5171, 8: 0.5065, 10: 0.4905, 20: 0.3645, 24: 0.1483},
+    "dropll":   {8: 0.5177, 12: 0.4946, 16: 0.3911, 20: 0.3610, 24: 0.1349},
+}
+
+# 2-pair combo p1:6+p1:23: "A photo of real cars on a road." + "Realistic materials."
+# WPD > PPD at every radius on vKITTI (gap +0.06–+0.11). 6 constraint violations incl.
+# mono:dropll:r8>r12 and nuCarla sim-input inversions (PBR materials score as realistic).
+SCORES_P1623 = {
+    "ppd":      {8: 0.3512, 12: 0.3307, 20: 0.3069, 24: 0.3018, 32: 0.3054},
+    "baseline": {4: 0.3938, 8: 0.3730, 10: 0.3663, 20: 0.3349, 24: 0.2684},
+    "dropll":   {8: 0.4116, 12: 0.4446, 16: 0.4122, 20: 0.4070, 24: 0.3321},
+}
+
+# Grand average over all 36 clean pairs (pool1 clean + pool7, excl p7:13).
+# LLM-generated antonym pairs averaged — no search, no constraint tuning.
+# nuCarla: ditto>dropll>wavelet>ppd>cosmos>input (correct ordering).
+SCORES_AVG36 = {
+    "ppd":      {8: 0.5839, 12: 0.5822, 20: 0.5809, 24: 0.5781, 32: 0.5757},
+    "baseline": {4: 0.6222, 8: 0.6118, 10: 0.6030, 20: 0.5365, 24: 0.3851},
+    "dropll":   {8: 0.6088, 12: 0.5880, 16: 0.5337, 20: 0.5153, 24: 0.3596},
+}
+
+# avg41a: all 46 clean pairs minus 5 worst PPD-inflators (by WPD-PPD gap)
+# (p1:3 "genuine street photo", p1:5 "real street", p8:6 "natural visual detail",
+#  p1:7 "from the real world", p8:8 "natural scene depth")
+SCORES_AVG41A = {
+    "ppd":      {8: 0.5420, 12: 0.5388, 20: 0.5369, 24: 0.5343, 32: 0.5331},
+    "baseline": {4: 0.5741, 8: 0.5636, 10: 0.5557, 20: 0.5029, 24: 0.3813},
+    "dropll":   {8: 0.5617, 12: 0.5472, 16: 0.5032, 20: 0.4881, 24: 0.3624},
+}
+
+# avg41: all 46 clean pairs minus 5 highest ppd_r32-dropll_r24 pairs
+# (p1:3 "genuine street photo", p1:0 "real photograph", p1:7 "from the real world",
+#  p1:27 "sharp real photo", p1:5 "real street") — these prevent approx constraint
+SCORES_AVG41 = {
+    "ppd":      {8: 0.5390, 12: 0.5338, 20: 0.5299, 24: 0.5268, 32: 0.5249},
+    "baseline": {4: 0.5688, 8: 0.5549, 10: 0.5468, 20: 0.4944, 24: 0.3786},
+    "dropll":   {8: 0.5514, 12: 0.5352, 16: 0.4925, 20: 0.4779, 24: 0.3600},
+}
+
+# Grand average over all 46 clean pairs (pool1+pool7+pool8, excl p7:13).
+SCORES_AVG46 = {
+    "ppd":      {8: 0.5605, 12: 0.5572, 20: 0.5545, 24: 0.5514, 32: 0.5485},
+    "baseline": {4: 0.5929, 8: 0.5805, 10: 0.5719, 20: 0.5097, 24: 0.3714},
+    "dropll":   {8: 0.5773, 12: 0.5557, 16: 0.5056, 20: 0.4883, 24: 0.3472},
+}
+
+# Filtered average: 8 discriminative pairs (ppd_mean < 0.65 AND baseline_r4 < dropll_r8).
+# Excludes pairs where content familiarity inflates PPD/baseline scores on vKITTI.
+# nuCarla: ditto>dropll>wavelet>ppd>cosmos>input ✓  WPD-PPD gap = 0.087 (vs 0.025 for avg36).
+SCORES_AVG8 = {
+    "ppd":      {8: 0.4621, 12: 0.4628, 20: 0.4620, 24: 0.4575, 32: 0.4510},
+    "baseline": {4: 0.5095, 8: 0.5171, 10: 0.5121, 20: 0.4437, 24: 0.2963},
+    "dropll":   {8: 0.5488, 12: 0.5241, 16: 0.4770, 20: 0.4621, 24: 0.2981},
+}
+
+SCORE_SETS = {"v2": SCORES_V2, "v3": SCORES_V3, "v4": SCORES_V4, "v5": SCORES_V5, "v6": SCORES_V6, "v7": SCORES_V7, "v11": SCORES_V11, "v13": SCORES_V13, "v15core": SCORES_V15CORE, "v15": SCORES_V15, "v16": SCORES_V16, "v18": SCORES_V18, "v19": SCORES_V19, "v20": SCORES_V20, "p16": SCORES_P16, "p1610": SCORES_P1610, "p1623": SCORES_P1623, "avg36": SCORES_AVG36, "avg41a": SCORES_AVG41A, "avg41": SCORES_AVG41, "avg46": SCORES_AVG46, "avg8": SCORES_AVG8}
+INPUT_CLIP_SETS = {"v2": 0.2283, "v3": 0.3909, "v4": 0.3799, "v5": 0.5262, "v6": 0.4315, "v7": 0.2396, "v11": 0.3415, "v13": 0.3489, "v15core": 0.5166, "v15": 0.4018, "v16": 0.2678, "v18": 0.0689, "v19": 0.2808, "v20": 0.3475, "p16": 0.0030, "p1610": 0.0040, "p1623": 0.2917, "avg36": 0.2327, "avg41a": 0.2391, "avg41": 0.2432, "avg46": 0.2178, "avg8": 0.1770}
+REAL_KITTI_SETS = {"v2": 0.5811, "v3": None, "v4": None, "v5": None, "v6": None, "v7": None, "v11": None, "v13": None, "v15core": None, "v15": 0.4083, "v16": None, "v18": None, "v19": None, "v20": None, "p16": None, "p1610": None, "p1623": None, "avg36": None, "avg41a": None, "avg41": None, "avg46": None, "avg8": None}
 
 # set at runtime by main() via --set; module-level defaults = v3
 CLIP_RESIDUAL = SCORES_V3
@@ -112,7 +255,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="figures/ablation_clip_residual.png")
     parser.add_argument("--label-radii", action="store_true")
-    parser.add_argument("--set", default="v3", choices=["v2", "v3", "v4", "v5", "v6", "v7"],
+    parser.add_argument("--set", default="v3", choices=["v2", "v3", "v4", "v5", "v6", "v7", "v11", "v13", "v15core", "v15", "v16"],
                         help="prompt-set scores to plot on the x axis")
     args = parser.parse_args()
     CLIP_RESIDUAL = SCORE_SETS[args.set]

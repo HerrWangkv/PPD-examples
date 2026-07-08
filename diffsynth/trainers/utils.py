@@ -1,4 +1,6 @@
 import imageio, os, torch, warnings, torchvision, argparse, json
+from datetime import datetime
+from accelerate.utils import ProjectConfiguration
 from ..utils import ModelConfig
 from ..models.utils import load_state_dict
 from peft import LoraConfig, inject_adapter_in_model
@@ -543,24 +545,45 @@ def launch_training_task(
     optimizer = torch.optim.AdamW(model.trainable_modules(), lr=learning_rate, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer)
     dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, collate_fn=lambda x: x[0], num_workers=num_workers)
+    output_path = args.output_path if args is not None and hasattr(args, "output_path") else "."
+    config = ProjectConfiguration(project_dir=output_path, logging_dir=os.path.join(output_path, "logs"))
     accelerator = Accelerator(
+        log_with="tensorboard",
+        project_config=config,
         gradient_accumulation_steps=gradient_accumulation_steps,
         kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=find_unused_parameters)],
     )
     model, optimizer, dataloader, scheduler = accelerator.prepare(model, optimizer, dataloader, scheduler)
-    
+
+    # Inject accelerator into the raw model so pipe.device / vae_device follow the rank device.
+    raw_model = accelerator.unwrap_model(model)
+    if hasattr(raw_model, "set_accelerator"):
+        raw_model.set_accelerator(accelerator)
+
+    accelerator.init_trackers(datetime.now().strftime("%Y%m%d_%H%M%S"))
+
+    # Val at step 0 (baseline before any training)
+    # if hasattr(raw_model, "run_val") and accelerator.is_main_process:
+    #     raw_model.run_val(step=0)
+
+    global_step = 0
     for epoch_id in range(num_epochs):
         for data in tqdm(dataloader):
             with accelerator.accumulate(model):
                 optimizer.zero_grad()
                 if dataset.load_from_cache:
-                    loss = model({}, inputs=data)
+                    loss = model({}, inputs=data, step=global_step)
                 else:
-                    loss = model(data)
+                    loss = model(data, step=global_step)
                 accelerator.backward(loss)
                 optimizer.step()
                 model_logger.on_step_end(accelerator, model, save_steps)
+                # Val after each checkpoint save, inline on rank 0
+                # if hasattr(raw_model, "run_val") and accelerator.is_main_process and save_steps is not None:
+                #     if model_logger.num_steps % save_steps == 0:
+                #         raw_model.run_val(step=model_logger.num_steps)
                 scheduler.step()
+                global_step += 1
         if save_steps is None:
             model_logger.on_epoch_end(accelerator, model, epoch_id)
     model_logger.on_training_end(accelerator, model, save_steps)

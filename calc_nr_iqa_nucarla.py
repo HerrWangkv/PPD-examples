@@ -29,6 +29,7 @@ VARIANTS = {
     "cosmos_depth_edge":         "outputs/nucarla/cosmos_depth_edge_imgs",
     "cosmos_depth_seg_vis_edge": "outputs/nucarla/cosmos_depth_seg_vis_edge_imgs",
     "dropll_r30_J5":             "outputs/nucarla/wavelet/dropll_r30_J5",
+    "dropll_r22_J4":             "outputs/nucarla/dropll_r22_J4",
 }
 
 METRICS = ["niqe", "musiq", "topiq_nr"]  # niqe: lower better; others: higher better

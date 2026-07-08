@@ -21,6 +21,7 @@ VARIANTS = {
     "cosmos_depth_edge":         "outputs/nucarla/cosmos_depth_edge_imgs",
     "cosmos_depth_seg_vis_edge": "outputs/nucarla/cosmos_depth_seg_vis_edge_imgs",
     "dropll_r30_J5":             "outputs/nucarla/wavelet/dropll_r30_J5",
+    "dropll_r22_J4":             "outputs/nucarla/dropll_r22_J4",
 }
 
 
@@ -58,9 +59,15 @@ feat_model = build_feature_extractor(MODE, device, use_dataparallel=False)
 ref_mu, ref_sigma = get_reference_statistics(STATS_NAME, "na", mode=MODE, seed=0, split="custom", metric="FID")
 ref_kid_feats = get_reference_statistics(STATS_NAME, "na", mode=MODE, seed=0, split="custom", metric="KID")
 
+import argparse, sys
+_p = argparse.ArgumentParser()
+_p.add_argument("--variants", nargs="+", default=None)
+_args, _ = _p.parse_known_args()
+
 # --- Evaluate each variant ---
 results = {}
-for name, vid_dir in VARIANTS.items():
+_active = {k: v for k, v in VARIANTS.items() if _args.variants is None or k in _args.variants}
+for name, vid_dir in _active.items():
     print(f"\n=== {name} ===")
     if not os.path.isdir(vid_dir):
         print(f"  Directory not found: {vid_dir}, skipping.")

@@ -84,15 +84,21 @@ def load_kid_fid():
     return out
 
 
+CMMD_SUPPLEMENTAL = {
+    # Values appended separately (log file had tqdm noise preventing regex parse)
+    "dropll_r22_J4": 2.9844,
+}
+
 def load_cmmd():
     out = {}
     path = "logs/cmmd_nucarla.log"
     if not os.path.exists(path):
-        return out
+        return {**CMMD_SUPPLEMENTAL}
     for line in open(path):
         m = re.match(r"\s*(\S+)\s+CMMD = ([\d.]+)", line)
         if m:
             out[m.group(1)] = float(m.group(2))
+    out.update(CMMD_SUPPLEMENTAL)
     return out
 
 

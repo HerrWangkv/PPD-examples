@@ -43,7 +43,11 @@ BASELINE_KEY = {
     12: "baseline_r12", 16: "baseline_newprompt",
     20: "baseline_r20", 24: "baseline_r24",
 }
-_KEY_OVERRIDES = {"baseline": BASELINE_KEY}
+DROPLL_J4_KEY = {
+    8: "dropll_J4_r8", 12: "dropll_J4_r12", 16: "dropll_step6000_J4",
+    20: "dropll_J4_r20", 24: "dropll_J4_r24",
+}
+_KEY_OVERRIDES = {"baseline": BASELINE_KEY, "dropll_J4": DROPLL_J4_KEY}
 
 
 def extract(path, pattern):
